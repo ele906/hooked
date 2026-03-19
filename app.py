@@ -16,18 +16,17 @@ def sql_cmd(command, params=(), fetch=False):
     conn.close()
     return result
 
-@app.route("/", methods=["POST"])
+@app.route("/api/songs/action", methods=["POST"])
 def store_interaction():
     data = request.get_json()
 
     sql_cmd(
         "INSERT INTO interactions (user_id, song_id, type) VALUES (%s, %s, %s);",
-        (data["user_id"], data["song_id"], data["action"]),
-        fetch = True
+        (data["user_id"], data["song_id"], data["action"])
     )
     return jsonify({"status": "ok"}), 201
 
-@app.route("/", methods=["GET"])
+@app.route("/api/songs/liked", methods=["GET"])
 def get_liked_songs():
     user_id = request.args.get("user_id")
 
@@ -41,7 +40,7 @@ def get_liked_songs():
         WHERE l.user_id = %s
         ORDER BY l.created_at DESC;
         """, 
-        (user_id),
+        (user_id, ),
         fetch = True
     )
 
@@ -54,23 +53,32 @@ def get_liked_songs():
             "liked_at":         r[5]
         } for r in rows])
 
-@app.route("/", methods=["GET"])
-def get_song():
-    song_id = request.args.get("song_id")
 
+@app.route("/api/songs/next", methods=["GET"])
+def next_song():
+    user_id = request.args.get("user_id")
     rows = sql_cmd("""
-        SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
-            a.artist_name
-        FROM songs s
-        JOIN song_artists sa ON s.song_id = sa.song_id
-        JOIN artists a ON sa.artist_id = a.artist_id
-        WHERE s.song_id = %s;
-    """, (song_id,), fetch=True)
+            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
+                a.artist_name
+            FROM songs s
+            JOIN song_artists sa ON s.song_id = sa.song_id
+            JOIN artists a ON sa.artist_id = a.artist_id
+            WHERE s.song_id NOT IN (
+                SELECT song_id FROM liked WHERE user_id = %s
+                UNION
+                SELECT song_id FROM disliked WHERE user_id = %s
+            )
+            LIMIT 1;
+        """, (user_id, user_id), fetch=True)
 
-    return jsonify([{
-            "song_id":          r[0],
-            "song_name":        r[1],
-            "song_image_url":   r[2],
-            "preview_mp3_url":  r[3],
-            "artist_name":      r[4]
-        } for r in rows])
+    if not rows:
+        return jsonify({"message": "no more songs"}), 404
+
+    r = rows[0]
+    return jsonify({
+        "song_id":          r[0],
+        "song_name":        r[1],
+        "song_image_url":   r[2],
+        "preview_mp3_url":  r[3],
+        "artist_name":      r[4]
+    })
