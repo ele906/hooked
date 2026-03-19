@@ -1,9 +1,9 @@
-DOWNLOAD
+# DOWNLOAD 
 download PostgreSQL: https://www.postgresql.org/download/
 you can download pgAdmin4 for visualizing too: https://www.pgadmin.org/download/
 
 ------------------------------------------
-CONFIG
+# CONFIG
 somewhere in the .exe to setup, it asks for a password + port
 i used the default port 5432 so its easier and made a password 12345 (lol)
 
@@ -12,20 +12,20 @@ rmb to add to PATH in sys env variables
 ----------------------------------------
 on shell:
 
-# connect to postgreqsl
+### connect to postgreqsl
 psql -U postgres 
 
-# it will prompt for a password, so enter it
+### it will prompt for a password, so enter it
 (12345)
 
-# now create the DB
+### now create the DB
 CREATE DATABASE hooked;
 
-# doing this lets the schema.sql file import into our PostgreSQL DB
-# might have to check if u r in the right path/folder for the schema.sql file
+### doing this lets the schema.sql file import into our PostgreSQL DB
+### might have to check if u r in the right path/folder for the schema.sql file
 psql -U postgres -d hooked -f schema.sql
 
-# Check if tables were created
+### Check if tables were created
 psql -U postgres -d hooked -c "\dt"
 
 output should show something like:
@@ -44,5 +44,5 @@ output should show something like:
  public | user_profiles   | table | postgres
  public | users           | table | postgres
 
-# add test data
+### add test data
 psql -U postgres -d hooked -f data/add_test_data.sql
