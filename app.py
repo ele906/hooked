@@ -1,7 +1,9 @@
 from flask import Flask, jsonify, request
 from data.db import get_db
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 
 def sql_cmd(command, params=(), fetch=False):
@@ -24,6 +26,18 @@ def store_interaction():
         "INSERT INTO interactions (user_id, song_id, type) VALUES (%s, %s, %s);",
         (data["user_id"], data["song_id"], data["action"])
     )
+
+    if data["action"] == "like":
+        sql_cmd(
+            "INSERT INTO liked (user_id, song_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
+            (data["user_id"], data["song_id"])
+        )
+    elif data["action"] == "dislike":
+        sql_cmd(
+            "INSERT INTO disliked (user_id, song_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
+            (data["user_id"], data["song_id"])
+        )
+
     return jsonify({"status": "ok"}), 201
 
 @app.route("/api/songs/liked", methods=["GET"])

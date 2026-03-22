@@ -95,3 +95,19 @@ CREATE TABLE friends(
     friend_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+--- liked songs for quick access ---
+CREATE TABLE liked (
+    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    song_id INTEGER REFERENCES songs(song_id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, song_id)
+);
+
+--- disliked songs for quick access ---
+CREATE TABLE disliked (
+    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    song_id INTEGER REFERENCES songs(song_id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, song_id)
+);
