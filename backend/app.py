@@ -1,4 +1,10 @@
+import sys, os
 from flask import Flask, jsonify, request
+
+# adds parent directory to path so we can import from data/
+# only have to do this bc app.py is in backend/ and not the root of the project
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
 from data.db import get_db
 
 app = Flask(__name__)
