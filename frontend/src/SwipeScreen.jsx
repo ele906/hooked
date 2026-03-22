@@ -5,7 +5,6 @@
 // -----------------------------------------------------------------------
 import React from 'react'
 import {useState, useRef, useEffect} from 'react'
-import {mockSongs} from "./mockData"
 
 function SwipeScreen() {
     // tracks how far left or right the card has been dragged (in pixels)
