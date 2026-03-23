@@ -37,14 +37,17 @@ function SwipeScreen() {
     // fetch next song from backend
     function fetchNextSong() {
         fetch("http://localhost:5000/api/songs/next?user_id=1")
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) { setCurrentSong(null); return; }
+                return res.json()
+            })
             .then(data => {
+                if (!data) return
                 setCurrentSong(data)
                 setPosition(0)
                 setMessage("")
             })
     }
-
     // fetch first song on load
     useEffect(() => { fetchNextSong() }, [])
 
