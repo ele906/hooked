@@ -102,3 +102,6 @@ def next_song():
         "preview_mp3_url":  r[3],
         "artist_name":      r[4]
     })
+
+if __name__ == "__main__":
+    app.run(debug=True)

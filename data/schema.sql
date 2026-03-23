@@ -12,7 +12,7 @@ CREATE TABLE users (
 --- stores artist data ---
 CREATE TABLE artists(
     artist_id SERIAL PRIMARY KEY,
-    artist_name TEXT NOT NULL,
+    artist_name TEXT NOT NULL UNIQUE,
     artist_image_url TEXT
 );
 
@@ -33,7 +33,9 @@ CREATE TABLE songs (
     preview_mp3_url TEXT,
     song_image_url TEXT,
     release_date DATE,
-    genre TEXT
+    genre TEXT,
+    feature_vector JSONB,
+    itunes_track_id TEXT UNIQUE
 );
 
 --- joins songs to artists ---
