@@ -1,3 +1,4 @@
+# function to seed songs into the database using the iTunes Search API. called like "python seed_songs.py 'song name 1 artist name 1' 'song name 2 artist name 2' ..."
 import requests
 import time
 from db import get_db
