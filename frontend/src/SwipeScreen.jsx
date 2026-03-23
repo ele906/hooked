@@ -25,6 +25,10 @@ function SwipeScreen() {
     // the song currently on screen
     const [currentSong, setCurrentSong] = useState(null)
 
+    // 
+    const audioRef = useRef(null)
+
+    // ----------------------------- Audio Preview Functions ------------------
     // post like/dislike action, then fetch next song
     function handleAction(action) {
         fetch("http://localhost:5000/api/songs/action", {
@@ -42,10 +46,19 @@ function SwipeScreen() {
                 return res.json()
             })
             .then(data => {
+<<<<<<< HEAD
                 if (!data) return
+=======
+                if (data.message === "no more songs") {
+                    setCurrentSong(null)
+                    setMessage("Check back later")
+                    return
+                }
+>>>>>>> bd95778 (in progress not working)
                 setCurrentSong(data)
                 setPosition(0)
                 setMessage("")
+                setTimeout(() => { audioRef.current?.play() }, 50)
             })
     }
     // fetch first song on load
@@ -132,9 +145,23 @@ function SwipeScreen() {
             >   
 
             {/* Display contents of the song card */}
-                {/* placeholder for album art (will be added once we have real song data) */}
-                <p style={{fontSize: '120px', margin: '0 0 23px 0'}}>♫</p>
-                <audio src={currentSong.preview_mp3_url} autoPlay controls />
+                {/* album art */}
+                <img
+                    src={currentSong.song_image_url}
+                    alt={currentSong.song_name}
+                    draggable={false}
+                    style={{
+                        width: '220px',
+                        height: '220px',
+                        borderRadius: '12px',
+                        objectFit: 'cover',
+                        margin: '0 0 23px 0',
+                        pointerEvents: 'none',
+                        userSelect: 'none',
+                        
+                    }}
+                />
+
                 {/* text data (title, artist) for each song*/}
                 <h2 style={{margin: '0 0 8px 0'}}>{currentSong.song_name}</h2>
                 <p style={{color: '#ffffffad', margin: 0}}>{currentSong.artist_name}</p>
@@ -143,9 +170,19 @@ function SwipeScreen() {
                     Swipe left to skip, right to like
                 </p>
             </div>
-
+            
+            {/* audio preview */}
+                <audio
+                    ref={audioRef}
+                    key={currentSong.song_id}
+                    src={currentSong.preview_mp3_url}
+                    controls
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{ width: '290px', marginTop: '15px' }}
+                />
+            
             {/* Like and skip buttons (as an alternative to swiping) */}
-            <div style={{display: 'flex', gap: '45px', marginTop: '25px'}}>
+            <div style={{display: 'flex', gap: '45px', marginTop: '15px'}}>
                 <button style={skipButtonStyle} onClick={() => {
                     setPosition(-1500);
                     setMessage("✕ Skipped!")
