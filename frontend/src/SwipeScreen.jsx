@@ -4,8 +4,7 @@
 // Authors: Lucille Rizo Patron
 // -----------------------------------------------------------------------
 import React from 'react'
-import {useState, useRef} from 'react'
-import {mockSongs} from "./mockData"
+import {useState, useRef, useEffect} from 'react'
 
 function SwipeScreen() {
     // tracks how far left or right the card has been dragged (in pixels)
@@ -23,11 +22,31 @@ function SwipeScreen() {
     // horizontal start position of the drag (in pixels)
     const dragStartX = useRef(0)
 
-    // tracks which song in the array we are currently showing
-    const [index, setIndex] = useState(0)
-
     // the song currently on screen
-    const currentSong = mockSongs[index]
+    const [currentSong, setCurrentSong] = useState(null)
+
+    // post like/dislike action, then fetch next song
+    function handleAction(action) {
+        fetch("http://localhost:5000/api/songs/action", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: 1, song_id: currentSong.song_id, action })
+        }).then(() => fetchNextSong())
+    }
+
+    // fetch next song from backend
+    function fetchNextSong() {
+        fetch("http://localhost:5000/api/songs/next?user_id=1")
+            .then(res => res.json())
+            .then(data => {
+                setCurrentSong(data)
+                setPosition(0)
+                setMessage("")
+            })
+    }
+
+    // fetch first song on load
+    useEffect(() => { fetchNextSong() }, [])
 
     // -----------------------  Swipe Animation Functions ------------------------
 
@@ -61,34 +80,15 @@ function SwipeScreen() {
         if (currentPosition.current > dragThreshold) {
             setPosition(1500)
             setMessage("♥ Liked!")
-            loadNextSong()
+            handleAction("like")
         } else if (currentPosition.current < -dragThreshold) {
             setPosition(-1500)
             setMessage("✕ Skipped!")
-            loadNextSong()
+            handleAction("dislike")
         } else {
             setPosition(0)
             setMessage("")
         }
-    }
-
-    // ------------------------- Retrieve Song Functions-----------------------
-
-    // Loads the next song in the list after swipe animation
-    function loadNextSong() {
-        const nextIndex = index + 1
-
-        // check if we have run out of songs
-        if (nextIndex >= mockSongs.length) {
-            setMessage("No more songs in the queue")
-            return
-        }
-
-        // wait for card fly-off animation to finish, then reset the card
-        setTimeout(function() {
-            setIndex(nextIndex)
-            setPosition(0)
-        }, 400) // 400ms timeout to cover duration of card fly-off
     }
 
     // Waiting for the backend to be ready to continue on the song logic section
@@ -96,6 +96,9 @@ function SwipeScreen() {
     // --------------------- Swipe Screen Rendering -------------------------------
     
     // card transition set based on dragging state
+    if (!currentSong) {
+        return <div style={screenStyle}><p style={{color: 'white'}}>Loading...</p></div>
+    }
     let cardTransition = 'transform 0.4s ease-out'
     if (isDragging.current === true) {
         cardTransition = 'none'
@@ -128,9 +131,10 @@ function SwipeScreen() {
             {/* Display contents of the song card */}
                 {/* placeholder for album art (will be added once we have real song data) */}
                 <p style={{fontSize: '120px', margin: '0 0 23px 0'}}>♫</p>
+                <audio src={currentSong.preview_mp3_url} autoPlay controls />
                 {/* text data (title, artist) for each song*/}
-                <h2 style={{margin: '0 0 8px 0'}}>{currentSong.title}</h2>
-                <p style={{color: '#ffffffad', margin: 0}}>{currentSong.artist}</p>
+                <h2 style={{margin: '0 0 8px 0'}}>{currentSong.song_name}</h2>
+                <p style={{color: '#ffffffad', margin: 0}}>{currentSong.artist_name}</p>
                 {/* instructions for user */}
                 <p style={{color: '#deb6ff9d', fontSize: '13px', marginTop: '20px'}}>
                     Swipe left to skip, right to like
@@ -139,16 +143,16 @@ function SwipeScreen() {
 
             {/* Like and skip buttons (as an alternative to swiping) */}
             <div style={{display: 'flex', gap: '45px', marginTop: '25px'}}>
-                <button style={skipButtonStyle} onClick={() => { 
-                    setPosition(-1500); 
+                <button style={skipButtonStyle} onClick={() => {
+                    setPosition(-1500);
                     setMessage("✕ Skipped!")
-                    loadNextSong() }}>
+                    handleAction("dislike") }}>
                     ✕ Skip
                 </button>
-                <button style={likeButtonStyle} onClick={() => { 
-                    setPosition(1500); 
+                <button style={likeButtonStyle} onClick={() => {
+                    setPosition(1500);
                     setMessage("♥ Liked!")
-                    loadNextSong() }}>
+                    handleAction("like") }}>
                     ♥ Like
                 </button>
             </div>

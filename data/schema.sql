@@ -12,7 +12,7 @@ CREATE TABLE users (
 --- stores artist data ---
 CREATE TABLE artists(
     artist_id SERIAL PRIMARY KEY,
-    artist_name TEXT NOT NULL,
+    artist_name TEXT NOT NULL UNIQUE,
     artist_image_url TEXT
 );
 
@@ -33,7 +33,9 @@ CREATE TABLE songs (
     preview_mp3_url TEXT,
     song_image_url TEXT,
     release_date DATE,
-    genre TEXT
+    genre TEXT,
+    feature_vector JSONB,
+    itunes_track_id TEXT UNIQUE
 );
 
 --- joins songs to artists ---
@@ -54,18 +56,11 @@ CREATE TABLE interactions (
 );
 
 --- stores liked songs ---
-CREATE TABLE liked(
+CREATE TABLE song_ratings(
     PRIMARY KEY (song_id, user_id),
     user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
     song_id INTEGER REFERENCES songs(song_id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
---- stores disliked songs ---
-CREATE TABLE disliked(
-    PRIMARY KEY (song_id, user_id),
-    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
-    song_id INTEGER REFERENCES songs(song_id) ON DELETE CASCADE,
+    rating VARCHAR(20) CHECK (rating IN ('like', 'dislike')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -101,4 +96,20 @@ CREATE TABLE friends(
     user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
     friend_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+--- liked songs for quick access ---
+CREATE TABLE liked (
+    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    song_id INTEGER REFERENCES songs(song_id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, song_id)
+);
+
+--- disliked songs for quick access ---
+CREATE TABLE disliked (
+    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    song_id INTEGER REFERENCES songs(song_id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, song_id)
 );
