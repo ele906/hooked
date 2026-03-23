@@ -73,7 +73,7 @@ def get_liked_songs():
             "liked_at":         r[5]
         } for r in rows])
 
-# random songs for now
+
 @app.route("/api/songs/next", methods=["GET"])
 def next_song():
     user_id = request.args.get("user_id")
@@ -88,7 +88,6 @@ def next_song():
                 UNION
                 SELECT song_id FROM disliked WHERE user_id = %s
             )
-            ORDER BY RANDOM() 
             LIMIT 1;
         """, (user_id, user_id), fetch=True)
 

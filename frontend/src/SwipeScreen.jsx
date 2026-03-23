@@ -24,9 +24,7 @@ function SwipeScreen() {
 
     // the song currently on screen
     const [currentSong, setCurrentSong] = useState(null)
-    const currentSongRef = useRef(null)
-    
-    useEffect(() => { currentSongRef.current = currentSong }, [currentSong])
+
     // post like/dislike action, then fetch next song
     function handleAction(action) {
         fetch("http://localhost:5000/api/songs/action", {
@@ -66,7 +64,7 @@ function SwipeScreen() {
         
         window.addEventListener('keydown', handleKeyPress)
         return () => window.removeEventListener('keydown', handleKeyPress)
-    }, [])
+    }, [currentSong])
 
     // -----------------------  Swipe Animation Functions ------------------------
 
