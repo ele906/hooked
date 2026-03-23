@@ -46,7 +46,25 @@ function SwipeScreen() {
     }
 
     // fetch first song on load
-    useEffect(() => { fetchNextSong() }, [])
+    useEffect(() => { 
+        fetchNextSong()
+        
+        // Handle keyboard arrow keys and Enter
+        const handleKeyPress = (e) => {
+            if (e.key === 'ArrowRight') {
+                setPosition(-1500)
+                setMessage("✕ Skipped!")
+                handleAction("dislike")
+            } else if (e.key === 'Enter') {
+                setPosition(1500)
+                setMessage("♥ Liked!")
+                handleAction("like")
+            }
+        }
+        
+        window.addEventListener('keydown', handleKeyPress)
+        return () => window.removeEventListener('keydown', handleKeyPress)
+    }, [currentSong])
 
     // -----------------------  Swipe Animation Functions ------------------------
 
@@ -99,7 +117,7 @@ function SwipeScreen() {
     if (!currentSong) {
         return <div style={screenStyle}><p style={{color: 'white'}}>Loading...</p></div>
     }
-    let cardTransition = 'transform 0.4s ease-out'
+    let cardTransition = 'transform 3.0s ease-out'
     if (isDragging.current === true) {
         cardTransition = 'none'
     }
@@ -137,7 +155,7 @@ function SwipeScreen() {
                 <p style={{color: '#ffffffad', margin: 0}}>{currentSong.artist_name}</p>
                 {/* instructions for user */}
                 <p style={{color: '#deb6ff9d', fontSize: '13px', marginTop: '20px'}}>
-                    Swipe left to skip, right to like
+                    Swipe/Arrow right to skip, Enter to like
                 </p>
             </div>
 
