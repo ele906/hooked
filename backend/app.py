@@ -103,5 +103,38 @@ def next_song():
         "artist_name":      r[4]
     })
 
+# this is for the search bar function...
+@app.route("/api/songs/search", methods=["GET"])
+def search_songs():
+    query = request.args.get("song_name", "")
+
+    if not query:
+        return jsonify({"error": "song_name parameter is required"}), 400
+
+    rows = sql_cmd("""
+        SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
+               a.artist_name
+        FROM songs s
+        JOIN song_artists sa ON s.song_id = sa.song_id
+        JOIN artists a ON sa.artist_id = a.artist_id
+        WHERE s.song_name ILIKE %s
+        LIMIT 8;
+    """, (f"%{query}%",), fetch=True)
+
+    if not rows:
+        return jsonify({"message": "no songs found"}), 404
+
+    results = []
+    for r in rows:
+        results.append({
+            "song_id":        r[0],
+            "song_name":      r[1],
+            "song_image_url": r[2],
+            "preview_mp3_url": r[3],
+            "artist_name":    r[4]
+        })
+
+    return jsonify(results)
+
 if __name__ == "__main__":
     app.run(debug=True)

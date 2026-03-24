@@ -1,11 +1,3 @@
 -- Insert a test user
-INSERT INTO users (email) VALUES ('user0');
-INSERT INTO users (email) VALUES ('user1');
-
--- Insert a test artist
-INSERT INTO artists (artist_name) VALUES ('Artist 0');
-INSERT INTO artists (artist_name) VALUES ('Artist 1');
-
--- Insert a test song
-INSERT INTO songs (song_name, preview_mp3_url) VALUES ('Test Song 0', 'www.google.com');
-INSERT INTO songs (song_name, preview_mp3_url) VALUES ('Test Song 1', 'www.youtube.com');
+INSERT INTO users (email, password_hash, user_image_url)
+VALUES ('el8403@princeton.edu', '12345', 'https://cdn.forumcomm.com/dims4/default/5bbd344/2147483647/strip/true/crop/6392x4261+0+0/resize/1680x1120!/format/webp/quality/90/?url=https%3A%2F%2Fforum-communications-production-web.s3.us-west-2.amazonaws.com%2Fbrightspot%2F5c%2F38%2F44062e9748f8bc53af8c3cd3ae52%2F090525-geese-on-the-golf-course.jpg');

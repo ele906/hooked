@@ -1,0 +1,14 @@
+seed stuff
+psql -U postgres -d hooked -f data\schema.sql
+
+connect to hooked
+psql -U postgres -d hooked
+
+enter sql terminal
+
+\dt
+see all tables
+
+\d [users]
+\d users
+see table users

@@ -5,6 +5,9 @@
 // -----------------------------------------------------------------------
 import React from 'react'
 import {useState, useRef, useEffect} from 'react'
+import { useNavigate } from 'react-router-dom'
+
+import searchIcon from './search_button.png'  // path relative to your file
 
 function SwipeScreen() {
 
@@ -24,6 +27,10 @@ function SwipeScreen() {
     const [currentSong, setCurrentSong] = useState(null)
 
     const cardRef = useRef(null)
+
+    // this makes it go from one screen to another
+    const navigate = useNavigate()
+
 
     // ------------------ Song Actions + Fetching -------------------
 
@@ -219,6 +226,18 @@ function SwipeScreen() {
                     ♥ Like
                 </button>
             </div>
+
+            {/* search buttons to teleport to search page */}
+            <div style={{position: 'fixed', bottom: '30px', left: '30px'}}>
+                <button style={searchButtonStyle} onClick={() => {
+                    cardRef.current.style.transition = 'transform 0.3s ease-out'
+                    console.log("search button clicked, teleport to search pg")
+                    navigate('/search')
+                }}>
+                    <img src={searchIcon} style={{ width: '24px', height: '24px' }} />
+                </button>
+            </div>
+
         </div>
     )
 }
@@ -254,6 +273,17 @@ const likeButtonStyle = {
     padding: '15px 35px',
     fontSize: '16px',
     backgroundColor: '#d0ff50',
+    color: '#1d1133',
+    fontWeight: 'bold',
+    border: 'none',
+    borderRadius: '50px',
+    cursor: 'pointer',
+}
+
+const searchButtonStyle = {
+    padding: '15px 35px',
+    fontSize: '16px',
+    backgroundColor: '#749ee7',
     color: '#1d1133',
     fontWeight: 'bold',
     border: 'none',

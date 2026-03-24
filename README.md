@@ -1,2 +1,5 @@
-# hooked
-i think the database is ok for now :p
+for the new jumping b/t pages, rmb to:
+
+npm install react-router-dom
+
+- ele
