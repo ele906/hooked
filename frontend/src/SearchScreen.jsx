@@ -61,11 +61,11 @@ function SearchScreen() {
             />
 
             {/* results */}
-            {results.map(song => (
+            {if (results.length != 0) {results.map(song => (
                 <p key={song.song_id} style={resultsStyle}>
                     {song.song_name} - {song.artist_name}
                 </p>
-            ))}
+            ))}}
         </div>
     )
 }
