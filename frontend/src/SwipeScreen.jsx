@@ -7,8 +7,6 @@ import React from 'react'
 import {useState, useRef, useEffect} from 'react'
 
 function SwipeScreen() {
-    // tracks how far left or right the card has been dragged (in pixels)
-    const [position, setPosition] = useState(0)
 
     // tracks current position 
     const currentPosition = useRef(0)
@@ -24,6 +22,8 @@ function SwipeScreen() {
 
     // the song currently on screen
     const [currentSong, setCurrentSong] = useState(null)
+
+    const cardRef = useRef(null)
 
     // ------------------ Song Actions + Fetching -------------------
 
@@ -46,13 +46,16 @@ function SwipeScreen() {
                     setMessage("No more songs!")
                     return
                 }
+                if (cardRef.current) {
+                    cardRef.current.style.transition = 'none'
+                    cardRef.current.style.transform = 'translateX(0px)'
+                }
                 setCurrentSong(data)
-                setPosition(0)
                 setMessage("")
             })
     }
 
-    // ------------------- Side Effects ------------------------
+    // ------------------- Keyboard  ------------------------
     
     // fetch first song on load
     useEffect(() => { 
@@ -61,11 +64,13 @@ function SwipeScreen() {
         // Handle keyboard arrow keys and Enter
         const handleKeyPress = (e) => {
             if (e.key === 'ArrowRight') {
-                setPosition(-1500)
+                cardRef.current.style.transition = 'transform 0.3s ease-out'
+                cardRef.current.style.transform = 'translateX(-1500px)'
                 setMessage("✕ Skipped!")
                 handleAction("dislike")
             } else if (e.key === 'Enter') {
-                setPosition(1500)
+                cardRef.current.style.transition = 'transform 0.3s ease-out'
+                cardRef.current.style.transform = 'translateX(1500px)'
                 setMessage("♥ Liked!")
                 handleAction("like")
             }
@@ -75,7 +80,7 @@ function SwipeScreen() {
         return () => window.removeEventListener('keydown', handleKeyPress)
     }, [currentSong])
 
-    // -----------------------  Swipe Animation Functions ------------------------
+    // -----------------------  Swipe ------------------------
 
     // Sets state to dragging started
     function dragStart(e) {
@@ -84,39 +89,53 @@ function SwipeScreen() {
     }
 
     // Updates position state as the card is dragged
-    function dragMove(e) {
-        if (isDragging.current === false) {
-            return
-        }
+    useEffect(() => {
+    const handleMouseMove = (e) => {
+        if (isDragging.current === false) return
         const displacement = e.pageX - dragStartX.current
         currentPosition.current = displacement
-        setPosition(displacement)
+        if (cardRef.current) {
+            cardRef.current.style.transform = `translateX(${displacement}px)`
+        }
     }
-
+    
     // Checks whether the user liked (dragged the card right), skipped 
     // (dragged the card left), or didn'd decide (didn't drag far enough). 
     // Sets state to dragging ended.
-    function dragEnd() {
-        if (isDragging.current === false) {
-            return
-        }
-        console.log("position on release:", currentPosition.current)
+    const handleMouseUp = () => {
+        if (isDragging.current === false) return
         isDragging.current = false
 
-        const dragThreshold = 100
+        const dragThreshold = 150
+        let finalPosition = 0
+
         if (currentPosition.current > dragThreshold) {
-            setPosition(1500)
+            finalPosition = 1500
             setMessage("♥ Liked!")
             handleAction("like")
         } else if (currentPosition.current < -dragThreshold) {
-            setPosition(-1500)
+            finalPosition = -1500
             setMessage("✕ Skipped!")
             handleAction("dislike")
         } else {
-            setPosition(0)
             setMessage("")
         }
+
+        if (cardRef.current) {
+            cardRef.current.style.transition = 'transform 0.3s ease-out'
+            cardRef.current.style.transform = `translateX(${finalPosition}px)`
+        }
     }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    return () => {
+        window.removeEventListener('mousemove', handleMouseMove)
+        window.removeEventListener('mouseup', handleMouseUp)
+    }
+}, [currentSong])
+
+    
 
     // --------------------- Swipe Screen Rendering -------------------------------
     
@@ -124,7 +143,7 @@ function SwipeScreen() {
     if (!currentSong) {
         return <div style={screenStyle}>
             <p style={{color: 'white', fontSize: '18px'}}>
-                {message === "No more songs." ? "You've heard everything!" : "Loading..."}
+                {message === "No more songs!" ? "You've heard everything!" : "Loading..."}
             </p></div>
     }
     let cardTransition = 'transform 3.0s ease-out'
@@ -138,8 +157,8 @@ function SwipeScreen() {
             <p style={messageStyle}>{message}</p>
             {/* song card */}
             <div
+                ref = {cardRef}
                 style={{
-                    transform: 'translateX(' + position + 'px)',
                     transition: cardTransition,
                     width: '350px',
                     padding: '100px 40px',
@@ -151,9 +170,6 @@ function SwipeScreen() {
                     userSelect: 'none',
                 }}
                 onMouseDown={dragStart}
-                onMouseMove={dragMove}
-                onMouseUp={dragEnd}
-                onMouseLeave={dragEnd}
             >   
 
             {/* Display contents of the song card */}
@@ -189,13 +205,15 @@ function SwipeScreen() {
             {/* Like and skip buttons (as an alternative to swiping) */}
             <div style={{display: 'flex', gap: '45px', marginTop: '25px'}}>
                 <button style={skipButtonStyle} onClick={() => {
-                    setPosition(-1500);
+                    cardRef.current.style.transition = 'transform 0.3s ease-out'
+                    cardRef.current.style.transform = 'translateX(-1500px)'
                     setMessage("✕ Skipped!")
                     handleAction("dislike") }}>
                     ✕ Skip
                 </button>
                 <button style={likeButtonStyle} onClick={() => {
-                    setPosition(1500);
+                    cardRef.current.style.transition = 'transform 0.3s ease-out'
+                    cardRef.current.style.transform = 'translateX(-1500px)'
                     setMessage("♥ Liked!")
                     handleAction("like") }}>
                     ♥ Like
