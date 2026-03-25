@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------
 # app.py
 # backend for hooked
-# authors: Eleanor Liu, ___ 
+# authors: Eleanor, Sadat, Stephen, Derek
 # -----------------------------------------------------------------------
 
 import sys, os

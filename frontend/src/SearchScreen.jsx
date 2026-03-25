@@ -43,7 +43,7 @@ function SearchScreen() {
     return (
         <div style={screenStyle}>
             {/* back button */}
-            <button style={backButtonStyle} onClick={() => navigate('/')}>
+            <button style={backButtonStyle} onClick={() => navigate('/swipe')}>
                 ← Back to Main
             </button>
 
@@ -63,7 +63,7 @@ function SearchScreen() {
             {/* results */}
             {results.length > 0 ? (
                 results.map(song => (
-                    <div key={song.song_id} style={songBox} onClick={() => navigate('/', {state: {song}} )}>
+                    <div key={song.song_id} style={songBox} onClick={() => navigate('/swipe', {state: {song}} )}>
                         <img src={song.song_image_url} alt={song.song_name} style={songImageBox} />
                         <span>{song.song_name} - {song.artist_name ?? 'Unknown Artist'}</span>
                     </div>
