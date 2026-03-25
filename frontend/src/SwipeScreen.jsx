@@ -1,11 +1,11 @@
 // -----------------------------------------------------------------------
 // SwipeScreen.jsx
 // Swipe interface for Hooked (in progress)
-// Authors: Lucille Rizo Patron
+// Authors: Lucille Rizo Patron, Eleanor Liu
 // -----------------------------------------------------------------------
 import React from 'react'
 import {useState, useRef, useEffect} from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 import searchIcon from './search_button.png'  // path relative to your file
 
@@ -31,6 +31,8 @@ function SwipeScreen() {
     // this makes it go from one screen to another
     const navigate = useNavigate()
 
+    // this location from search screen
+    const location = useLocation();
 
     // ------------------ Song Actions + Fetching -------------------
 
@@ -65,10 +67,19 @@ function SwipeScreen() {
     // ------------------- Keyboard  ------------------------
     
     // fetch first song on load
-    useEffect(() => { 
-        fetchNextSong()
+
+    useEffect(() => {
+        const clickedSong = location.state?.song;
+            if (clickedSong) {
+                setCurrentSong(clickedSong);
+            } else {
+                fetchNextSong();
+            }
+        }, []);
+
         
         // Handle keyboard arrow keys and Enter
+    useEffect(() => { 
         const handleKeyPress = (e) => {
             if (e.key === 'ArrowRight') {
                 cardRef.current.style.transition = 'transform 0.3s ease-out'
@@ -166,15 +177,8 @@ function SwipeScreen() {
             <div
                 ref = {cardRef}
                 style={{
-                    transition: cardTransition,
-                    width: '350px',
-                    padding: '100px 40px',
-                    backgroundColor: '#9e7bff2f',
-                    borderRadius: '20px',
-                    textAlign: 'center',
-                    color: 'white',
-                    cursor: 'grab',
-                    userSelect: 'none',
+                    ...cardRefStyle,
+                    transition: cardTransition
                 }}
                 onMouseDown={dragStart}
             >   
@@ -207,35 +211,33 @@ function SwipeScreen() {
                 <p style={{color: '#deb6ff9d', fontFamily: 'Outfit, sans-serif', fontSize: '13px', marginTop: '20px'}}>
                     Swipe right to skip (right arrow), left to like (enter)
                 </p>
-            </div>
 
-            {/* Like and skip buttons (as an alternative to swiping) */}
-            <div style={{display: 'flex', gap: '45px', marginTop: '25px'}}>
-                <button style={skipButtonStyle} onClick={() => {
-                    cardRef.current.style.transition = 'transform 0.3s ease-out'
-                    cardRef.current.style.transform = 'translateX(-1500px)'
-                    setMessage("✕ Skipped!")
-                    handleAction("dislike") }}>
-                    ✕ Skip
-                </button>
-                <button style={likeButtonStyle} onClick={() => {
-                    cardRef.current.style.transition = 'transform 0.3s ease-out'
-                    cardRef.current.style.transform = 'translateX(-1500px)'
-                    setMessage("♥ Liked!")
-                    handleAction("like") }}>
-                    ♥ Like
-                </button>
-            </div>
+                {/* search buttons to teleport to search page */}
+                    <button style={searchButtonStyle} onClick={() => {
+                        cardRef.current.style.transition = 'transform 0.3s ease-out'
+                        console.log("search button clicked, teleport to search pg")
+                        navigate('/search')
+                    }}>
+                        <img src={searchIcon} style={{ width: '30px', height: '30px' }} />
+                    </button>
 
-            {/* search buttons to teleport to search page */}
-            <div style={{position: 'fixed', bottom: '30px', left: '30px'}}>
-                <button style={searchButtonStyle} onClick={() => {
-                    cardRef.current.style.transition = 'transform 0.3s ease-out'
-                    console.log("search button clicked, teleport to search pg")
-                    navigate('/search')
-                }}>
-                    <img src={searchIcon} style={{ width: '24px', height: '24px' }} />
-                </button>
+                {/* Like and skip buttons (as an alternative to swiping) */}
+                <div style={{display: 'flex', justifyContent: 'center', gap: '45px', marginTop: '25px'}}>
+                    <button style={skipButtonStyle} onClick={() => {
+                        cardRef.current.style.transition = 'transform 0.3s ease-out'
+                        cardRef.current.style.transform = 'translateX(-1500px)'
+                        setMessage("✕ Skipped!")
+                        handleAction("dislike") }}>
+                        ✕ Skip
+                    </button>
+                    <button style={likeButtonStyle} onClick={() => {
+                        cardRef.current.style.transition = 'transform 0.3s ease-out'
+                        cardRef.current.style.transform = 'translateX(-1500px)'
+                        setMessage("♥ Liked!")
+                        handleAction("like") }}>
+                        ♥ Like
+                    </button>
+                </div>
             </div>
 
         </div>
@@ -252,6 +254,7 @@ const screenStyle = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '20px',
+    position: 'relative',
 }
 const messageStyle = {
     color: '#d0ff50',
@@ -263,7 +266,7 @@ const skipButtonStyle = {
     padding: '15px 35px',
     fontSize: '16px',
     fontWeight: 'bold',
-    backgroundColor: '#bea2ff',
+    backgroundColor: '#749ee7',
     color: '#1d1133',
     border: 'none',
     borderRadius: '50px',
@@ -272,7 +275,7 @@ const skipButtonStyle = {
 const likeButtonStyle = {
     padding: '15px 35px',
     fontSize: '16px',
-    backgroundColor: '#d0ff50',
+    backgroundColor: '#7dcee0',
     color: '#1d1133',
     fontWeight: 'bold',
     border: 'none',
@@ -281,14 +284,29 @@ const likeButtonStyle = {
 }
 
 const searchButtonStyle = {
-    padding: '15px 35px',
-    fontSize: '16px',
-    backgroundColor: '#749ee7',
+    width: '50px',
+    height: '50px',
+    position: 'absolute',
+    backgroundColor: '#aa95dd',
     color: '#1d1133',
     fontWeight: 'bold',
     border: 'none',
-    borderRadius: '50px',
+    borderRadius: '10px',
     cursor: 'pointer',
+    bottom: '15px',
+    right: '15px',      
+}
+
+const cardRefStyle = {
+    position: 'relative',
+    width: '350px',
+    padding: '100px 40px',
+    backgroundColor: '#9e7bff2f',
+    borderRadius: '20px',
+    textAlign: 'center',
+    color: 'white',
+    cursor: 'grab',
+    userSelect: 'none',
 }
 
 export default SwipeScreen

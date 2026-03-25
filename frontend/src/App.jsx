@@ -14,7 +14,6 @@ function App() {
             <Routes>
                 <Route path="/" element={<SwipeScreen />} />
                 <Route path="/search" element={<SearchScreen />} />
-                <Route path="/search" element={<LikedSongs />} />
             </Routes>
         </BrowserRouter>
     )

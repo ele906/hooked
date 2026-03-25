@@ -22,7 +22,6 @@ SONGS_TEST = [
     "The Weeknd In Your Eyes",
 ]
 
-
 conn = get_db()
 with conn.cursor() as cur:
     for query in SONGS_TEST:
@@ -52,16 +51,16 @@ with conn.cursor() as cur:
             "INSERT INTO song_artists (song_id, artist_id) VALUES (%s, %s)",
             (song_id, artist_id)
         )
-        
-        file_path = "add_test_data.sql"
-        with open(file_path, 'r') as f:
-            sql_script = f.read()
-            cur.execute(sql_script)
-            conn.commit()
-            print(f"Executed {file_path}")
+    
 
         # this auto adds the test users so it doesnt break!
         # time.sleep() WE CAN ADD A DELAY IF NEEDED
+        # file_path = "add_test_data.sql"
+        # with open(file_path, 'r') as f:
+        #    sql_script = f.read()
+        #    cur.execute(sql_script)
+        #    conn.commit()
+        #    print(f"Executed {file_path}")
 
     conn.commit()
     print("Done!")

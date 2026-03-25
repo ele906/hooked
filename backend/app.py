@@ -1,3 +1,9 @@
+# -----------------------------------------------------------------------
+# app.py
+# backend for hooked
+# authors: Eleanor Liu, ___ 
+# -----------------------------------------------------------------------
+
 import sys, os
 from flask import Flask, jsonify, request
 
@@ -106,23 +112,24 @@ def next_song():
 # this is for the search bar function...
 @app.route("/api/songs/search", methods=["GET"])
 def search_songs():
-    query = request.args.get("song_name", "")
+    query = request.args.get("params", "")
+    print("searching for:", query)
 
     if not query:
-        return jsonify({"error": "song_name parameter is required"}), 400
+        return jsonify({"error": "params parameter is required"}), 400
 
     rows = sql_cmd("""
         SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
                a.artist_name
         FROM songs s
-        JOIN song_artists sa ON s.song_id = sa.song_id
-        JOIN artists a ON sa.artist_id = a.artist_id
-        WHERE s.song_name ILIKE %s
+        LEFT JOIN song_artists sa ON s.song_id = sa.song_id
+        LEFT JOIN artists a ON sa.artist_id = a.artist_id
+        WHERE s.song_name ILIKE %s OR a.artist_name ILIKE %s
         LIMIT 8;
-    """, (f"%{query}%",), fetch=True)
+    """, (f"%{query}%", f"%{query}%",), fetch=True)
 
     if not rows:
-        return jsonify({"message": "no songs found"}), 404
+        return jsonify({"message": "no songs found"}), 200
 
     results = []
     for r in rows:

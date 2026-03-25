@@ -61,14 +61,22 @@ function SearchScreen() {
             />
 
             {/* results */}
-            {if (results.length != 0) {results.map(song => (
-                <p key={song.song_id} style={resultsStyle}>
-                    {song.song_name} - {song.artist_name}
-                </p>
-            ))}}
+            {results.length > 0 ? (
+                results.map(song => (
+                    <div key={song.song_id} style={songBox} onClick={() => navigate('/', {state: {song}} )}>
+                        <img src={song.song_image_url} alt={song.song_name} style={songImageBox} />
+                        <span>{song.song_name} - {song.artist_name ?? 'Unknown Artist'}</span>
+                    </div>
+                ))
+            ) : (
+                <div style={noResultsStyle}>
+                    <p>No results found!</p>
+                </div>
+            )}
         </div>
     )
 }
+
 
 // --------------------------------- Styles --------------------------------
 
@@ -91,19 +99,33 @@ const searchTabStyle = {
     color: '#1d1133',
     fontWeight: 'bold',
     border: 'none',
-    borderRadius: '50px',
     cursor: 'pointer',
 }
 
-const resultsStyle = {
-    minHeight: '100vh',
-    backgroundColor: '#18171d',
+const songBox = {
+    width: '400px',
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '8px',
+    backgroundColor: '#c7bdec89',
+    color: '#b1ceec',
+    borderRadius: '10px',
+}
+
+const songImageBox = {
+    width: '40px',
+    height: '40px',
+    borderRadius: '4px',
+}
+const noResultsStyle = {
     fontSize: '16px',
     color: '#a9bacb',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'left',
-    justifyContent: 'left',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: '20px',
 }
 
