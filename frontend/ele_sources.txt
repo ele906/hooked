@@ -8,9 +8,6 @@ https://stackoverflow.com/questions/69532255/button-onclick-call-the-function-wi
 react events
 https://www.w3schools.com/react/react_events.asp
 
-boxes in the ssearch screen
-https://www.w3schools.com/react/react_events.asp
-
 react router
 https://www.w3schools.com/react/react_router.asp
 
@@ -30,3 +27,17 @@ https://stackoverflow.com/questions/24386354/execute-js-code-after-pressing-the-
 keydown
 https://developer.mozilla.org/en-US/docs/Web/API/Element/keydown_event
 https://www.geeksforgeeks.org/reactjs/react-onkeydown-event/ 
+
+key codes, key pressed event code..
+https://www.toptal.com/developers/keycode/l
+https://www.toptal.com/developers/keycode/r
+https://www.foreui.com/articles/Key_Code_Table.htm
+
+resp to events
+https://react.dev/learn/responding-to-events 
+
+dependency arr
+https://stackoverflow.com/questions/55187563/determine-which-dependency-array-variable-caused-useeffect-hook-to-fire 
+
+use callback
+https://react.dev/reference/react/useCallback
