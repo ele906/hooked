@@ -5,29 +5,38 @@
 // -----------------------------------------------------------------------
 
 import React from 'react'
-import {useState, useRef, useEffect} from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import {useCallback, useEffect} from 'react'
+import { useNavigate } from 'react-router-dom'
 
 function Login(){
 
     // this makes it go from one screen to another
     const navigate = useNavigate()
 
-    useEffect(() => { 
-        const handleKeyPress = (e) => {
-            if (e.key === ' ' || e.code === "Space") {
-                console.log('Space pressed')
-                navigate('/swipe')
-            }
+    function handleBackButton() {
+        console.log("back button clicked, go back to welcome page")
+        navigate('/')
+    }
+
+    const handleKeyPress = useCallback((e) => {
+        if (e.key === ' ' || e.code === "Space") {
+            console.log('Space pressed')
+            navigate('/swipe')
         }
-        
+    }, [navigate])
+
+    useEffect(() => { 
         window.addEventListener('keydown', handleKeyPress)
         return () => window.removeEventListener('keydown', handleKeyPress)
-    }, [])
+    }, [handleKeyPress])
 
     return(
         <div style = {screenStyle}> 
             Login to Account 
+
+            <button style={backButtonStyle} onClick = {handleBackButton}> 
+                Back 
+            </button>
             
         </div>
     )

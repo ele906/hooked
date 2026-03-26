@@ -40,7 +40,8 @@ function WelcomePage(){
 
     return(
         <div style={screenStyle} >
-            <div> Welcome to Hooked </div>
+            <h1> Hooked </h1>
+            <div> Reel in Your Next Playlist </div>
                 {/* teleports to either login or signup*/}
                     <button style={loginButtonStyle} onClick={(handleLoginClick)}>
                         Login
