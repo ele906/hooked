@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, json, random
 from flask import Flask, jsonify, request
 
 # adds parent directory to path so we can import from data/
@@ -6,10 +6,13 @@ from flask import Flask, jsonify, request
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from data.db import get_db
+from data.vector_utils import cosine_similarity, update_weight_vector, l2_normalize
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
+
+EPSILON = 0.15  # fraction of requests served randomly for exploration
 
 
 def sql_cmd(command, params=(), fetch=False):
@@ -44,6 +47,33 @@ def store_interaction():
             (data["user_id"], data["song_id"])
         )
 
+    # Update user weight vector based on this swipe
+    song_rows = sql_cmd(
+        "SELECT feature_vector FROM songs WHERE song_id = %s",
+        (data["song_id"],), fetch=True
+    )
+    if song_rows and song_rows[0][0] is not None:
+        song_vec = song_rows[0][0]
+
+        profile_rows = sql_cmd(
+            "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
+            (data["user_id"],), fetch=True
+        )
+
+        if profile_rows and profile_rows[0][0] is not None:
+            new_vec = update_weight_vector(profile_rows[0][0], song_vec, data["action"])
+        else:
+            # No profile yet — initialize from this song's vector
+            new_vec = l2_normalize(song_vec[:])
+
+        sql_cmd(
+            """INSERT INTO user_profiles (user_id, weight_vector, updated_at)
+               VALUES (%s, %s, NOW())
+               ON CONFLICT (user_id) DO UPDATE
+               SET weight_vector = EXCLUDED.weight_vector, updated_at = NOW()""",
+            (data["user_id"], json.dumps(new_vec))
+        )
+
     return jsonify({"status": "ok"}), 201
 
 @app.route("/api/songs/liked", methods=["GET"])
@@ -70,7 +100,7 @@ def get_liked_songs():
             "song_image_url":   r[2],
             "preview_mp3_url":  r[3],
             "artist_name":      r[4],
-            "liked_at":         r[5]
+            "liked_at":         r[5].isoformat() if r[5] else None
         } for r in rows])
 
 
@@ -88,19 +118,30 @@ def next_song():
                 UNION
                 SELECT song_id FROM disliked WHERE user_id = %s
             )
-            LIMIT 1;
+            AND s.feature_vector IS NOT NULL;
         """, (user_id, user_id), fetch=True)
 
     if not rows:
         return jsonify({"message": "no more songs"}), 404
 
-    r = rows[0]
+    # Use cosine similarity ranking unless exploring randomly
+    profile_rows = sql_cmd(
+        "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
+        (user_id,), fetch=True
+    )
+ 
+    if profile_rows and profile_rows[0][0] is not None and random.random() > EPSILON:
+        weight_vec = profile_rows[0][0]
+        best = max(rows, key=lambda r: cosine_similarity(weight_vec, r[5]))
+    else:
+        best = random.choice(rows)
+
     return jsonify({
-        "song_id":          r[0],
-        "song_name":        r[1],
-        "song_image_url":   r[2],
-        "preview_mp3_url":  r[3],
-        "artist_name":      r[4]
+        "song_id":          best[0],
+        "song_name":        best[1],
+        "song_image_url":   best[2],
+        "preview_mp3_url":  best[3],
+        "artist_name":      best[4]
     })
 
 if __name__ == "__main__":
