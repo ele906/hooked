@@ -10,7 +10,51 @@ from data.vector_utils import cosine_similarity, update_weight_vector, l2_normal
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+CORS(app, supports_credentials=True)
+
+# Google OAuth setup
+oauth = OAuth(app)
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')    
+CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
+google = oauth.register(
+        name='google',
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        server_metadata_url=CONF_URL,
+        client_kwargs={
+            'scope': 'openid email profile'
+        }
+    )
+@app.route("/auth/login")
+def login():
+    redirect_uri = url_for("auth_callback", _external=True)
+    return google.authorize_redirect(redirect_uri)
+@app.route("/auth/callback")
+def auth_callback():
+    token = google.authorize_access_token()
+    user_info = token.get("userinfo")
+    session["user"] = {
+        "email": user_info["email"],
+        "name": user_info.get("name", ""),
+    }
+    return redirect("http://localhost:3000")
+
+
+@app.route("/auth/logout")
+def logout():
+    session.pop("user", None)
+    return redirect("http://localhost:3000")
+
+
+@app.route("/auth/user")
+def get_user():
+    user = session.get("user")
+    if user:
+        return jsonify(user)
+    return jsonify(None), 401
+
 
 EPSILON = 0.15  # fraction of requests served randomly for exploration
 
