@@ -109,7 +109,7 @@ def next_song():
     user_id = request.args.get("user_id")
     rows = sql_cmd("""
             SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
-                a.artist_name
+                a.artist_name, s.feature_vector
             FROM songs s
             JOIN song_artists sa ON s.song_id = sa.song_id
             JOIN artists a ON sa.artist_id = a.artist_id
