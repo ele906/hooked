@@ -1,7 +1,8 @@
 // -----------------------------------------------------------------------
 // SwipeScreen.jsx
 // Swipe interface for Hooked (in progress)
-// Authors: Lucille Rizo Patron, Eleanor Liu
+// Author: Lucille Rizo Patron
+// Contributor: Eleanor Liu
 // -----------------------------------------------------------------------
 import React from 'react'
 import {useState, useRef, useEffect} from 'react'
@@ -256,26 +257,29 @@ const screenStyle = {
     gap: '20px',
     position: 'relative',
 }
+
 const messageStyle = {
     color: '#d0ff50',
     fontSize: '18px',
     fontWeight: 'bold',
     height: '25px',
 }
+
 const skipButtonStyle = {
     padding: '15px 35px',
     fontSize: '16px',
     fontWeight: 'bold',
-    backgroundColor: '#749ee7',
+    backgroundColor: '#bea2ff',
     color: '#1d1133',
     border: 'none',
     borderRadius: '50px',
     cursor: 'pointer',
 }
+
 const likeButtonStyle = {
     padding: '15px 35px',
     fontSize: '16px',
-    backgroundColor: '#7dcee0',
+    backgroundColor: '#d0ff50',
     color: '#1d1133',
     fontWeight: 'bold',
     border: 'none',
