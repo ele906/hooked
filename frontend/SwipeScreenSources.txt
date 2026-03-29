@@ -57,6 +57,9 @@ https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
 CSS position property:
 https://www.w3schools.com/css/css_position.asp
 
+CSS flex property:
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/flex
+
 All other CSS style attributes (text, layout, visuals, interactions, etc):
 https://developer.mozilla.org/en-US/docs/Web/CSS/Reference
 

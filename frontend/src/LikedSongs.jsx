@@ -2,6 +2,7 @@
 // LikedSongs.jsx
 // Liked Songs Interface for Hooked
 // Author: Lucille Rizo Patron
+// Contributors:
 // -----------------------------------------------------------------------
 
 import React from 'react'
