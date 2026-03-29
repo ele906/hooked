@@ -1,7 +1,7 @@
 // -----------------------------------------------------------------------
 // WelcomePage.jsx
 // Swipe interface for Hooked (in progress)
-// Authors: Eleanor Liu
+// Authors: Eleanor Liu, Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
 import React from 'react'
@@ -11,6 +11,11 @@ import { useNavigate} from 'react-router-dom'
 function WelcomePage(){
     // this makes it go from one screen to another
     const navigate = useNavigate()
+
+    function handleTestSwipeClick() {
+        console.log("Test button clicked: skipping login to test swipe logic")
+        navigate('/swipe') 
+    }
 
     function handleLoginClick() {
         console.log("login button clicked, teleport to login pg")
@@ -49,6 +54,10 @@ function WelcomePage(){
 
                     <button style={signupButtonStyle} onClick={(handleCreateClick)}> 
                         Sign Up
+                    </button>
+
+                    <button style={testButtonStyle} onClick={handleTestSwipeClick}>
+                        Test Swipe Screen
                     </button>
         </div>
         
@@ -90,6 +99,18 @@ const signupButtonStyle = {
     fontWeight: 'bold',
     border: 'none',
     borderRadius: '50px',
+    cursor: 'pointer',
+}
+
+const testButtonStyle = {
+    padding: '10px 20px',
+    fontSize: '14px',
+    backgroundColor: 'transparent',
+    color: '#d0ff50',
+    fontWeight: 'bold',
+    border: '2px dashed #d0ff50',
+    borderRadius: '10px',
+    marginTop: '30px',
     cursor: 'pointer',
 }
 

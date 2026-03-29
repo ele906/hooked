@@ -1,46 +1,59 @@
 -----------------------------------------------------------------------
-renders the app screen for now
+Sources used for swipe screen
 Authors: Lucille Rizo Patron
 -----------------------------------------------------------------------
 
 Used for General React API: https://react.dev/
 
-Moving Object (for card animation): 
-https://react.dev/learn/updating-objects-in-state#treat-state-as-read-only
+Positioning elements: 
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/position
 
-Styling with React using CSS:
-https://www.w3schools.com/react/react_css.asp
+Flexible box layout, for setting space between items and item alignment:
+https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Flexible_box_layout/Basic_concepts
 
-React Hooks:
+Button component:
+https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/button
+
+React Hooks (to re-render changing components or not):
 https://react.dev/reference/react/useState
 https://react.dev/reference/react/useRef
 
-To track values that change without re-rendering:
-https://react.dev/learn/referencing-values-with-refs
+Manipulating the DOM with refs:
+https://react.dev/learn/manipulating-the-dom-with-refs
 
-Common components (like mouse events handling):
+Event listeners:
+https://legacy.reactjs.org/docs/handling-events.html
+https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
+
+Common React components: (eg Mouse/keyboard event handling, mouse position tracking)
 https://react.dev/reference/react-dom/components/common#common-props
 
-Example CSS code for an Animated Art Gallery (used to learn CSS syntax and style
-when working with interactive pages with animated items, none of this project
-code used in our actual program):
-https://freefrontend.com/code/atmospheric-split-view-gallery-2026-02-02/
+Updating objects in state (used for moving swipe card with mouse drag)
+https://react.dev/learn/updating-objects-in-state#treat-state-as-read-only
 
-Details on transform + transition:
+useNavigate and useLocation hooks:
+https://medium.com/@reidwilliamson2/usenavigate-and-uselocation-hooks-edb28f5e9972
+
+Details on transform + transition for component animation:
 transforms: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/transform
 transitions: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/transition
-
-Responding to events (eg. clicking like or skip button): 
-https://react.dev/learn/responding-to-events
-
-positioning elements: 
-https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/position
-
-Flexible box layout, for setting space between items and item 
-alignment (eg. like and skip button):
-https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Flexible_box_layout/Basic_concepts
 
 For delay before loading next card (card fly-off):
 https://developer.mozilla.org/en-US/docs/Web/API/setTimeout
 
-to be continued
+cubic-bezier (smooth curved object transition + bounce back)
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/easing-function/cubic-bezier
+
+CSS style attributes (text, layout, visuals, interactions, etc):
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference
+
+Rendering inline CSS styles in React:
+https://legacy.reactjs.org/docs/dom-elements.html#style
+https://react.dev/reference/react-dom/components/style#rendering-an-inline-css-stylesheet
+
+Gradients on background:
+https://www.w3schools.com/cssref/func_radial-gradient.php
+
+Fetch API (for fetch next song):
+https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+
