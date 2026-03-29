@@ -2,7 +2,6 @@
 // SwipeScreen.jsx
 // Swipe Interface for Hooked
 // Author: Lucille Rizo Patron
-// Contributors: Eleanor Liu, Sadat Ahmed
 // -----------------------------------------------------------------------
 
 import React from 'react'
@@ -26,7 +25,7 @@ function SwipeScreen() {
     // ------------- States + Refs ---------------------------------------
 
     // tracks current position 
-    const [offsetX, setOffsetX] = useState(0);
+    const [offsetX, setOffsetX] = useState(0)
 
     // isDragging tracks whether the user is currently dragging the card
     const [isDragging, setIsDragging] = useState(false)
@@ -70,7 +69,7 @@ function SwipeScreen() {
                     setMessage("")
                 } else {
                     // end of song list
-                    setCurrentSong(null);
+                    setCurrentSong(null)
                     setMessage("No more songs!")
                 }
             })
@@ -78,7 +77,7 @@ function SwipeScreen() {
                 console.error("Fetch error:", err)
                 setCurrentSong(null)
                 setMessage("Server Error")
-            });
+            })
     }
 
     // initial load: fetch first song to start swipe session
@@ -93,25 +92,25 @@ function SwipeScreen() {
                 // arrived directly
                 fetchNextSong()
             }
-        }, []);
+        }, [])
 
-    // -----------------------  Drag Swipe ------------------------
+    // -----------------------  Drag Swipe -------------------------------
     
     // triggers the card fly-off animation (left or right) based on
     // user action via drag, button click, or keyboard keys
     // takes a string action, 'like' or 'dislike', as parameters
     const doSwipe = (action) => {
         // large offset to slide completely off screen
-        const flyOff = action === 'like' ? 1500 : -1500;
-        setOffsetX(flyOff);
+        const flyOff = action === 'like' ? 1500 : -1500
+        setOffsetX(flyOff)
 
-        setMessage(action === 'like' ? "♥ Liked!" : "✕ Skipped!");
+        setMessage(action === 'like' ? "♥ Liked!" : "✕ Skipped!")
 
         // pause to let transition finish before new card data
         setTimeout(() => {
-            handleAction(action); 
-        }, 400);
-    };
+            handleAction(action) 
+        }, 400)
+    }
 
     // Sets state to dragging started
     // takes mouse event e as param
@@ -146,7 +145,7 @@ function SwipeScreen() {
                 doSwipe('dislike')
             } else { //not dragged enough
                 setOffsetX(0)
-                setMessage("");
+                setMessage("")
             }
             setIsDragging(false)
         }
@@ -170,7 +169,7 @@ function SwipeScreen() {
             if (Math.abs(offsetX) > 100) return // prevent key spamming
             if (e.key === 'ArrowLeft') doSwipe('dislike')
             if (e.key === 'ArrowRight') doSwipe('like')
-        };
+        }
 
         // respond to user keyboard actions
         window.addEventListener('keydown', handleKeyPress)
@@ -179,129 +178,132 @@ function SwipeScreen() {
     }, [currentSong])
 
     // --------------------- Swipe Screen Rendering ----------------------
-    
-    // if no song loaded, show final message or loading screen
-    if (!currentSong) {
-        return <div style={screenStyle}>
-            <p style={{color: 'white', fontSize: '18px'}}>
-                {message || "Loading..."}
-            </p></div>
-    }
 
     // main swipe UI
     return (
         <div style={screenStyle}> 
 
-            {/* liked/disliked message after swipe above card*/}
-            <p style={messageStyle}>{message}</p>
+            {/* search button to go to search page */}
+            <button 
+                style={cornerButtonStyle('right', 'bottom')} 
+                onClick={() => navigate('/search') }
+            >
+                <img 
+                    src={searchIcon} 
+                    style={{ width: '30px', height: '30px' }} 
+                />
+            </button>
 
-            {/* swipe card */}
-            <div
-                ref = {cardRef}
-                style={{...cardRefStyle,
-                    transition: isDragging
-                        // if dragging, card sticks to mouse 
-                        ? 'none' 
-                        // not dragging, card flies off or snaps back with curve
-                        : 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                    transform: 
-                        // mimic how card in real life slides off
-                        `translateX(${offsetX}px) rotate(${offsetX / 20}deg)`, 
-                    // ensure swipe card stays on top of everything
-                    zIndex: isDragging ? 100 : 1 
-                }}
-                onMouseDown={dragStart}
-            >   
+            {/* button to go to liked songs page */}
+            <button 
+                style={cornerButtonStyle('left', 'bottom')}
+                onClick={() => navigate('/liked')}>
+                ♥
+            </button>
 
-            {/* album art */}
-                {/* display song image or a default music icon */}
-                {currentSong.song_image_url ? (
-                    <img 
-                        src={currentSong.song_image_url} 
-                        alt={currentSong.song_name}
-                        // prevent image dragging
-                        onDragStart={(e) => e.preventDefault()}
-                        style={{ width: '220px', 
-                                 height: '220px', 
-                                 borderRadius: '12px', 
-                                 objectFit: 'cover', 
-                                 pointerEvents: 'none',
-                                 margin: '0 0 25px 0' }}
-                    />
-                ) : (
-                    <p style={{fontSize: '120px', margin: '0 0 25px 0'}}>♫</p>
-                )}
-                {/* audio preview */}
-                <div style={{ filter: 'brightness(0.7)', 
-                              display: 'flex',
-                              justifyContent: 'center'
-                }}>
-                    <audio src={currentSong.preview_mp3_url} 
-                           autoPlay 
-                           controls 
-                           style={{ width: '220px'}}/>
-                </div>
-
-                {/* song info */}
-                <h2 style={{
-                    margin: '0 0 8px 0', 
-                    fontFamily: 'Outfit, sans-serif', 
-                    marginTop: '20px'
-                }}> 
-                    {currentSong.song_name}</h2>
-                <p style={{
-                    color: '#ffffffad', 
-                    fontFamily: 'Outfit, sans-serif', 
-                    margin: 0
-                }}> 
-                    {currentSong.artist_name}</p>
-
-                {/* user instructions */}
-                <p style={{
-                    color: '#deb6ff9d', 
-                    fontFamily: 'Outfit, sans-serif', 
-                    fontSize: '13px', 
-                    marginTop: '20px'
-                }}>
-                    Swipe left to skip, right to like
+            {/* if no song loaded, show final message or loading screen */}
+            {!currentSong ? (
+                <p style={{color: 'white', fontSize: '18px', textAlign: 'center'}}>
+                    {message || "Loading..."}
                 </p>
+            ) : (   
+                /* if song loaded, show swipe screen */
+                <>
+                    {/* liked/disliked message after swipe above card*/}
+                    <p style={messageStyle}>{message}</p>
 
-                {/* search button to go to search page */}
-                    <button 
-                        style={{...navigateButtonStyle, bottom: '15px', right: '15px'}} 
-                        onClick={() => navigate('/search') }
-                    >
-                        <img 
-                            src={searchIcon} 
-                            style={{ width: '30px', height: '30px' }} 
-                        />
-                    </button>
-                
-                {/* button to go to liked songs page */}
-                    <button 
-                        style={{...navigateButtonStyle, bottom: '15px', left: '15px'}} 
-                        onClick={() => navigate('/liked')}>
-                        ♥
-                    </button>
-                
-                {/* Like and skip buttons (as an alternative to swiping) */}
-                <div style={{
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    gap: '45px', 
-                    marginTop: '25px'
-                }}>
-                    <button style={skipButtonStyle} 
-                        onClick={() => doSwipe('dislike')}>
-                        ✕ Skip
-                    </button>
-                    <button style={likeButtonStyle} 
-                        onClick={() => doSwipe('like')}>
-                        ♥ Like
-                    </button>
-                </div>
+                    {/* swipe card */}
+                    <div
+                        ref = {cardRef}
+                        style={{...cardRefStyle,
+                            transition: isDragging
+                                // if dragging, card sticks to mouse 
+                                ? 'none' 
+                                // not dragging, card flies off or snaps back with curve
+                                : 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                            transform: 
+                                // mimic how card in real life slides off
+                                `translateX(${offsetX}px) rotate(${offsetX / 20}deg)`, 
+                            // ensure swipe card stays on top of everything
+                            zIndex: isDragging ? 100 : 1 
+                        }}
+                        onMouseDown={dragStart}
+                    >   
 
-            </div>
+                        {/* album art */}
+                        {/* display song image or a default music icon */}
+                        {currentSong.song_image_url ? (
+                            <img 
+                                src={currentSong.song_image_url} 
+                                alt={currentSong.song_name}
+                                // prevent image dragging
+                                onDragStart={(e) => e.preventDefault()}
+                                style={{ width: '220px', 
+                                        height: '220px', 
+                                        borderRadius: '12px', 
+                                        objectFit: 'cover', 
+                                        pointerEvents: 'none',
+                                        margin: '0 0 25px 0' }}
+                            />
+                        ) : (
+                            <p style={{fontSize: '120px', margin: '0 0 25px 0'}}>♫</p>
+                        )}
+                        {/* audio preview */}
+                        <div style={{ filter: 'brightness(0.7)', 
+                                    display: 'flex',
+                                    justifyContent: 'center'
+                        }}>
+                            <audio src={currentSong.preview_mp3_url} 
+                                autoPlay 
+                                controls 
+                                style={{ width: '220px'}}/>
+                        </div>
+
+                        {/* song info */}
+                        <h2 style={{
+                            margin: '0 0 8px 0', 
+                            fontFamily: 'Outfit, sans-serif', 
+                            marginTop: '20px'
+                        }}> 
+                            {currentSong.song_name}</h2>
+                        <p style={{
+                            color: '#ffffffad', 
+                            fontFamily: 'Outfit, sans-serif', 
+                            margin: 0
+                        }}> 
+                            {currentSong.artist_name}</p>
+
+                        {/* user instructions */}
+                        <p style={{
+                            color: '#deb6ff9d', 
+                            fontFamily: 'Outfit, sans-serif', 
+                            fontSize: '13px', 
+                            marginTop: '20px'
+                        }}>
+                            Swipe left to skip, right to like
+                        </p>
+                        
+                        {/* Like and skip buttons (as an alternative to swiping) */}
+                        <div style={{
+                            display: 'flex', 
+                            justifyContent: 'center', 
+                            gap: '45px', 
+                            marginTop: '25px'
+                        }}>
+                            <button style={skipButtonStyle} 
+                                onClick={() => doSwipe('dislike')}>
+                                ✕ Skip
+                            </button>
+                            <button style={likeButtonStyle} 
+                                onClick={() => doSwipe('like')}>
+                                ♥ Like
+                            </button>
+                        </div>
+
+                    </div>
+
+                </>)} 
+                
         </div>
     )
 }
@@ -357,18 +359,23 @@ const likeButtonStyle = {
 }
 
 // button style to navigate among screens from swipe screen
-const navigateButtonStyle = {
+// takes string sides: sideX to determine right or left placement
+// and sideY to determine bottom or top placement
+const cornerButtonStyle = (sideX, sideY) => ({
+    position: 'fixed',
     width: '50px',
     height: '50px',
-    position: 'absolute',
+    [sideX]: '15px',
+    [sideY]: '15px',
     backgroundColor: '#a995dd4f',
-    color: '#1d1133',
+    color: '#180d2b',
     fontSize: '30px',
     fontWeight: 'bold',
     border: 'none',
     borderRadius: '12px',
     cursor: 'pointer',   
-}
+    zIndex: 9999,
+})
 
 // swipe card
 const cardRefStyle = {

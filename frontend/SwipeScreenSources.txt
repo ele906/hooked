@@ -44,9 +44,6 @@ https://developer.mozilla.org/en-US/docs/Web/API/setTimeout
 cubic-bezier (smooth curved object transition + bounce back)
 https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/easing-function/cubic-bezier
 
-CSS style attributes (text, layout, visuals, interactions, etc):
-https://developer.mozilla.org/en-US/docs/Web/CSS/Reference
-
 Rendering inline CSS styles in React:
 https://legacy.reactjs.org/docs/dom-elements.html#style
 https://react.dev/reference/react-dom/components/style#rendering-an-inline-css-stylesheet
@@ -56,4 +53,10 @@ https://www.w3schools.com/cssref/func_radial-gradient.php
 
 Fetch API (for fetch next song):
 https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+
+CSS position property:
+https://www.w3schools.com/css/css_position.asp
+
+All other CSS style attributes (text, layout, visuals, interactions, etc):
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference
 
