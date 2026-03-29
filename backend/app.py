@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------
 # app.py
 # backend for hooked
-# authors: Eleanor, Sadat, Stephen, Derek
+# authors: Eleanor, Sadat, Stephen, Derek, Lucille
 # -----------------------------------------------------------------------
 
 import sys, os
@@ -108,6 +108,18 @@ def next_song():
         "preview_mp3_url":  r[3],
         "artist_name":      r[4]
     })
+
+# For deleting a liked song from liked songs
+@app.route("/api/songs/liked/<int:song_id>", methods=["DELETE"])
+def delete_liked_song(song_id):
+    user_id = 1
+    
+    sql_cmd("DELETE FROM liked WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
+    
+    
+    sql_cmd("DELETE FROM interactions WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
+    
+    return jsonify({"status": "deleted"}), 200
 
 # this is for the search bar function...
 @app.route("/api/songs/search", methods=["GET"])
