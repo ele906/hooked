@@ -10,6 +10,7 @@ import SearchScreen from "./SearchScreen"
 import WelcomePage from './WelcomePage'
 import SignUp from './SignUp'
 import Login from './Login'
+import LikedSongs from './LikedSongs'
 
 function App() {
     return (
@@ -20,6 +21,7 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/swipe" element={<SwipeScreen />} />
                 <Route path="/search" element={<SearchScreen />} />
+                <Route path="/liked" element={<LikedSongs />} />
             </Routes>
         </BrowserRouter>
     )

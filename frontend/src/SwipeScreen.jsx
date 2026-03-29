@@ -268,7 +268,7 @@ function SwipeScreen() {
 
                 {/* search button to go to search page */}
                     <button 
-                        style={searchButtonStyle} 
+                        style={{...navigateButtonStyle, bottom: '15px', right: '15px'}} 
                         onClick={() => navigate('/search') }
                     >
                         <img 
@@ -276,7 +276,14 @@ function SwipeScreen() {
                             style={{ width: '30px', height: '30px' }} 
                         />
                     </button>
-
+                
+                {/* button to go to liked songs page */}
+                    <button 
+                        style={{...navigateButtonStyle, bottom: '15px', left: '15px'}} 
+                        onClick={() => navigate('/liked')}>
+                        ♥
+                    </button>
+                
                 {/* Like and skip buttons (as an alternative to swiping) */}
                 <div style={{
                     display: 'flex', 
@@ -349,18 +356,18 @@ const likeButtonStyle = {
     cursor: 'pointer',
 }
 
-const searchButtonStyle = {
+// button style to navigate among screens from swipe screen
+const navigateButtonStyle = {
     width: '50px',
     height: '50px',
     position: 'absolute',
     backgroundColor: '#a995dd4f',
     color: '#1d1133',
+    fontSize: '30px',
     fontWeight: 'bold',
     border: 'none',
     borderRadius: '12px',
-    cursor: 'pointer',
-    bottom: '15px',
-    right: '15px',      
+    cursor: 'pointer',   
 }
 
 // swipe card
