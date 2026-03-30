@@ -3,9 +3,11 @@ for the new jumping b/t pages, rmb to npm install react-router-dom
 
 MAIN CHANGES
 - edited App.jsx to route songs
-- added SearchScreen.jsx
-- added a button to teleport to search screen within swipe screen 
+- fixed SearchScreen.jsx for fluid swipe animation and better visual appearance
+- added a button to teleport to search screen within swipe screen
+- added a button to teleport to liked screen within swipe screen
 - when you search, and when u click on a song, it goes to a screen which plays the song
+- added LikedSongs.jsx so the user can see their liked tracks
 
 
 TO DO:
