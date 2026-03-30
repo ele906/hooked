@@ -12,14 +12,13 @@ function WelcomePage(){
     // this makes it go from one screen to another
     const navigate = useNavigate()
 
-    function handleTestSwipeClick() {
-        console.log("Test button clicked: skipping login to test swipe logic")
-        navigate('/swipe') 
-    }
-
     function handleLoginClick() {
         console.log("login button clicked, teleport to login pg")
-        navigate('/login')
+    }
+
+    function handleGoogleClick() {
+        console.log("login button clicked, teleport to login pg")
+        window.location.href = "http://localhost:5000/auth/login";
     }
 
     function handleCreateClick() {
@@ -56,9 +55,11 @@ function WelcomePage(){
                         Sign Up
                     </button>
 
-                    <button style={testButtonStyle} onClick={handleTestSwipeClick}>
-                        Test Swipe Screen
+                    <button style={loginButtonStyle} onClick={handleGoogleClick}>
+                        Continue with Google
                     </button>
+
+
         </div>
         
         

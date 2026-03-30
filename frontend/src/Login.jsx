@@ -13,6 +13,10 @@ function Login(){
     // this makes it go from one screen to another
     const navigate = useNavigate()
 
+    function handleLogin() {
+        window.location.href = "http://localhost:5000/auth/login";
+    }
+
     function handleBackButton() {
         console.log("back button clicked, go back to welcome page")
         navigate('/')
@@ -30,16 +34,17 @@ function Login(){
         return () => window.removeEventListener('keydown', handleKeyPress)
     }, [handleKeyPress])
 
-    return(
-        <div style = {screenStyle}> 
-            Login to Account 
-
-            <button style={backButtonStyle} onClick = {handleBackButton}> 
-                Back 
-            </button>
-            
+    return (
+        <div style={screenStyle}>
+        Login to Account
+        <button style={backButtonStyle} onClick={handleLogin}>
+            Sign in with Google
+        </button>
+        <button style={backButtonStyle} onClick={handleBackButton}>
+            Back
+        </button>
         </div>
-    )
+    );
 }
 
 // --------------------------------- Styles --------------------------------

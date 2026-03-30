@@ -50,7 +50,13 @@ def auth_callback():
         "email": user_info["email"],
         "name": user_info.get("name", ""),
     }
-    return redirect("http://localhost:3000")
+    sql_cmd(
+        """INSERT INTO users (email, username) 
+        VALUES (%s, %s) 
+        ON CONFLICT (email) DO NOTHING;""",
+        (user_info["email"], user_info["email"])
+    )
+    return redirect("http://localhost:3000/swipe")
 
 # logs out by clearing the session, then redirects back to the frontend
 @app.route("/auth/logout")
@@ -211,7 +217,6 @@ def delete_liked_song(song_id):
     user_id = 1
     
     sql_cmd("DELETE FROM liked WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
-    
     
     sql_cmd("DELETE FROM interactions WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
     
