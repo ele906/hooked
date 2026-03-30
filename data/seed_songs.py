@@ -53,13 +53,18 @@ else:
 conn = get_db()
 with conn.cursor() as cur:
     for artist, song in songs_to_seed:
-        resp = requests.get("https://itunes.apple.com/search", params={
-            "term": f"{artist} {song}",
-            "media": "music",
-            "entity": "song",
-            "limit": 5
-        })
-        results = resp.json().get("results", [])
+        try:
+            resp = requests.get("https://itunes.apple.com/search", params={
+                "term": f"{artist} {song}",
+                "media": "music",
+                "entity": "song",
+                "limit": 5
+            }, timeout=10)
+            results = resp.json().get("results", [])
+        except requests.exceptions.RequestException as e:
+            print(f"Skipping '{song}' by {artist} — request failed: {e}")
+            continue
+        time.sleep(5)
         track = next(
             (r for r in results
              if artist.lower() in r["artistName"].lower()

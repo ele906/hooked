@@ -55,15 +55,6 @@ CREATE TABLE interactions (
     duration_sec INTEGER  -- only relevant for 'play', NULL otherwise
 );
 
---- stores liked songs ---
-CREATE TABLE song_ratings(
-    PRIMARY KEY (song_id, user_id),
-    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
-    song_id INTEGER REFERENCES songs(song_id) ON DELETE CASCADE,
-    rating VARCHAR(20) CHECK (rating IN ('like', 'dislike')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 --- stores user taste profiles ---
 CREATE TABLE user_profiles(
     user_id INTEGER PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
