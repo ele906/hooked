@@ -33,10 +33,12 @@ def _encode_genre(genre_str):
     if not genre_str:
         return vec
 
+    # convert genre string to lowercase for case-insensitive matching
     genre_lower = genre_str.lower()
     matches = [i for i, (_, keywords) in enumerate(GENRE_TYPES)
                if any(kw in genre_lower for kw in keywords)]
 
+    # split weight evenly across matches
     if matches:
         weight = 1.0 / len(matches)
         for i in matches:

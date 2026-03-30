@@ -28,10 +28,14 @@ google = oauth.register(
             'scope': 'openid email profile'
         }
     )
+
+# Authentication routes
 @app.route("/auth/login")
 def login():
     redirect_uri = url_for("auth_callback", _external=True)
     return google.authorize_redirect(redirect_uri)
+
+# callback route that Google redirects to after login
 @app.route("/auth/callback")
 def auth_callback():
     token = google.authorize_access_token()
@@ -42,13 +46,13 @@ def auth_callback():
     }
     return redirect("http://localhost:3000")
 
-
+# logs out by clearing the session, then redirects back to the frontend
 @app.route("/auth/logout")
 def logout():
     session.pop("user", None)
     return redirect("http://localhost:3000")
 
-
+# returns the logged-in user's info, or 401 if not logged in
 @app.route("/auth/user")
 def get_user():
     user = session.get("user")
@@ -59,7 +63,7 @@ def get_user():
 
 EPSILON = 0.15  # fraction of requests served randomly for exploration
 
-
+# helper function to run SQL commands with proper connection handling
 def sql_cmd(command, params=(), fetch=False):
     conn = get_db()
     cur = conn.cursor()
@@ -72,15 +76,18 @@ def sql_cmd(command, params=(), fetch=False):
     conn.close()
     return result
 
+# API route to handle user interactions (like/dislike) and update their profile vector accordingly
 @app.route("/api/songs/action", methods=["POST"])
 def store_interaction():
     data = request.get_json()
 
+    # Update interactions table
     sql_cmd(
         "INSERT INTO interactions (user_id, song_id, type) VALUES (%s, %s, %s);",
         (data["user_id"], data["song_id"], data["action"])
     )
 
+    # Update liked/disliked tables
     if data["action"] == "like":
         sql_cmd(
             "INSERT INTO liked (user_id, song_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
@@ -97,6 +104,8 @@ def store_interaction():
         "SELECT feature_vector FROM songs WHERE song_id = %s",
         (data["song_id"],), fetch=True
     )
+
+    # if the song has a feature vector, update the user's weight vector accordingly
     if song_rows and song_rows[0][0] is not None:
         song_vec = song_rows[0][0]
 
@@ -121,6 +130,7 @@ def store_interaction():
 
     return jsonify({"status": "ok"}), 201
 
+# API route to get a list of songs the user has liked, along with artist info and when they liked it
 @app.route("/api/songs/liked", methods=["GET"])
 def get_liked_songs():
     user_id = request.args.get("user_id")
@@ -148,7 +158,7 @@ def get_liked_songs():
             "liked_at":         r[5].isoformat() if r[5] else None
         } for r in rows])
 
-
+# API route to get the next song recommendation for a user, using cosine similarity ranking with epsilon-greedy exploration
 @app.route("/api/songs/next", methods=["GET"])
 def next_song():
     user_id = request.args.get("user_id")

@@ -6,7 +6,7 @@ from db import get_db
 from vector_utils import build_feature_vector, l2_normalize
 import sys
 
-
+# sample test songs of varying genres to test recommendations with
 SONGS_TEST = [
     # The Weeknd
     ("The Weeknd", "Blinding Lights"),
@@ -44,15 +44,19 @@ SONGS_TEST = [
     ("WHALES•TALK", "Hypocrite"),
 ]
 
+# if no CLI is provided, use the above test songs
 if len(sys.argv) > 1:
     # CLI format: "Artist|Song Title"
     songs_to_seed = [tuple(arg.split("|", 1)) for arg in sys.argv[1:]]
 else:
     songs_to_seed = SONGS_TEST
 
+# requests from iTunes API to retrieve songs and insert them into the database with their metadata and feature vectors
+# there is a time delay of 5 seconds between each request to avoid hitting rate limits
 conn = get_db()
 with conn.cursor() as cur:
     for artist, song in songs_to_seed:
+        # gets song metadata from iTunes Search API
         try:
             resp = requests.get("https://itunes.apple.com/search", params={
                 "term": f"{artist} {song}",
@@ -71,6 +75,9 @@ with conn.cursor() as cur:
              and song.lower() in r["trackName"].lower()),
             None
         )
+
+        # if no matching result is found, skip this song
+        # also skip if the song doesn't have a preview URL since we won't be able to play it in the app
         if not track:
             print(f"Skipping '{song}' by {artist} — no matching result found")
             continue
@@ -87,6 +94,8 @@ with conn.cursor() as cur:
 
         feature_vec = l2_normalize(build_feature_vector(genre, release_date, duration_ms))
 
+        # insert the song into the database and link it to its artist, creating the artist if they don't already exist 
+        # also store the feature vector as JSON for later use in recommendations
         cur.execute(
             "INSERT INTO artists (artist_name) VALUES (%s) ON CONFLICT (artist_name) DO NOTHING;",
             (track["artistName"],)
@@ -106,7 +115,7 @@ with conn.cursor() as cur:
         )
         row = cur.fetchone()
         if row is None:
-            print(f"  Already in DB, skipping.")
+            print(f"Already in DB, skipping.")
             continue
         song_id = row[0]
         cur.execute(
@@ -114,7 +123,5 @@ with conn.cursor() as cur:
             (song_id, artist_id)
         )
         
-        # time.sleep() WE CAN ADD A DELAY IF NEEDED
-
     conn.commit()
     print("Done!")
