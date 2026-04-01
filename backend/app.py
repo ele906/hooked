@@ -6,34 +6,20 @@
 
 import sys, os, json, random
 import flask
-from flask import Flask, jsonify, request, session, redirect, url_for
+from flask import Flask, jsonify, request, session, redirect, url_for, g
 from authlib.integrations.flask_client import OAuth
 
 # adds parent directory to path so we can import from data/
 # only have to do this bc app.py is in backend/ and not the root of the project
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from data.db import get_db
+from data.db import get_db as _open_db
 from data.vector_utils import cosine_similarity, update_weight_vector, l2_normalize, init_weight_vector_from_prefs
 from flask_cors import CORS
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 CORS(app, supports_credentials=True)
-
-# helper function to run SQL commands with proper connection handling
-def sql_cmd(command, params=(), fetch=False):
-    conn = get_db()
-    cur = conn.cursor()
-    
-    cur.execute(command, params)
-    conn.commit()
-    
-    result = cur.fetchall() if fetch else None
-    cur.close()
-    conn.close()
-    return result
-
 
 # Google OAuth setup
 oauth = OAuth(app)
@@ -89,6 +75,33 @@ def get_user():
 
 
 EPSILON = 0.15  # fraction of requests served randomly for exploration
+
+# returns the DB connection for the current request, opening one if needed
+# Flask's teardown closes it automatically when the request ends
+def get_db():
+    if 'db' not in g:
+        g.db = _open_db()
+    return g.db
+
+# closes the DB connection at the end of the request
+@app.teardown_appcontext
+def close_db(e=None):
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+
+# helper to run SQL commands. reuses the single per-request connection
+# before this would open multiple conenections per request which
+# was not neccessary
+def sql_cmd(command, params=(), fetch=False):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(command, params)
+    conn.commit()
+    result = cur.fetchall() if fetch else None
+    cur.close()
+    return result
+
 
 # API route to handle user interactions (like/dislike) and update their profile vector accordingly
 @app.route("/api/songs/action", methods=["POST"])
@@ -228,7 +241,6 @@ def delete_liked_song(song_id):
 @app.route("/api/songs/search", methods=["GET"])
 def search_songs():
     query = request.args.get("params", "")
-    print("searching for:", query)
 
     if not query:
         return jsonify({"error": "params parameter is required"}), 400
