@@ -88,6 +88,12 @@ function SeedPreferences(){
 const screenStyle = {
     minHeight: '100vh',
     backgroundColor: '#18171d',
+    backgroundImage: `
+        radial-gradient(circle at 20% 30%, rgba(158, 123, 255, 0.4) 0%, transparent 30%),
+        radial-gradient(circle at 80% 20%, rgba(68, 161, 178, 0.25) 0%, transparent 30%),
+        radial-gradient(circle at 85% 85%, rgba(112, 59, 173, 0.4) 0%, transparent 30%),
+        radial-gradient(circle at 15% 90%, rgba(134, 190, 219, 0.3) 0%, transparent 30%)
+    `,
     color: '#debff7',
     display: 'flex',
     flexDirection: 'column',

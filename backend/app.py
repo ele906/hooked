@@ -21,6 +21,20 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 CORS(app, supports_credentials=True)
 
+# helper function to run SQL commands with proper connection handling
+def sql_cmd(command, params=(), fetch=False):
+    conn = get_db()
+    cur = conn.cursor()
+    
+    cur.execute(command, params)
+    conn.commit()
+    
+    result = cur.fetchall() if fetch else None
+    cur.close()
+    conn.close()
+    return result
+
+
 # Google OAuth setup
 oauth = OAuth(app)
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
@@ -75,19 +89,6 @@ def get_user():
 
 
 EPSILON = 0.15  # fraction of requests served randomly for exploration
-
-# helper function to run SQL commands with proper connection handling
-def sql_cmd(command, params=(), fetch=False):
-    conn = get_db()
-    cur = conn.cursor()
-    
-    cur.execute(command, params)
-    conn.commit()
-    
-    result = cur.fetchall() if fetch else None
-    cur.close()
-    conn.close()
-    return result
 
 # API route to handle user interactions (like/dislike) and update their profile vector accordingly
 @app.route("/api/songs/action", methods=["POST"])
@@ -273,6 +274,23 @@ def save_preferences():
     )
 
     return flask.jsonify({'added weight vec to DB': True})
+
+# check if password is right... 
+@app.route('/api/checkpw', methods=['POST'])
+def check_password():
+    data = flask.request.get_json()
+    username = data.get('username', "")
+    password = data.get('password', "")
+
+    result = sql_cmd(
+        "SELECT * FROM users WHERE username = %s AND password_hash = %s",
+        (username, password),
+        fetch=True
+    )
+
+    if result:
+        return flask.jsonify({'logged_in': True})
+    return flask.jsonify({'logged_in': False})
 
 if __name__ == "__main__":
     app.run(debug=True)

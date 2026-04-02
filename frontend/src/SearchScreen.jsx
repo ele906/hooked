@@ -5,7 +5,7 @@
 // Contributers: Lucille Rizo Patron
 // -----------------------------------------------------------------------
 import React from 'react'
-import {useState, useRef, useEffect} from 'react'
+import {useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
 
 function SearchScreen() {
@@ -84,6 +84,12 @@ function SearchScreen() {
 const screenStyle = {
     minHeight: '100vh',
     backgroundColor: '#18171d',
+    backgroundImage: `
+        radial-gradient(circle at 20% 30%, rgba(158, 123, 255, 0.4) 0%, transparent 30%),
+        radial-gradient(circle at 80% 20%, rgba(68, 161, 178, 0.25) 0%, transparent 30%),
+        radial-gradient(circle at 85% 85%, rgba(112, 59, 173, 0.4) 0%, transparent 30%),
+        radial-gradient(circle at 15% 90%, rgba(190, 126, 194, 0.3) 0%, transparent 30%)
+    `,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',

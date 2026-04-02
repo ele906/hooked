@@ -9,3 +9,5 @@ https://stackoverflow.com/questions/55518487/how-to-make-space-between-elements-
 table
 https://www.geeksforgeeks.org/html/html-table-align-attribute/
 https://www.w3schools.com/html/html_tables.asp
+
+https://stackoverflow.com/questions/20620300/http-content-type-header-and-json
