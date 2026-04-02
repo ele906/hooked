@@ -2,6 +2,7 @@
 // WelcomePage.jsx
 // Swipe interface for Hooked (in progress)
 // Authors: Eleanor Liu
+// Contributors:  Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
 import React from 'react'
@@ -12,11 +13,6 @@ function SignUp(){
 
     // this makes it go from one screen to another
     const navigate = useNavigate()
-
-    function handleBackButton() {
-        console.log("back button clicked, go back to welcome page")
-        navigate('/')
-    }
 
     const handleKeyPress = useCallback((e) => {
         if (e.key === ' ' || e.code === "Space") {
@@ -32,9 +28,20 @@ function SignUp(){
 
     return(
         <div style = {screenStyle}> 
-            Create an Account 
-            <button style={backButtonStyle} onClick = {handleBackButton}> 
+            Create an Account <br />
+            
+            <button style={backButtonStyle} onClick = { () => {
+                console.log("back button clicked! lets migrate to welcome page")
+                navigate('/')
+            }}> 
                 Back 
+            </button>
+
+            <button style={backButtonStyle} onClick = {() => {
+                navigate('/seedprefs')
+                console.log("we are going to seed our preferences")}
+                }> 
+                Seed Preferences 
             </button>
         </div>
     )

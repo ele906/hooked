@@ -1,3 +1,10 @@
+// -----------------------------------------------------------------------
+// SeedPreferences.jsx
+// Swipe Interface for Hooked
+// Author: Eleanor Liu
+// Contributors:  Lucille Rizo Patron
+// -----------------------------------------------------------------------
+
 import React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import { useNavigate} from 'react-router-dom'
@@ -23,7 +30,7 @@ function SeedPreferences(){
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ genres: [...selected] })  // selected is your Set
+            body: JSON.stringify({ prefs: [...selected] })  // selected is your Set
         })
         navigate('/swipe')
     }
