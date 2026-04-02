@@ -268,7 +268,7 @@ def save_preferences():
     user_id = flask.session['user_id']
 
     sql_cmd(
-        "UPDATE users SET weight_vector = %s WHERE id = %s",
+        "UPDATE users SET weight_vector = %s WHERE user_id = %s",
         (vec, user_id)
     )
 
