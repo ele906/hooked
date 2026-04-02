@@ -261,7 +261,7 @@ def search_songs():
 @app.route('/api/seedpref', methods=['POST'])
 def save_preferences():
     data = flask.request.get_json()
-    genres = data.get('genres', [])
+    genres = data.get('prefs', [])
     vec = init_weight_vector_from_prefs(genres)
     
     # save to DB
