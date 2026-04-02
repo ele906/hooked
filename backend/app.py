@@ -266,12 +266,12 @@ def save_preferences():
     
     # save to DB
     user_id = flask.session['user_id']
-    conn = get_db()
-    conn.execute(
+
+    sql_cmd(
         "UPDATE users SET weight_vector = %s WHERE id = %s",
         (json.dumps(vec), user_id)
     )
-    conn.commit()
+    
     return flask.jsonify({'ok': True})
 
 if __name__ == "__main__":
