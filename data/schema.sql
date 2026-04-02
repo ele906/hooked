@@ -7,7 +7,7 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     user_image_url TEXT,
-    onboarding_vec JSONB DEFAULT '{}'::jsonb
+    weight_vector JSONB DEFAULT '{}'::jsonb
 );
 
 --- stores artist data ---
