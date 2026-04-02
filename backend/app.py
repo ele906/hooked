@@ -5,6 +5,7 @@
 # -----------------------------------------------------------------------
 
 import sys, os, json, random
+import flask
 from flask import Flask, jsonify, request, session, redirect, url_for
 from authlib.integrations.flask_client import OAuth
 
@@ -13,7 +14,7 @@ from authlib.integrations.flask_client import OAuth
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from data.db import get_db
-from data.vector_utils import cosine_similarity, update_weight_vector, l2_normalize
+from data.vector_utils import cosine_similarity, update_weight_vector, l2_normalize, init_weight_vector_from_prefs
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -255,6 +256,23 @@ def search_songs():
         })
 
     return jsonify(results)
+
+# seed preference
+@app.route('/api/seedpref', methods=['POST'])
+def save_preferences():
+    data = flask.request.get_json()
+    genres = data.get('genres', [])
+    vec = init_weight_vector_from_prefs(genres)
+    
+    # save to DB
+    user_id = flask.session['user_id']
+    conn = get_db()
+    conn.execute(
+        "UPDATE users SET weight_vector = %s WHERE id = %s",
+        (json.dumps(vec), user_id)
+    )
+    conn.commit()
+    return flask.jsonify({'ok': True})
 
 if __name__ == "__main__":
     app.run(debug=True)

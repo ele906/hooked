@@ -21,7 +21,7 @@ function SignUp(){
     const handleKeyPress = useCallback((e) => {
         if (e.key === ' ' || e.code === "Space") {
             console.log('Space pressed')
-            navigate('/swipe')
+            navigate('/seedprefs')
         }
     }, [navigate])
 

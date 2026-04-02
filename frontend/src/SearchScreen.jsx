@@ -119,6 +119,7 @@ const songImageBox = {
     height: '40px',
     borderRadius: '4px',
 }
+
 const noResultsStyle = {
     fontSize: '16px',
     color: '#a9bacb',

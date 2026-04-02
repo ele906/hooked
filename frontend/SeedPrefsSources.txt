@@ -1,0 +1,7 @@
+jsonify string
+https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+https://stackoverflow.com/questions/60905305/condition-for-selecting-an-object-in-body-json-stringify
+
+gap
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/gap
+https://stackoverflow.com/questions/55518487/how-to-make-space-between-elements-inside-div-container#:~:text=Comments,-Add%20a%20comment&text=1-,Container%20doesn't%20have%20fixed%20width%20(I%20use%20max%2D,an%20element%20and%20the%20container.

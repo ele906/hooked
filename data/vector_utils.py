@@ -25,6 +25,21 @@ _MAX_YEAR = 2026
 _MIN_MS   = 60_000   # 1 min
 _MAX_MS   = 600_000  # 10 min
 
+# initialize weight vec from prefernecnes 
+# returns the L2-normalized form of a vector
+
+def init_weight_vector_from_prefs(prefs_frontend):
+    # build a vector for each selected genre
+    vectors = [build_feature_vector(genre, None, None) for genre in prefs_frontend]
+    
+    if not vectors:
+        return l2_normalize([1.0] * 14)  # default if nothing selected
+    
+    # average them together
+    avg = [sum(v[i] for v in vectors) / len(vectors) for i in range(14)]
+    
+    return l2_normalize(avg)
+
 # encodes a genre string into N_GENRES types
 # If the genre matches multiple types, weight is split evenly across matches
 # Splitting evenly probably isn't the best/most realisitc approach but it should be good enough for now
