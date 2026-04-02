@@ -272,7 +272,7 @@ def save_preferences():
         (vec, user_id)
     )
 
-    return flask.jsonify({'ok': True})
+    return flask.jsonify({'added weight vec to DB': True})
 
 if __name__ == "__main__":
     app.run(debug=True)
