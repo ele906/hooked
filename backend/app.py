@@ -269,9 +269,9 @@ def save_preferences():
 
     sql_cmd(
         "UPDATE users SET weight_vector = %s WHERE id = %s",
-        (json.dumps(vec), user_id)
+        (vec, user_id)
     )
-    
+
     return flask.jsonify({'ok': True})
 
 if __name__ == "__main__":
