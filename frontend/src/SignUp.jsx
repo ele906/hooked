@@ -5,7 +5,7 @@
 // Contributors:  Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
-import React from 'react'
+import React, { useState } from 'react'
 import {useCallback, useEffect} from 'react'
 import { useNavigate} from 'react-router-dom'
 
@@ -13,6 +13,26 @@ function SignUp(){
 
     // this makes it go from one screen to another
     const navigate = useNavigate()
+    const [email, setEmail] = useState("")
+    const [username, setUsername] = useState("")
+    const [password, setPassword] = useState("")
+    const [error, setError] = useState("")
+
+    const handleSignup = async () => {
+        setError("")
+        const res = await fetch("http://localhost:5000/auth/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ email, username, password })
+        })
+        const data = await res.json()
+        if (res.ok) {
+            navigate('/seedprefs')
+        } else {
+            setError(data.error || "Signup failed")
+        }
+    }
 
     const handleKeyPress = useCallback((e) => {
         if (e.key === ' ' || e.code === "Space") {
@@ -29,6 +49,14 @@ function SignUp(){
     return(
         <div style = {screenStyle}> 
             Create an Account <br />
+            {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+
+            <input style={backButtonStyle} type="email" placeholder="Email"
+                value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input style={backButtonStyle} type="text" placeholder="Username"
+                value={username} onChange={(e) => setUsername(e.target.value)} />
+            <input style={backButtonStyle} type="password" placeholder="Password"
+                value={password} onChange={(e) => setPassword(e.target.value)} />
             
             <button style={backButtonStyle} onClick = { () => {
                 console.log("back button clicked! lets migrate to welcome page")
@@ -37,12 +65,10 @@ function SignUp(){
                 Back 
             </button>
 
-            <button style={backButtonStyle} onClick = {() => {
-                navigate('/seedprefs')
-                console.log("we are going to seed our preferences")}
-                }> 
-                Seed Preferences 
+            <button style={backButtonStyle} onClick={handleSignup}>
+                Sign Up
             </button>
+
         </div>
     )
 }

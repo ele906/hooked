@@ -8,6 +8,10 @@ import sys, os, json, random
 import flask
 from flask import Flask, jsonify, request, session, redirect, url_for
 from authlib.integrations.flask_client import OAuth
+from dotenv import load_dotenv
+import bcrypt
+
+load_dotenv()
 
 # adds parent directory to path so we can import from data/
 # only have to do this bc app.py is in backend/ and not the root of the project
@@ -86,6 +90,37 @@ def get_user():
     if user:
         return jsonify(user)
     return jsonify(None), 401
+# signup route 
+@app.route("/auth/signup", methods=["POST"])
+def signup():
+    data = request.get_json()
+    email = data.get("email", "")
+    username = data.get("username", "")
+    password = data.get("password", "")
+    if not email or not username or not password:
+        return jsonify({"error": "All fields are required"}), 400
+    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    try:
+        rows = sql_cmd(
+            """INSERT INTO users (email, username, password_hash)
+            VALUES (%s, %s, %s)
+            RETURNING user_id;""",
+            (email, username, hashed),
+            fetch=True
+        )
+        user_id = rows[0][0]
+        session["user"] = {
+            "email": email,
+            "name": username,
+            "user_id": user_id,
+        }
+        return jsonify({"user_id": user_id}), 201
+    except Exception as e:
+        if "users_email_key" in str(e):
+            return jsonify({"error": "Email already taken"}), 409
+        if "users_username_key" in str(e):
+            return jsonify({"error": "Username already taken"}), 409
+        return jsonify({"error": str(e)}), 500
 
 
 EPSILON = 0.15  # fraction of requests served randomly for exploration
@@ -216,7 +251,8 @@ def next_song():
 # For deleting a liked song from liked songs
 @app.route("/api/songs/liked/<int:song_id>", methods=["DELETE"])
 def delete_liked_song(song_id):
-    user_id = 1
+    user = session.get("user")
+    user_id = user["user_id"]
     
     sql_cmd("DELETE FROM liked WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
     
@@ -283,14 +319,26 @@ def check_password():
     password = data.get('password', "")
 
     result = sql_cmd(
-        "SELECT * FROM users WHERE username = %s AND password_hash = %s",
-        (username, password),
+        "SELECT user_id, email, password_hash FROM users WHERE username = %s",
+        (username,),
         fetch=True
     )
 
-    if result:
-        return flask.jsonify({'logged_in': True})
-    return flask.jsonify({'logged_in': False})
+    if not result:
+        return flask.jsonify({'logged_in': False, 'error': 'User not found'}), 401
+
+    user_id, email, stored_hash = result[0]
+
+    import bcrypt
+    if bcrypt.checkpw(password.encode(), stored_hash.encode()):
+        session["user"] = {
+            "email": email,
+            "name": username,
+            "user_id": user_id,
+        }
+        return flask.jsonify({'logged_in': True, 'user_id': user_id})
+
+    return flask.jsonify({'logged_in': False, 'error': 'Wrong password'}), 401
 
 if __name__ == "__main__":
     app.run(debug=True)
