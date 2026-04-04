@@ -11,6 +11,13 @@ import { useNavigate} from 'react-router-dom'
 function WelcomePage(){
     // this makes it go from one screen to another
     const navigate = useNavigate()
+    useEffect(() => {
+    fetch("http://localhost:5000/auth/user", { credentials: "include" })
+        .then(res => {
+            if (res.ok) navigate('/swipe')
+        })
+        .catch(() => {})
+}, [navigate])
 
     function handleLoginClick() {
         navigate('/login')

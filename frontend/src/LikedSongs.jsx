@@ -16,22 +16,29 @@ function LikedSongs() {
     const navigate = useNavigate()
 
     const [likedSongs, setLikedSongs] = useState([])
+    const [userId, setUserId] = useState(null)
 
     // ------------------ Liked Song Fetching ----------------------------
 
     // fetch liked songs
     useEffect(() => {
-    fetch('http://localhost:5000/api/songs/liked?user_id=1')
+    fetch("http://localhost:5000/auth/user", { credentials: "include" })
         .then(res => res.json())
-        .then(data => setLikedSongs(data))
-        .catch(err => console.error("Error fetching likes:", err))
-    }, [])
+        .then(data => {
+            setUserId(data.user_id)
+            fetch(`http://localhost:5000/api/songs/liked?user_id=${data.user_id}`)
+                .then(res => res.json())
+                .then(songs => setLikedSongs(songs))
+        })
+        .catch(err => console.error(err))
+}, [])
 
     // delete a liked song, takes an integer song id and removes it from the 
     // user's liked songs list
     const deleteSong = (songId) => {
         fetch(`http://localhost:5000/api/songs/liked/${songId}`, {
-            method: 'DELETE' 
+            method: 'DELETE',
+            credentials: 'include'
         })
         .then(res => {
             if (res.ok) {

@@ -37,6 +37,15 @@ function SwipeScreen() {
     // the song currently on screen
     const [currentSong, setCurrentSong] = useState(null)
 
+    const [userId, setUserId] = useState(null)
+
+    useEffect(() => {
+        fetch("http://localhost:5000/auth/user", { credentials: "include" })
+            .then(res => res.json())
+            .then(data => setUserId(data.user_id))
+            .catch(() => {})
+    }, [])
+
     // swipe card component
     const cardRef = useRef(null)
 
@@ -52,7 +61,7 @@ function SwipeScreen() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             // tracks user interaction with song
-            body: JSON.stringify({ user_id: 1, 
+            body: JSON.stringify({ user_id: userId, 
                                    song_id: currentSong.song_id, 
                                    action })
         }).then(() => fetchNextSong())
@@ -60,7 +69,7 @@ function SwipeScreen() {
 
     // fetch next song from backend & reset visual state for new song card
     function fetchNextSong() {
-        fetch("http://localhost:5000/api/songs/next?user_id=1")
+        fetch(`http://localhost:5000/api/songs/next?user_id=${userId}`)
             .then(res => res.json())
             .then(data => {
                 // reset card to center position
@@ -93,7 +102,7 @@ function SwipeScreen() {
                 // arrived directly
                 fetchNextSong()
             }
-        }, [])
+        }, [userId])
 
     // -----------------------  Drag Swipe -------------------------------
     
