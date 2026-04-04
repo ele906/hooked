@@ -25,6 +25,21 @@ _MAX_YEAR = 2026
 _MIN_MS   = 60_000   # 1 min
 _MAX_MS   = 600_000  # 10 min
 
+# initialize weight vec from prefernecnes 
+# returns the L2-normalized form of a vector
+
+def init_weight_vector_from_prefs(prefs_frontend):
+    # build a vector for each selected genre
+    vectors = [build_feature_vector(genre, None, None) for genre in prefs_frontend]
+    
+    if not vectors:
+        return l2_normalize([1.0] * 14)  # default if nothing selected
+    
+    # average them together
+    avg = [sum(v[i] for v in vectors) / len(vectors) for i in range(14)]
+    
+    return l2_normalize(avg)
+
 # encodes a genre string into N_GENRES types
 # If the genre matches multiple types, weight is split evenly across matches
 # Splitting evenly probably isn't the best/most realisitc approach but it should be good enough for now
@@ -87,16 +102,11 @@ def l2_normalize(vec):
     return [x / magnitude for x in vec]
 
 # computes cosine similarity between two vectors
-# aka this is our similarity metric for recommendation
+# since both vectors are L2-normalized, the cosine similarity is just their dot product
 def cosine_similarity(v1, v2):
     if len(v1) != len(v2):
         raise ValueError(f"Vector length mismatch: {len(v1)} vs {len(v2)}")
-    dot  = sum(a * b for a, b in zip(v1, v2))
-    mag1 = math.sqrt(sum(a * a for a in v1))
-    mag2 = math.sqrt(sum(b * b for b in v2))
-    if mag1 == 0 or mag2 == 0:
-        return 0.0
-    return dot / (mag1 * mag2)
+    return sum(a * b for a, b in zip(v1, v2))
 
 # update a user's weight vector based on a swipe action
 # for a like, we move the weight vector slightly towards the song vector (scaled by alpha)

@@ -1,7 +1,8 @@
 // -----------------------------------------------------------------------
 // SwipeScreen.jsx
 // Swipe Interface for Hooked
-// Authors: Lucille Rizo Patron
+// Author: Lucille Rizo Patron
+// Contributors: Eleanor Liu
 // -----------------------------------------------------------------------
 
 import React from 'react'
@@ -37,6 +38,15 @@ function SwipeScreen() {
     // the song currently on screen
     const [currentSong, setCurrentSong] = useState(null)
 
+    const [userId, setUserId] = useState(null)
+
+    useEffect(() => {
+        fetch("http://localhost:5000/auth/user", { credentials: "include" })
+            .then(res => res.json())
+            .then(data => setUserId(data.user_id))
+            .catch(() => {})
+    }, [])
+
     // swipe card component
     const cardRef = useRef(null)
 
@@ -47,56 +57,35 @@ function SwipeScreen() {
 
     // send user like/dislike action to database, then fetch next song
     // takes a string action, 'like' or 'dislike', as a parameter
-    async function handleAction(action) {
-        try {
-            const response = await fetch("http://localhost:5000/api/songs/action", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                // tracks user interaction with song
-                body: JSON.stringify({ 
-                    user_id: 1, 
-                    song_id: currentSong.song_id, 
-                    action 
-                })
-            })
-            
-            if (!response.ok) {
-                throw new Error(`Response status: ${response.status}`)
-            }
-
-            // after recording action, get the next song
-            await fetchNextSong()
-
-        } catch (error) {
-            console.error("Action error:", error.message)
-            setMessage("Action failed, please try again.")
-        }
+    function handleAction(action) {
+        fetch("http://localhost:5000/api/songs/action", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            // tracks user interaction with song
+            body: JSON.stringify({ user_id: userId, 
+                                   song_id: currentSong.song_id, 
+                                   action })
+        }).then(() => fetchNextSong())
     }
 
     // fetch next song from backend & reset visual state for new song card
-    async function fetchNextSong() {
-        try {
-            const response = await fetch("http://localhost:5000/api/songs/next?user_id=1")
-            
-            if (!response.ok) {
-                throw new Error(`Response status: ${response.status}`)
-            }
-
-            const data = await response.json()
-
-            // reset visual state for swipe card
-            setOffsetX(0)
-
-            if (data && data.song_id) {
-                setCurrentSong(data)
-                setMessage("")
-            } else {
-                // end of song list
-                setCurrentSong(null)
-                setMessage("No more songs!")
-            }
-            } catch (error) {
-                console.error("Fetch error:", error.message)
+    function fetchNextSong() {
+        fetch(`http://localhost:5000/api/songs/next?user_id=${userId}`)
+            .then(res => res.json())
+            .then(data => {
+                // reset card to center position
+                setOffsetX(0)
+                if (data && data.song_id) {
+                    setCurrentSong(data)
+                    setMessage("")
+                } else {
+                    // end of song list
+                    setCurrentSong(null)
+                    setMessage("No more songs!")
+                }
+            })
+            .catch(err => {
+                console.error("Fetch error:", err)
                 setCurrentSong(null)
                 setMessage("Server Error")
             }
@@ -110,14 +99,14 @@ function SwipeScreen() {
             clickedSong = location.state.song
         }
 
-        if (clickedSong) {
-            // arrived from search result
-            setCurrentSong(clickedSong)
-        } else {
-            // arrived directly
-            fetchNextSong()
-          }
-    }, [])
+            if (clickedSong) {
+                // arrived from search result
+                setCurrentSong(clickedSong)
+            } else {
+                // arrived directly
+                fetchNextSong()
+            }
+        }, [userId])
 
     // -----------------------  Drag Swipe -------------------------------
     

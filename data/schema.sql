@@ -2,11 +2,12 @@
 CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
+    username TEXT UNIQUE NOT NULL,
     password_hash TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     user_image_url TEXT,
-    onboarding_vec JSONB DEFAULT '{}'::jsonb
+    weight_vector JSONB DEFAULT '{}'::jsonb
 );
 
 --- stores artist data ---
@@ -104,3 +105,7 @@ CREATE TABLE disliked (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, song_id)
 );
+
+--- indexes for hot query paths ---
+CREATE INDEX ON interactions (user_id, song_id);
+CREATE INDEX ON songs (song_id) WHERE feature_vector IS NOT NULL;

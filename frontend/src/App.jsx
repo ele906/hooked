@@ -11,6 +11,7 @@ import WelcomePage from './WelcomePage'
 import SignUp from './SignUp'
 import Login from './Login'
 import LikedSongs from './LikedSongs'
+import SeedPreferences from './SeedPreferences'
 
 function App() {
     return (
@@ -22,6 +23,7 @@ function App() {
                 <Route path="/swipe" element={<SwipeScreen />} />
                 <Route path="/search" element={<SearchScreen />} />
                 <Route path="/liked" element={<LikedSongs />} />
+                <Route path="/seedprefs" element={<SeedPreferences />} />
             </Routes>
         </BrowserRouter>
     )

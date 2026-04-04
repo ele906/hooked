@@ -22,32 +22,29 @@ function LikedSongs() {
 
     // list of liked songs to render on screen
     const [likedSongs, setLikedSongs] = useState([])
+    const [userId, setUserId] = useState(null)
 
     // ------------------ Liked Song Fetching ----------------------------
 
     // fetch liked songs
-    async function fetchLikedSongs() {
-        try {
-            const response = await fetch('http://localhost:5000/api/songs/liked?user_id=1')
-
-            if (!response.ok) {
-                throw new Error(`Response status: ${response.status}`)
-            }
-
-            const data = await response.json()
-            setLikedSongs(data)
-
-        } catch (error) {
-            console.error("Error fetching likes:", error.message)
-        }
-    }
+    useEffect(() => {
+    fetch("http://localhost:5000/auth/user", { credentials: "include" })
+        .then(res => res.json())
+        .then(data => {
+            setUserId(data.user_id)
+            fetch(`http://localhost:5000/api/songs/liked?user_id=${data.user_id}`)
+                .then(res => res.json())
+                .then(songs => setLikedSongs(songs))
+        })
+        .catch(err => console.error(err))
+}, [])
 
     // delete a liked song, takes an integer song id and removes it from the 
     // user's liked songs list
-    async function deleteSong(songId) {
-        try {
-        const response = await fetch(`http://localhost:5000/api/songs/liked/${songId}`, {
-            method: 'DELETE' 
+    const deleteSong = (songId) => {
+        fetch(`http://localhost:5000/api/songs/liked/${songId}`, {
+            method: 'DELETE',
+            credentials: 'include'
         })
         
         // update liked songs list on screen after deletion

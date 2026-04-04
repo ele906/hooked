@@ -11,15 +11,22 @@ import { useNavigate} from 'react-router-dom'
 function WelcomePage(){
     // this makes it go from one screen to another
     const navigate = useNavigate()
-
-    function handleTestSwipeClick() {
-        console.log("Test button clicked: skipping login to test swipe logic")
-        navigate('/swipe') 
-    }
+    useEffect(() => {
+    fetch("http://localhost:5000/auth/user", { credentials: "include" })
+        .then(res => {
+            if (res.ok) navigate('/swipe')
+        })
+        .catch(() => {})
+}, [navigate])
 
     function handleLoginClick() {
-        console.log("login button clicked, teleport to login pg")
         navigate('/login')
+        console.log("login button clicked, teleport to login pg")
+    }
+
+    function handleGoogleClick() {
+        console.log("login button clicked, teleport to login pg")
+        window.location.href = "http://localhost:5000/auth/login";
     }
 
     function handleCreateClick() {
@@ -56,9 +63,11 @@ function WelcomePage(){
                         Sign Up
                     </button>
 
-                    <button style={testButtonStyle} onClick={handleTestSwipeClick}>
-                        Test Swipe Screen
+                    <button style={loginButtonStyle} onClick={handleGoogleClick}>
+                        Continue with Google
                     </button>
+
+
         </div>
         
         
@@ -70,6 +79,12 @@ function WelcomePage(){
 const screenStyle = {
     minHeight: '100vh',
     backgroundColor: '#18171d',
+    backgroundImage: `
+        radial-gradient(circle at 20% 30%, rgba(158, 123, 255, 0.4) 0%, transparent 30%),
+        radial-gradient(circle at 80% 20%, rgba(68, 161, 178, 0.25) 0%, transparent 30%),
+        radial-gradient(circle at 85% 85%, rgba(219, 100, 165, 0.4) 0%, transparent 30%),
+        radial-gradient(circle at 15% 90%, rgba(126, 169, 194, 0.3) 0%, transparent 30%)
+    `,
     color: '#debff7',
     display: 'flex',
     flexDirection: 'column',
@@ -102,16 +117,5 @@ const signupButtonStyle = {
     cursor: 'pointer',
 }
 
-const testButtonStyle = {
-    padding: '10px 20px',
-    fontSize: '14px',
-    backgroundColor: 'transparent',
-    color: '#d0ff50',
-    fontWeight: 'bold',
-    border: '2px dashed #d0ff50',
-    borderRadius: '10px',
-    marginTop: '30px',
-    cursor: 'pointer',
-}
 
 export default WelcomePage

@@ -5,15 +5,20 @@
 # -----------------------------------------------------------------------
 
 import sys, os, json, random
-from flask import Flask, jsonify, request, session, redirect, url_for
+import flask
+from flask import Flask, jsonify, request, session, redirect, url_for, g
 from authlib.integrations.flask_client import OAuth
+from dotenv import load_dotenv
+import bcrypt
+
+load_dotenv()
 
 # adds parent directory to path so we can import from data/
 # only have to do this bc app.py is in backend/ and not the root of the project
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from data.db import get_db
-from data.vector_utils import cosine_similarity, update_weight_vector, l2_normalize
+from data.db import get_db as _open_db
+from data.vector_utils import cosine_similarity, update_weight_vector, l2_normalize, init_weight_vector_from_prefs
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -50,7 +55,13 @@ def auth_callback():
         "email": user_info["email"],
         "name": user_info.get("name", ""),
     }
-    return redirect("http://localhost:3000")
+    sql_cmd(
+        """INSERT INTO users (email, username) 
+        VALUES (%s, %s) 
+        ON CONFLICT (email) DO NOTHING;""",
+        (user_info["email"], user_info["email"])
+    )
+    return redirect("http://localhost:3000/swipe")
 
 # logs out by clearing the session, then redirects back to the frontend
 @app.route("/auth/logout")
@@ -65,22 +76,67 @@ def get_user():
     if user:
         return jsonify(user)
     return jsonify(None), 401
+# signup route 
+@app.route("/auth/signup", methods=["POST"])
+def signup():
+    data = request.get_json()
+    email = data.get("email", "")
+    username = data.get("username", "")
+    password = data.get("password", "")
+    if not email or not username or not password:
+        return jsonify({"error": "All fields are required"}), 400
+    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    try:
+        rows = sql_cmd(
+            """INSERT INTO users (email, username, password_hash)
+            VALUES (%s, %s, %s)
+            RETURNING user_id;""",
+            (email, username, hashed),
+            fetch=True
+        )
+        user_id = rows[0][0]
+        session["user"] = {
+            "email": email,
+            "name": username,
+            "user_id": user_id,
+        }
+        return jsonify({"user_id": user_id}), 201
+    except Exception as e:
+        if "users_email_key" in str(e):
+            return jsonify({"error": "Email already taken"}), 409
+        if "users_username_key" in str(e):
+            return jsonify({"error": "Username already taken"}), 409
+        return jsonify({"error": str(e)}), 500
 
 
 EPSILON = 0.15  # fraction of requests served randomly for exploration
 
-# helper function to run SQL commands with proper connection handling
+# returns the DB connection for the current request, opening one if needed
+# Flask's teardown closes it automatically when the request ends
+def get_db():
+    if 'db' not in g:
+        g.db = _open_db()
+    return g.db
+
+# closes the DB connection at the end of the request
+@app.teardown_appcontext
+def close_db(e=None):
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+
+# helper to run SQL commands. reuses the single per-request connection
+# before this would open multiple conenections per request which
+# was not neccessary
 def sql_cmd(command, params=(), fetch=False):
     conn = get_db()
     cur = conn.cursor()
-    
     cur.execute(command, params)
     conn.commit()
-    
     result = cur.fetchall() if fetch else None
     cur.close()
-    conn.close()
     return result
+
 
 # API route to handle user interactions (like/dislike) and update their profile vector accordingly
 @app.route("/api/songs/action", methods=["POST"])
@@ -208,10 +264,10 @@ def next_song():
 # For deleting a liked song from liked songs
 @app.route("/api/songs/liked/<int:song_id>", methods=["DELETE"])
 def delete_liked_song(song_id):
-    user_id = 1
+    user = session.get("user")
+    user_id = user["user_id"]
     
     sql_cmd("DELETE FROM liked WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
-    
     
     sql_cmd("DELETE FROM interactions WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
     
@@ -221,7 +277,6 @@ def delete_liked_song(song_id):
 @app.route("/api/songs/search", methods=["GET"])
 def search_songs():
     query = request.args.get("params", "")
-    print("searching for:", query)
 
     if not query:
         return jsonify({"error": "params parameter is required"}), 400
@@ -250,6 +305,52 @@ def search_songs():
         })
 
     return jsonify(results)
+
+# seed preference
+@app.route('/api/seedpref', methods=['POST'])
+def save_preferences():
+    data = flask.request.get_json()
+    genres = data.get('prefs', [])
+    vec = init_weight_vector_from_prefs(genres)
+    
+    # save to DB
+    user_id = flask.session['user_id']
+
+    sql_cmd(
+        "UPDATE users SET weight_vector = %s WHERE user_id = %s",
+        (vec, user_id)
+    )
+
+    return flask.jsonify({'added weight vec to DB': True})
+
+# check if password is right... 
+@app.route('/api/checkpw', methods=['POST'])
+def check_password():
+    data = flask.request.get_json()
+    username = data.get('username', "")
+    password = data.get('password', "")
+
+    result = sql_cmd(
+        "SELECT user_id, email, password_hash FROM users WHERE username = %s",
+        (username,),
+        fetch=True
+    )
+
+    if not result:
+        return flask.jsonify({'logged_in': False, 'error': 'User not found'}), 401
+
+    user_id, email, stored_hash = result[0]
+
+    import bcrypt
+    if bcrypt.checkpw(password.encode(), stored_hash.encode()):
+        session["user"] = {
+            "email": email,
+            "name": username,
+            "user_id": user_id,
+        }
+        return flask.jsonify({'logged_in': True, 'user_id': user_id})
+
+    return flask.jsonify({'logged_in': False, 'error': 'Wrong password'}), 401
 
 if __name__ == "__main__":
     app.run(debug=True)

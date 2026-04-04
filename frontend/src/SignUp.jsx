@@ -2,9 +2,10 @@
 // WelcomePage.jsx
 // Swipe interface for Hooked (in progress)
 // Authors: Eleanor Liu
+// Contributors:  Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
-import React from 'react'
+import React, { useState } from 'react'
 import {useCallback, useEffect} from 'react'
 import { useNavigate} from 'react-router-dom'
 
@@ -12,16 +13,31 @@ function SignUp(){
 
     // this makes it go from one screen to another
     const navigate = useNavigate()
+    const [email, setEmail] = useState("")
+    const [username, setUsername] = useState("")
+    const [password, setPassword] = useState("")
+    const [error, setError] = useState("")
 
-    function handleBackButton() {
-        console.log("back button clicked, go back to welcome page")
-        navigate('/')
+    const handleSignup = async () => {
+        setError("")
+        const res = await fetch("http://localhost:5000/auth/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ email, username, password })
+        })
+        const data = await res.json()
+        if (res.ok) {
+            navigate('/seedprefs')
+        } else {
+            setError(data.error || "Signup failed")
+        }
     }
 
     const handleKeyPress = useCallback((e) => {
         if (e.key === ' ' || e.code === "Space") {
             console.log('Space pressed')
-            navigate('/swipe')
+            navigate('/seedprefs')
         }
     }, [navigate])
 
@@ -32,10 +48,27 @@ function SignUp(){
 
     return(
         <div style = {screenStyle}> 
-            Create an Account 
-            <button style={backButtonStyle} onClick = {handleBackButton}> 
+            Create an Account <br />
+            {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+
+            <input style={backButtonStyle} type="email" placeholder="Email"
+                value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input style={backButtonStyle} type="text" placeholder="Username"
+                value={username} onChange={(e) => setUsername(e.target.value)} />
+            <input style={backButtonStyle} type="password" placeholder="Password"
+                value={password} onChange={(e) => setPassword(e.target.value)} />
+            
+            <button style={backButtonStyle} onClick = { () => {
+                console.log("back button clicked! lets migrate to welcome page")
+                navigate('/')
+            }}> 
                 Back 
             </button>
+
+            <button style={backButtonStyle} onClick={handleSignup}>
+                Sign Up
+            </button>
+
         </div>
     )
 }
@@ -45,6 +78,12 @@ function SignUp(){
 const screenStyle = {
     minHeight: '100vh',
     backgroundColor: '#18171d',
+    backgroundImage: `
+        radial-gradient(circle at 20% 30%, rgba(213, 127, 217, 0.4) 0%, transparent 30%),
+        radial-gradient(circle at 80% 20%, rgba(109, 166, 215, 0.25) 0%, transparent 30%),
+        radial-gradient(circle at 85% 85%, rgba(148, 123, 176, 0.4) 0%, transparent 30%),
+        radial-gradient(circle at 15% 90%, rgba(108, 148, 201, 0.3) 0%, transparent 30%)
+    `,
     color: '#debff7',
     display: 'flex',
     flexDirection: 'column',
