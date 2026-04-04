@@ -105,3 +105,7 @@ CREATE TABLE disliked (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, song_id)
 );
+
+--- indexes for hot query paths ---
+CREATE INDEX ON interactions (user_id, song_id);
+CREATE INDEX ON songs (song_id) WHERE feature_vector IS NOT NULL;

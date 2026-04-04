@@ -1,4 +1,10 @@
-# function to seed songs into the database using the iTunes Search API. called like "python seed_songs.py 'song name 1 artist name 1' 'song name 2 artist name 2' ..."
+# Defaults to auto-discover top songs for each artist in ARTISTS_BY_GENRE
+#   1 API call per artist
+#   60 artists × 5s sleep = ~5 minutes total
+#
+# CLI mode: seed specific songs manually.
+#   python seed_songs.py "Artist|Song Title" "Artist2|Song Title2" ...
+
 import json
 import requests
 import time
@@ -6,133 +12,188 @@ from db import get_db
 from vector_utils import build_feature_vector, l2_normalize
 import sys
 
-# sample test songs of varying genres to test recommendations with
-SONGS_TEST = [
-    # The Weeknd
-    ("The Weeknd", "Blinding Lights"),
-    ("The Weeknd", "Starboy"),
-    ("The Weeknd", "Save Your Tears"),
-    ("The Weeknd", "Can't Feel My Face"),
-    ("The Weeknd", "The Hills"),
-    ("The Weeknd", "Earned It"),
-    ("The Weeknd", "Often"),
-    ("The Weeknd", "Heartless"),
-    ("The Weeknd", "Die For You"),
-    ("The Weeknd", "In Your Eyes"),
-    # Don Toliver
-    ("Don Toliver", "Private Landing"),
-    ("Don Toliver", "Do It Right"),
-    ("Don Toliver", "Leave The Club"),
-    ("Don Toliver", "Lose My Mind"),
-    ("Don Toliver", "Attitude"),
-    ("Don Toliver", "Tore Up"),
-    ("Don Toliver", "Euphoria"),
-    ("Don Toliver", "Don't Go"),
-    ("Don Toliver", "Bandit"),
-    ("Don Toliver", "Had Enough"),
-    # Kids That Fly
-    ("Kids That Fly", "Dead Beat City"),
-    ("Kids That Fly", "Kiss Her You Fool"),
-    ("Kids That Fly", "Sunday in London"),
-    ("Kids That Fly", "For the Night"),
-    ("Kids That Fly", "Hazel"),
-    # WHALES•TALK
-    ("WHALES•TALK", "Ottawa Rockstar"),
-    ("WHALES•TALK", "Catching On"),
-    ("WHALES•TALK", "DID I RLY LET GO"),
-    ("WHALES•TALK", "UGLY TEARS"),
-    ("WHALES•TALK", "Hypocrite"),
-]
+# How many songs to pull per artist (filters for preview URL availability)
+SONGS_PER_ARTIST = 8
 
-# if no CLI is provided, use the above test songs
-if len(sys.argv) > 1:
-    # CLI format: "Artist|Song Title"
-    songs_to_seed = [tuple(arg.split("|", 1)) for arg in sys.argv[1:]]
-else:
-    songs_to_seed = SONGS_TEST
+# Artists grouped by genre — iTunes returns their top songs sorted by popularity
+# Covers all 12 genre slots in the feature vector
+# ~60 artists × 8 songs = ~480 songs (before filtering for missing preview URLs)
+ARTISTS_BY_GENRE = {
+    "pop": [
+        "Taylor Swift", "Ed Sheeran", "Ariana Grande", "Dua Lipa",
+        "Olivia Rodrigo", "Harry Styles", "Billie Eilish", "Post Malone",
+        "Bruno Mars", "Katy Perry", "Lady Gaga", "Shawn Mendes",
+    ],
+    "hip-hop": [
+        "Drake", "Kendrick Lamar", "J. Cole", "Travis Scott",
+        "Future", "Lil Baby", "Tyler, the Creator", "Mac Miller",
+        "Childish Gambino", "A$AP Rocky", "Nicki Minaj", "Cardi B",
+    ],
+    "r&b": [
+        "The Weeknd", "SZA", "Don Toliver", "Khalid",
+        "Daniel Caesar", "Bryson Tiller", "H.E.R.", "Summer Walker",
+        "Ella Mai", "Frank Ocean", "Usher", "Miguel",
+    ],
+    "rock": [
+        "Foo Fighters", "Red Hot Chili Peppers", "Arctic Monkeys",
+        "The Strokes", "Nirvana", "Coldplay", "Imagine Dragons",
+        "Twenty One Pilots", "The Killers", "Muse",
+    ],
+    "electronic": [
+        "Calvin Harris", "Daft Punk", "The Chainsmokers",
+        "Marshmello", "Avicii", "Zedd", "Kygo", "Disclosure",
+    ],
+    "country": [
+        "Morgan Wallen", "Luke Combs", "Chris Stapleton",
+        "Kacey Musgraves", "Zac Brown Band", "Thomas Rhett",
+        "Tyler Childers", "Eric Church",
+    ],
+    "alternative": [
+        "Tame Impala", "Vampire Weekend", "Bon Iver",
+        "Lorde", "Hozier", "Alt-J", "Arcade Fire", "The National",
+    ],
+    "latin": [
+        "Bad Bunny", "J Balvin", "Maluma", "Daddy Yankee",
+        "Shakira", "Ozuna", "Rauw Alejandro", "Becky G",
+    ],
+    "metal": [
+        "Metallica", "Linkin Park", "System of a Down",
+        "Slipknot", "Avenged Sevenfold", "Disturbed",
+    ],
+    "indie": [
+        "Mac DeMarco", "Phoebe Bridgers", "Clairo", "Mitski",
+        "Waxahatchee", "Soccer Mommy", "Snail Mail",
+        "Kids That Fly", "WHALES•TALK",
+    ],
+    "jazz": [
+        "Norah Jones", "Amy Winehouse", "John Legend",
+        "Alicia Keys", "Leon Bridges",
+    ],
+}
 
-# requests from iTunes API to retrieve songs and insert them into the database with their metadata and feature vectors
-# there is a time delay of 5 seconds between each request to avoid hitting rate limits
+# returns the top n songs for an artist that have preview URLs
+def fetch_top_songs_for_artist(artist, n=SONGS_PER_ARTIST):
+    try:
+        resp = requests.get("https://itunes.apple.com/search", params={
+            "term": artist,
+            "media": "music",
+            "entity": "song",
+            "attribute": "artistTerm",
+            "limit": 50,  # fetch more so we can filter down to n with preview URLs
+        }, timeout=10)
+        results = resp.json().get("results", [])
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed for {artist}: {e}")
+        return []
+
+    # filter to songs that actually match the artist and have a preview URL
+    # aka songs we can play
+    matches = [
+        r for r in results
+        if artist.lower() in r.get("artistName", "").lower()
+        and r.get("previewUrl")
+    ]
+    return matches[:n]
+
+# Insert a song dict from iTunes API into the DB + its artist and feature vector
+def insert_track(cur, track):
+    genre = track.get("primaryGenreName")
+    release_date = track.get("releaseDate")
+    duration_ms = track.get("trackTimeMillis")
+    itunes_track_id = str(track["trackId"])
+
+    feature_vec = l2_normalize(build_feature_vector(genre, release_date, duration_ms))
+
+    cur.execute(
+        "INSERT INTO artists (artist_name) VALUES (%s) ON CONFLICT (artist_name) DO NOTHING;",
+        (track["artistName"],)
+    )
+    cur.execute(
+        "SELECT artist_id FROM artists WHERE artist_name = %s",
+        (track["artistName"],)
+    )
+    artist_id = cur.fetchone()[0]
+
+    cur.execute(
+        """INSERT INTO songs (song_name, preview_mp3_url, song_image_url, duration_ms, genre,
+                              release_date, itunes_track_id, feature_vector)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+           ON CONFLICT (itunes_track_id) DO NOTHING
+           RETURNING song_id""",
+        (track["trackName"], track["previewUrl"], track["artworkUrl100"].replace("100x100bb", "600x600bb"),
+         duration_ms, genre, release_date, itunes_track_id, json.dumps(feature_vec))
+    )
+    row = cur.fetchone()
+    if row is None:
+        return False  # already in DB
+    song_id = row[0]
+
+    cur.execute(
+        "INSERT INTO song_artists (song_id, artist_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
+        (song_id, artist_id)
+    )
+    return True
+
+
 conn = get_db()
-with conn.cursor() as cur:
-    for artist, song in songs_to_seed:
-        # gets song metadata from iTunes Search API
-        try:
-            resp = requests.get("https://itunes.apple.com/search", params={
-                "term": f"{artist} {song}",
-                "media": "music",
-                "entity": "song",
-                "limit": 5
-            }, timeout=10)
-            results = resp.json().get("results", [])
-        except requests.exceptions.RequestException as e:
-            print(f"Skipping '{song}' by {artist} — request failed: {e}")
-            continue
-        time.sleep(5)
-        track = next(
-            (r for r in results
-             if artist.lower() in r["artistName"].lower()
-             and song.lower() in r["trackName"].lower()),
-            None
-        )
 
-        # if no matching result is found, skip this song
-        # also skip if the song doesn't have a preview URL since we won't be able to play it in the app
-        if not track:
-            print(f"Skipping '{song}' by {artist} — no matching result found")
-            continue
-        if not track.get("previewUrl"):
-            print(f"Skipping {track['trackName']} — no preview URL")
-            continue
+# CLI mode: seed specific songs manually
+if len(sys.argv) > 1:
+    songs_to_seed = [tuple(arg.split("|", 1)) for arg in sys.argv[1:]]
+    with conn.cursor() as cur:
+        for artist, song in songs_to_seed:
+            try:
+                resp = requests.get("https://itunes.apple.com/search", params={
+                    "term": f"{artist} {song}",
+                    "media": "music",
+                    "entity": "song",
+                    "limit": 5
+                }, timeout=10)
+                results = resp.json().get("results", [])
+            except requests.exceptions.RequestException as e:
+                print(f"Request failed for '{song}' by {artist}: {e}")
+                continue
+            time.sleep(5)
 
-        print(f"Adding {track['trackName']} by {track['artistName']} to the database.")
+            track = next(
+                (r for r in results
+                 if artist.lower() in r["artistName"].lower()
+                 and song.lower() in r["trackName"].lower()),
+                None
+            )
+            if not track:
+                print(f"Skipping '{song}' by {artist}: no matching result found")
+                continue
+            if not track.get("previewUrl"):
+                print(f"Skipping {track['trackName']}: no preview URL")
+                continue
 
-        genre = track.get("primaryGenreName")
-        release_date = track.get("releaseDate")
-        duration_ms = track.get("trackTimeMillis")
-        itunes_track_id = str(track["trackId"])
+            if not insert_track(cur, track):
+                print("Already in DB, skipping.")
 
-        feature_vec = l2_normalize(build_feature_vector(genre, release_date, duration_ms))
-
-        # insert the song into the database and link it to its artist, creating the artist if they don't already exist 
-        # also store the feature vector as JSON for later use in recommendations
-        cur.execute(
-            "INSERT INTO artists (artist_name) VALUES (%s) ON CONFLICT (artist_name) DO NOTHING;",
-            (track["artistName"],)
-        )
-        cur.execute(
-            "SELECT artist_id FROM artists WHERE artist_name = %s",
-            (track["artistName"],)
-        )
-        artist_id = cur.fetchone()[0]
-        cur.execute(
-            """INSERT INTO songs (song_name, preview_mp3_url, song_image_url, duration_ms, genre, release_date, itunes_track_id, feature_vector)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-               ON CONFLICT (itunes_track_id) DO NOTHING
-               RETURNING song_id""",
-            (track["trackName"], track["previewUrl"], track["artworkUrl100"],
-             duration_ms, genre, release_date, itunes_track_id, json.dumps(feature_vec))
-        )
-        row = cur.fetchone()
-        if row is None:
-            print(f"Already in DB, skipping.")
-            continue
-        song_id = row[0]
-        cur.execute(
-            "INSERT INTO song_artists (song_id, artist_id) VALUES (%s, %s)",
-            (song_id, artist_id)
-        )
-        
-    
-
-        # this auto adds the test users so it doesnt break!
-        # time.sleep() WE CAN ADD A DELAY IF NEEDED
-        # file_path = "add_test_data.sql"
-        # with open(file_path, 'r') as f:
-        #    sql_script = f.read()
-        #    cur.execute(sql_script)
-        #    conn.commit()
-        #    print(f"Executed {file_path}")
-
-    conn.commit()
+        conn.commit()
     print("Done!")
+
+# fetch top songs per artist in each genre
+else:
+    total_added = 0
+    with conn.cursor() as cur:
+        for genre, artists in ARTISTS_BY_GENRE.items():
+            for artist in artists:
+                print(f"  Fetching: {artist}")
+                tracks = fetch_top_songs_for_artist(artist)
+                time.sleep(5)  # respect iTunes rate limit (~20 req/min)
+
+                added = 0
+                for track in tracks:
+                    if insert_track(cur, track):
+                        print(f"    + {track['trackName']}")
+                        added += 1
+
+                if not tracks:
+                    print(f"    Skipping {artist}: No results with preview URLs")
+        
+                total_added += added
+
+        conn.commit()
+    print(f"\nDone! {total_added} new songs added.")

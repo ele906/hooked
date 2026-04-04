@@ -102,16 +102,11 @@ def l2_normalize(vec):
     return [x / magnitude for x in vec]
 
 # computes cosine similarity between two vectors
-# aka this is our similarity metric for recommendation
+# since both vectors are L2-normalized, the cosine similarity is just their dot product
 def cosine_similarity(v1, v2):
     if len(v1) != len(v2):
         raise ValueError(f"Vector length mismatch: {len(v1)} vs {len(v2)}")
-    dot  = sum(a * b for a, b in zip(v1, v2))
-    mag1 = math.sqrt(sum(a * a for a in v1))
-    mag2 = math.sqrt(sum(b * b for b in v2))
-    if mag1 == 0 or mag2 == 0:
-        return 0.0
-    return dot / (mag1 * mag2)
+    return sum(a * b for a, b in zip(v1, v2))
 
 # update a user's weight vector based on a swipe action
 # for a like, we move the weight vector slightly towards the song vector (scaled by alpha)
