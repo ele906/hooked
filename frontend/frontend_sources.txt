@@ -1,0 +1,132 @@
+-----------------------------------------------------------------------
+Sources used for swipe screen
+Authors: Lucille Rizo Patron
+-----------------------------------------------------------------------
+
+// Swipe Screen
+
+Updating objects in state (used for moving swipe card with mouse movement)
+https://react.dev/learn/updating-objects-in-state#treat-state-as-read-only
+
+Get horizontal position of mouse click (to get position of drags)
+https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/pageX
+
+React hooks usage:
+https://react.dev/reference/react/useState
+https://react.dev/reference/react/useRef
+
+React Image Carousel (used to understand underlying logic/pattern behind object transitions and managing content states):
+https://dev.to/vishalthapaliya/build-a-smooth-performant-image-carousel-in-react-a-beginners-guide-48ji
+
+Making components draggable:
+https://stackoverflow.com/questions/20926551/recommended-way-of-making-react-component-div-draggable
+
+onMouseDown event & handleMouseDown (execute custom logic when the user holds down the mouse on the swipe card: starts the drag; also used for implementing responses to other user mouse actions): 
+https://www.geeksforgeeks.org/reactjs/react-onmousedown-event/
+
+Mousemove event (respond to user mouse movement during drag)
+https://developer.mozilla.org/en-US/docs/Web/API/Element/mouseup_event
+
+Mouseup event (respond to user releasing mouse hold)
+https://developer.mozilla.org/en-US/docs/Web/API/Element/mousemove_event
+
+useEffect hook usage (for reactive components and synchronizing app display with song data passed during page navigation):
+https://react.dev/reference/react/useEffect#usage
+
+Writing Effect best practices:
+https://react.dev/learn/synchronizing-with-effects#how-to-write-an-effect
+
+React DOM elements (React style attributes, camelCase):
+https://legacy.reactjs.org/docs/dom-elements.html#style
+
+Remove event listener:
+https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/removeEventListener
+
+Rendering inline CSS stylesheet (javascript objects as styles):
+https://react.dev/reference/react-dom/components/style#rendering-an-inline-css-stylesheet
+
+Conditional rendering:
+https://react.dev/learn/conditional-rendering
+
+Screen + element layout (dimensions, padding, border, margin):
+https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Box_model/Introduction
+
+Flexible box layout (advanced item alignment: content centering, responsive element size, gaps between elements):
+https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Flexible_box_layout/Basic_concepts
+
+Styling in React (images, parametrized screen rendering, text, color, centering):
+https://alexkondov.com/full-stack-tao-styling/
+
+Text style props:
+https://reactnative.dev/docs/text-style-props
+
+Object spread syntax (to combine styles):
+https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax
+
+Position property (positioning components that interact with layout): 
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/position
+
+Object fit (for album art):
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/object-fit
+
+How to prevent image from getting dragged:
+https://stackoverflow.com/questions/49898749/how-can-i-prevent-drag-and-drop-images-in-a-react-app
+
+Prevent mouse interaction with image:
+https://stackoverflow.com/questions/1657319/ignore-mouse-interaction-on-overlay-image
+
+CSS cursor property:
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/cursor
+
+Preventing text selection:
+https://stackoverflow.com/questions/32752280/prevent-text-selection-on-double-click-in-a-react-component
+
+Gradients on background:
+https://www.w3schools.com/cssref/func_radial-gradient.php
+
+Button component (implementing like/skip buttons + navigation buttons):
+https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/button
+
+Responding to clicking:
+https://react.dev/learn/responding-to-events
+
+KeyboardEvent (implementing keyboard functionality for swipes):
+https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key
+
+useNavigate and useLocation hooks (for page navigation):
+https://medium.com/@reidwilliamson2/usenavigate-and-uselocation-hooks-edb28f5e9972
+https://medium.com/@alexanie_/https-ocxigin-hashnode-dev-uselocation-hook-in-react-router-758a0a711308
+
+Transform (for swipe card component animation, rotate):
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/transform
+
+Translate (for smooth animated changes for swipe animation):
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/transition
+
+setTimeout (for delay before loading next card):
+https://developer.mozilla.org/en-US/docs/Web/API/setTimeout
+
+cubic-bezier (smooth curved object transition + bounce back):
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/easing-function/cubic-bezier
+
+Custom fonts in React:
+https://medium.com/design-bootcamp/the-go-to-guide-for-custom-fonts-with-react-and-tailwind-css-0f6468af2edb
+
+Audio element:
+https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/audio
+
+Dimming an image (dim audio player image):
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/filter-function/brightness
+
+Fetch API (for fetch next song and handling user actions):
+https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+
+// Liked Screen
+
+Scrollbar (for when liked songs list too long):
+https://www.w3schools.com/css/css_overflow.asp
+
+JavaScript map() function (for rendering list of songs):
+https://legacy.reactjs.org/docs/lists-and-keys.html
+
+not finished...

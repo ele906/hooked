@@ -1,8 +1,7 @@
 // -----------------------------------------------------------------------
 // LikedSongs.jsx
 // Liked Songs Interface for Hooked
-// Author: Lucille Rizo Patron
-// Contributors:
+// Authors: Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
 import React from 'react'
@@ -11,35 +10,58 @@ import { useNavigate, useLocation } from 'react-router-dom'
 
 import searchIcon from './search_button.png'
 
+// Renders the liked songs screen where users can view and manage their 
+// liked songs list.
 function LikedSongs() {
 
+    // enables flow from one screen to another
     const navigate = useNavigate()
 
+    // catch data passed from search screen
+    const location = useLocation()
+
+    // list of liked songs to render on screen
     const [likedSongs, setLikedSongs] = useState([])
 
     // ------------------ Liked Song Fetching ----------------------------
 
     // fetch liked songs
-    useEffect(() => {
-    fetch('http://localhost:5000/api/songs/liked?user_id=1')
-        .then(res => res.json())
-        .then(data => setLikedSongs(data))
-        .catch(err => console.error("Error fetching likes:", err))
-    }, [])
+    async function fetchLikedSongs() {
+        try {
+            const response = await fetch('http://localhost:5000/api/songs/liked?user_id=1')
+
+            if (!response.ok) {
+                throw new Error(`Response status: ${response.status}`)
+            }
+
+            const data = await response.json()
+            setLikedSongs(data)
+
+        } catch (error) {
+            console.error("Error fetching likes:", error.message)
+        }
+    }
 
     // delete a liked song, takes an integer song id and removes it from the 
     // user's liked songs list
-    const deleteSong = (songId) => {
-        fetch(`http://localhost:5000/api/songs/liked/${songId}`, {
+    async function deleteSong(songId) {
+        try {
+        const response = await fetch(`http://localhost:5000/api/songs/liked/${songId}`, {
             method: 'DELETE' 
         })
-        .then(res => {
-            if (res.ok) {
-                setLikedSongs(prev => prev.filter(song => song.song_id !== songId));
-            }
-        })
-        .catch(err => console.error("Error deleting song:", err));
+        
+        // update liked songs list on screen after deletion
+        setLikedSongs(prev => prev.filter(song => song.song_id !== songId))
+
+        } catch (error) {
+            console.error("Error deleting songs:", error.message)
+        }
     }
+
+    // initial load: fetch liked songs to populate liked screen
+    useEffect(() => {
+        fetchLikedSongs();
+    }, [])
 
     // ------------------ Render Liked Songs Screen ----------------------
     
@@ -68,7 +90,7 @@ function LikedSongs() {
             {/* title of page */}
             <h2 style={headerStyle}>Your Liked Tracks</h2>
             
-
+             {/* list of liked songs */}
             <div style={likedListStyle}>
 
                 {likedSongs.map((song) => (
@@ -76,7 +98,7 @@ function LikedSongs() {
 
                         {/* album art */}
                         <img src={song.song_image_url} 
-                             style={artStyle}  
+                             style={albumArtStyle}  
                         />
                         {/* song info*/}
                         <div style={songInfoStyle}>
@@ -123,25 +145,6 @@ const screenStyle = {
     position: 'relative',
 }
 
-// button style to navigate among screens from swipe screen
-// takes string sides: sideX to determine right or left placement
-// and sideY to determine bottom or top placement
-const cornerButtonStyle = (sideX, sideY) => ({
-    position: 'fixed',
-    width: '50px',
-    height: '50px',
-    [sideX]: '15px',
-    [sideY]: '15px',
-    backgroundColor: '#a995dd4f',
-    color: '#180d2b',
-    fontSize: '30px',
-    fontWeight: 'bold',
-    border: 'none',
-    borderRadius: '12px',
-    cursor: 'pointer',   
-    zIndex: 9999,
-})
-
 const headerStyle = {
     color: '#d6c4c0f6',
     fontSize: '40px',
@@ -162,25 +165,27 @@ const likedListStyle = {
     paddingRight: '10px'
 }
 
+// style for boxes containing each liked song
 const songBoxStyle = {
     display: 'flex',
     alignItems: 'center',
     backgroundColor: '#7a779636',
-    borderRadius: '15px',
+    borderRadius: '12px',
     padding: '10px',
-    marginBottom: '15px',
+    marginBottom: '12px',
     position: 'relative',
 }
 
-const artStyle = {
-    width: '60px',
-    height: '60px',
-    borderRadius: '8px',
+const albumArtStyle = {
+    width: '58px',
+    height: '58px',
+    borderRadius: '7px',
     objectFit: 'cover',
     marginRight: '15px',
-    pointerevents: 'none'
+    pointerEvents: 'none'
 }
 
+// style for song info container
 const songInfoStyle = {
     flex: 1,
     display: 'flex',
@@ -188,6 +193,7 @@ const songInfoStyle = {
     overflow: 'hidden'
 }
 
+// style for song name text
 const nameStyle = {
     color: '#d6c4c0f6',
     fontWeight: 'bold',
@@ -197,6 +203,7 @@ const nameStyle = {
     wordWrap: 'break-word'
 }
 
+// style for artist name text
 const artistStyle = {
     fontSize: '13px',
     fontFamily: 'Outfit, sans-serif',
@@ -212,5 +219,24 @@ const deleteButtonStyle = {
     cursor: 'pointer',
     padding: '10px'
 }
+
+// button style to navigate among screens from swipe screen
+// takes string sides: sideX to determine right or left placement
+// and sideY to determine bottom or top placement
+const cornerButtonStyle = (sideX, sideY) => ({
+    position: 'fixed',
+    width: '50px',
+    height: '50px',
+    [sideX]: '15px',
+    [sideY]: '15px',
+    backgroundColor: '#a995dd4f',
+    color: '#180d2b',
+    fontSize: '30px',
+    fontWeight: 'bold',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',   
+    zIndex: 9999,
+})
 
 export default LikedSongs

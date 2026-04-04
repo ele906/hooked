@@ -68,7 +68,7 @@ with conn.cursor() as cur:
         except requests.exceptions.RequestException as e:
             print(f"Skipping '{song}' by {artist} — request failed: {e}")
             continue
-        time.sleep(5)
+        time.sleep(1)
         track = next(
             (r for r in results
              if artist.lower() in r["artistName"].lower()
