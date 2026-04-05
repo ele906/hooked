@@ -63,24 +63,23 @@ psql '<DATABASE_URL>' < data/schema.sql
 
 - [ ] OAuth redirect URI updated
 
-## Step 5: Deploy Frontend Service
+## Step 5: Deploy Frontend as Static Site
 
 1. Go to [render.com](https://render.com)
-2. Click "New +" → "Web Service"
+2. Click "New +" → "Static Site"
 3. Connect your GitHub repository
 4. Fill in:
    - **Name:** `hooked`
-   - **Runtime:** Node
    - **Build Command:** `cd frontend && npm install && npm run build`
-   - **Start Command:** `cd frontend && npm start`
+   - **Publish Directory:** `frontend/build`
 
 5. Click "Advanced" and add Environment Variables:
    ```
    REACT_APP_API_URL=https://hooked_api.onrender.com
    ```
 
-6. Click "Deploy"
-7. Wait for deployment
+6. Click "Create Static Site"
+7. Wait for deployment (typically 2-3 minutes)
 8. Note the frontend URL (e.g., `https://hooked.onrender.com`)
 
 - [ ] Frontend deployed successfully
