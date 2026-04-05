@@ -1,8 +1,8 @@
 // -----------------------------------------------------------------------
-// SwipeScreen.jsx
-// Swipe interface for Hooked (in progress)
+// SearchScreen.jsx
+// Search interface for Hooked
 // Authors: Eleanor Liu
-// Contributers: Lucille Rizo Patron
+// Contributors: Lucille Rizo Patron
 // -----------------------------------------------------------------------
 import React from 'react'
 import {useState, useRef} from 'react'

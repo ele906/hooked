@@ -51,16 +51,31 @@ def login():
 def auth_callback():
     token = google.authorize_access_token()
     user_info = token.get("userinfo")
-    session["user"] = {
-        "email": user_info["email"],
-        "name": user_info.get("name", ""),
-    }
+    email = user_info["email"]
+    name = user_info.get("name", "")
+    
+    # Insert user if not already in DB
     sql_cmd(
         """INSERT INTO users (email, username) 
         VALUES (%s, %s) 
         ON CONFLICT (email) DO NOTHING;""",
-        (user_info["email"], user_info["email"])
+        (email, email)
     )
+    
+    # Get user_id from database
+    rows = sql_cmd(
+        "SELECT user_id FROM users WHERE email = %s",
+        (email,),
+        fetch=True
+    )
+    
+    user_id = rows[0][0] if rows else None
+    
+    session["user"] = {
+        "email": email,
+        "name": name,
+        "user_id": user_id,
+    }
     return redirect("http://localhost:3000/swipe")
 
 # logs out by clearing the session, then redirects back to the frontend

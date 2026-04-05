@@ -153,7 +153,7 @@ if len(sys.argv) > 1:
             except requests.exceptions.RequestException as e:
                 print(f"Request failed for '{song}' by {artist}: {e}")
                 continue
-            time.sleep(5)
+            # time.sleep(5)
 
             track = next(
                 (r for r in results

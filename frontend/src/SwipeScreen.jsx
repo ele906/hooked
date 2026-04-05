@@ -41,10 +41,27 @@ function SwipeScreen() {
     const [userId, setUserId] = useState(null)
 
     useEffect(() => {
+        console.log("[SwipeScreen] Fetching user auth...")
         fetch("http://localhost:5000/auth/user", { credentials: "include" })
-            .then(res => res.json())
-            .then(data => setUserId(data.user_id))
-            .catch(() => {})
+            .then(res => {
+                console.log("[SwipeScreen] Auth response status:", res.status)
+                if (!res.ok) {
+                    throw new Error(`Auth failed with status ${res.status}`)
+                }
+                return res.json()
+            })
+            .then(data => {
+                console.log("[SwipeScreen] Auth response data:", data)
+                if (data && data.user_id) {
+                    console.log("[SwipeScreen] Setting userId to:", data.user_id)
+                    setUserId(data.user_id)
+                } else {
+                    console.error("[SwipeScreen] No user_id in auth response:", data)
+                }
+            })
+            .catch(err => {
+                console.error("[SwipeScreen] Error fetching user auth:", err)
+            })
     }, [])
 
     // swipe card component
@@ -58,6 +75,7 @@ function SwipeScreen() {
     // send user like/dislike action to database, then fetch next song
     // takes a string action, 'like' or 'dislike', as a parameter
     function handleAction(action) {
+        console.log("[SwipeScreen] Handling action:", action, "for song:", currentSong.song_id, "userId:", userId)
         fetch("http://localhost:5000/api/songs/action", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -65,14 +83,21 @@ function SwipeScreen() {
             body: JSON.stringify({ user_id: userId, 
                                    song_id: currentSong.song_id, 
                                    action })
-        }).then(() => fetchNextSong())
+        }).then(() => {
+            console.log("[SwipeScreen] Action sent successfully")
+            fetchNextSong()
+        }).catch(err => {
+            console.error("[SwipeScreen] Error sending action:", err)
+        })
     }
 
     // fetch next song from backend & reset visual state for new song card
     function fetchNextSong() {
+        console.log("[SwipeScreen] Fetching next song with userId:", userId)
         fetch(`http://localhost:5000/api/songs/next?user_id=${userId}`)
             .then(res => res.json())
             .then(data => {
+                console.log("[SwipeScreen] Got next song:", data)
                 // reset card to center position
                 setOffsetX(0)
                 if (data && data.song_id) {
@@ -85,28 +110,37 @@ function SwipeScreen() {
                 }
             })
             .catch(err => {
-                console.error("Fetch error:", err)
+                console.error("[SwipeScreen] Fetch error:", err)
                 setCurrentSong(null)
                 setMessage("Server Error")
-            }
+            })
     }
 
     // initial load: fetch first song to start swipe session
     useEffect(() => {
+        // don't fetch if user_id hasn't been set yet
+        console.log("[SwipeScreen] Song fetch effect triggered, userId:", userId)
+        if (!userId) {
+            console.log("[SwipeScreen] userId not set yet, skipping fetch")
+            return
+        }
+
         // check for song clicked on search page
         let clickedSong = null
         if (location.state) {
             clickedSong = location.state.song
         }
 
-            if (clickedSong) {
-                // arrived from search result
-                setCurrentSong(clickedSong)
-            } else {
-                // arrived directly
-                fetchNextSong()
-            }
-        }, [userId])
+        if (clickedSong) {
+            // arrived from search result
+            console.log("[SwipeScreen] Using clicked song from search:", clickedSong)
+            setCurrentSong(clickedSong)
+        } else {
+            // arrived directly
+            console.log("[SwipeScreen] No clicked song, fetching from API")
+            fetchNextSong()
+        }
+    }, [userId, location.state])
 
     // -----------------------  Drag Swipe -------------------------------
     
