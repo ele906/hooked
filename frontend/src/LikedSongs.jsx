@@ -8,6 +8,7 @@
 import React from 'react'
 import {useState, useRef, useEffect} from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import API_URL from './config'
 
 import searchIcon from './search_button.png'
 
@@ -33,7 +34,7 @@ function LikedSongs() {
                 console.log("[LikedSongs] Fetching user authentication")
                 
                 // check for user authentication before fetching liked songs
-                const authResponse = await fetch("http://localhost:5000/auth/user", { 
+                const authResponse = await fetch(`${API_URL}/auth/user`, { 
                     credentials: "include" 
                 })
 
@@ -51,9 +52,9 @@ function LikedSongs() {
                 setUserId(authData.user_id)
                 console.log("[LikedSongs] Fetching liked songs for userId:", authData.user_id)
 
-                const songsResponse = await fetch(`http://localhost:5000/api/songs/liked?user_id=${authData.user_id}`, {
-                    credentials: "include" 
-                })
+                const songsResponse = await fetch(`${API_URL}/api/songs/liked?user_id=${authData.user_id}`, 
+                    { credentials: "include" }
+                )
                 
                 const songs = await songsResponse.json()
 
@@ -81,7 +82,7 @@ function LikedSongs() {
         try {
             console.log("[LikedSongs] Deleting song with id:", songId)
             
-            const response = await fetch(`http://localhost:5000/api/songs/liked/${songId}`, {
+            const response = await fetch(`${API_URL}/api/songs/liked/${songId}`, {
                 method: 'DELETE',
                 credentials: 'include'
             })

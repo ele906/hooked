@@ -13,8 +13,10 @@ import bcrypt
 
 load_dotenv()
 
+# URLs from environment variables
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+
 # adds parent directory to path so we can import from data/
-# only have to do this bc app.py is in backend/ and not the root of the project
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from data.db import get_db as _open_db
@@ -76,13 +78,13 @@ def auth_callback():
         "name": name,
         "user_id": user_id,
     }
-    return redirect("http://localhost:3000/swipe")
+    return redirect(f"{FRONTEND_URL}/swipe")
 
 # logs out by clearing the session, then redirects back to the frontend
 @app.route("/auth/logout")
 def logout():
     session.pop("user", None)
-    return redirect("http://localhost:3000")
+    return redirect(FRONTEND_URL)
 
 # returns the logged-in user's info, or 401 if not logged in
 @app.route("/auth/user")

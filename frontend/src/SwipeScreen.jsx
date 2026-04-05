@@ -8,6 +8,7 @@
 import React from 'react'
 import {useState, useRef, useEffect} from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import API_URL from './config'
 
 import searchIcon from './search_button.png'
 
@@ -54,7 +55,7 @@ function SwipeScreen() {
     useEffect(() => {
         async function fetchUserAuth() {
             try {
-                const response = await fetch("http://localhost:5000/auth/user", { 
+                const response = await fetch(`${API_URL}/auth/user`, { 
                     credentials: "include" 
                 })
 
@@ -80,7 +81,7 @@ function SwipeScreen() {
     // takes a string action, 'like' or 'dislike', as a parameter
     async function handleAction(action) {
         try {
-            const response = await fetch("http://localhost:5000/api/songs/action", {
+            const response = await fetch(`${API_URL}/api/songs/action`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 // tracks user interaction with song
@@ -107,7 +108,7 @@ function SwipeScreen() {
     // fetch next song from backend & reset visual state for new song card
     async function fetchNextSong() {
         try {
-            const response = await fetch(`http://localhost:5000/api/songs/next?user_id=${userId}`)
+            const response = await fetch(`${API_URL}/api/songs/next?user_id=${userId}`)
 
             if (!response.ok) {
                 throw new Error(`Response status: ${response.status}`)
