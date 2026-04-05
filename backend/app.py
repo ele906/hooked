@@ -25,7 +25,13 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")
-CORS(app, supports_credentials=True)
+
+# Configure CORS to allow requests from frontend URL
+# In development, allows localhost:3000; in production, uses FRONTEND_URL env var
+allowed_origins = os.environ.get("ALLOWED_ORIGINS", FRONTEND_URL).split(",")
+CORS(app, 
+     origins=allowed_origins,
+     supports_credentials=True)
 
 # Google OAuth setup
 oauth = OAuth(app)
@@ -370,4 +376,8 @@ def check_password():
     return flask.jsonify({'logged_in': False, 'error': 'Wrong password'}), 401
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
+    # Get port from environment (Render sets this), default to 5000 for local dev
+    port = int(os.environ.get("PORT", 5000))
+    # Disable debug mode in production
+    debug_mode = os.environ.get("FLASK_ENV", "development") == "development"
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)
