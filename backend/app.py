@@ -52,6 +52,8 @@ google = oauth.register(
 @app.route("/auth/login")
 def login():
     redirect_uri = url_for("auth_callback", _external=True)
+    print("GOOGLE_CLIENT_ID:", GOOGLE_CLIENT_ID)
+    print("REDIRECT_URI:", redirect_uri)
     return google.authorize_redirect(redirect_uri)
 
 # callback route that Google redirects to after login
