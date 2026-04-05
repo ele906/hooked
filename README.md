@@ -1,3 +1,8 @@
+create env:
+conda create -n hooked python=3.11
+conda activate hooked
+pip install -r requirements.txt
+
 IMPORTANT PLEASE READ
 
 MAIN CHANGES

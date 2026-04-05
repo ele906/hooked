@@ -134,9 +134,8 @@ def insert_track(cur, track):
     )
     return True
 
-
 conn = get_db()
-
+print(conn)
 # CLI mode: seed specific songs manually
 if len(sys.argv) > 1:
     songs_to_seed = [tuple(arg.split("|", 1)) for arg in sys.argv[1:]]
@@ -182,7 +181,7 @@ else:
             for artist in artists:
                 print(f"  Fetching: {artist}")
                 tracks = fetch_top_songs_for_artist(artist)
-                time.sleep(5)  # respect iTunes rate limit (~20 req/min)
+                # time.sleep(5)  # respect iTunes rate limit (~20 req/min)
 
                 added = 0
                 for track in tracks:
