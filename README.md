@@ -17,6 +17,8 @@ TO DO:
 - idk how we want the main page to be swipe screen or what?
 - about the card size, do we want it to be a fixed px count or scale relative to our devices..?
 also, need help for init seed prefs in vector utils...
+- add source attribution at bottom of liked and swipe screens for iTunes search API
+- add links to apple music from song
 
 important
 ALTER TABLE users RENAME COLUMN onboarding_vec TO weight_vector;

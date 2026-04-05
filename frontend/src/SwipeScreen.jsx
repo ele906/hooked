@@ -2,7 +2,7 @@
 // SwipeScreen.jsx
 // Swipe Interface for Hooked
 // Author: Lucille Rizo Patron
-// Contributors: Eleanor Liu
+// Contributors: Eleanor Liu, Derek Geng
 // -----------------------------------------------------------------------
 
 import React from 'react'
@@ -38,111 +38,133 @@ function SwipeScreen() {
     // the song currently on screen
     const [currentSong, setCurrentSong] = useState(null)
 
-    const [userId, setUserId] = useState(null)
-
-    useEffect(() => {
-        console.log("[SwipeScreen] Fetching user auth...")
-        fetch("http://localhost:5000/auth/user", { credentials: "include" })
-            .then(res => {
-                console.log("[SwipeScreen] Auth response status:", res.status)
-                if (!res.ok) {
-                    throw new Error(`Auth failed with status ${res.status}`)
-                }
-                return res.json()
-            })
-            .then(data => {
-                console.log("[SwipeScreen] Auth response data:", data)
-                if (data && data.user_id) {
-                    console.log("[SwipeScreen] Setting userId to:", data.user_id)
-                    setUserId(data.user_id)
-                } else {
-                    console.error("[SwipeScreen] No user_id in auth response:", data)
-                }
-            })
-            .catch(err => {
-                console.error("[SwipeScreen] Error fetching user auth:", err)
-            })
-    }, [])
-
     // swipe card component
     const cardRef = useRef(null)
 
     // message shows like or dislike after swiping
     const [message, setMessage] = useState("")
+    
+    // store user id
+    const [userId, setUserId] = useState(null)
 
     // ------------------ Song Fetching ----------------------------------
 
+    // check if user in authenticated before rendering the swipe screen
+    // and get user id
+    useEffect(() => {
+        async function fetchUserAuth() {
+            try {
+                const response = await fetch("http://localhost:5000/auth/user", { 
+                    credentials: "include" 
+                })
+
+                if (!response.ok) {
+                    throw new Error(`Auth failed: ${response.status}`)
+                }
+
+                const data = await response.json()
+                if (data && data.user_id) {
+                    setUserId(data.user_id)
+                }
+
+            } catch (error) {
+                console.error("Error fetching user auth:", error.message)
+            }
+        }
+
+        fetchUserAuth()
+
+    }, [])
+
     // send user like/dislike action to database, then fetch next song
     // takes a string action, 'like' or 'dislike', as a parameter
-    function handleAction(action) {
-        console.log("[SwipeScreen] Handling action:", action, "for song:", currentSong.song_id, "userId:", userId)
-        fetch("http://localhost:5000/api/songs/action", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            // tracks user interaction with song
-            body: JSON.stringify({ user_id: userId, 
-                                   song_id: currentSong.song_id, 
-                                   action })
-        }).then(() => {
-            console.log("[SwipeScreen] Action sent successfully")
-            fetchNextSong()
-        }).catch(err => {
-            console.error("[SwipeScreen] Error sending action:", err)
-        })
+    async function handleAction(action) {
+        try {
+            const response = await fetch("http://localhost:5000/api/songs/action", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                // tracks user interaction with song
+                body: JSON.stringify({ 
+                    user_id: userId, 
+                    song_id: currentSong.song_id, 
+                    action 
+                })
+            })
+
+            if (!response.ok) {
+                throw new Error(`Response status: ${response.status}`)
+            }
+
+            // after recording action, get the next song
+            await fetchNextSong()
+
+        } catch (error) {
+            console.error("Action error:", error.message)
+            setMessage("Action failed, please try again.")
+        }
     }
 
     // fetch next song from backend & reset visual state for new song card
-    function fetchNextSong() {
-        console.log("[SwipeScreen] Fetching next song with userId:", userId)
-        fetch(`http://localhost:5000/api/songs/next?user_id=${userId}`)
-            .then(res => res.json())
-            .then(data => {
-                console.log("[SwipeScreen] Got next song:", data)
-                // reset card to center position
-                setOffsetX(0)
-                if (data && data.song_id) {
-                    setCurrentSong(data)
-                    setMessage("")
-                } else {
-                    // end of song list
-                    setCurrentSong(null)
-                    setMessage("No more songs!")
-                }
-            })
-            .catch(err => {
-                console.error("[SwipeScreen] Fetch error:", err)
+    async function fetchNextSong() {
+        try {
+            const response = await fetch(`http://localhost:5000/api/songs/next?user_id=${userId}`)
+
+            if (!response.ok) {
+                throw new Error(`Response status: ${response.status}`)
+            }
+
+            const data = await response.json()
+
+            // reset visual state for swipe card
+            setOffsetX(0)
+
+            if (data && data.song_id) {
+                // end of song list
+                setCurrentSong(data)
+                setMessage("")
+            } else {
                 setCurrentSong(null)
-                setMessage("Server Error")
-            })
+                setMessage("No more songs!")
+            }
+
+        } catch (error) {
+            console.error("Fetch error:", error.message)
+            setCurrentSong(null)
+            setMessage("Server Error")
+        }
     }
 
     // initial load: fetch first song to start swipe session
     useEffect(() => {
-        // don't fetch if user_id hasn't been set yet
-        console.log("[SwipeScreen] Song fetch effect triggered, userId:", userId)
+        // check for user authentication before song fetch
         if (!userId) {
-            console.log("[SwipeScreen] userId not set yet, skipping fetch")
+            console.warn("[SwipeScreen] userId is null: cancel song fetch.")
             return
         }
 
-        // check for song clicked on search page
-        let clickedSong = null
-        if (location.state) {
-            clickedSong = location.state.song
+        async function initializeSong() {
+            try {
+            // check for song passed from another screen
+            let clickedSong = null
+            if (location.state) {
+                clickedSong = location.state.song
+            }
+
+            if (clickedSong) {
+                setCurrentSong(clickedSong)
+            } else {
+                await fetchNextSong()
+            }
+
+            } catch (error) {
+            console.error("Initialization failed:", error)
+            }
         }
 
-        if (clickedSong) {
-            // arrived from search result
-            console.log("[SwipeScreen] Using clicked song from search:", clickedSong)
-            setCurrentSong(clickedSong)
-        } else {
-            // arrived directly
-            console.log("[SwipeScreen] No clicked song, fetching from API")
-            fetchNextSong()
-        }
+        initializeSong()
     }, [userId, location.state])
 
-    // -----------------------  Drag Swipe -------------------------------
+// -----------------------  Drag Swipe -------------------------------
     
     // triggers the card fly-off animation (left or right) based on
     // user action via drag, button click, or keyboard keys
