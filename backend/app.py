@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------
 # app.py
 # backend for hooked
-# authors: Eleanor, Sadat, Stephen, Derek, Lucille
+# authors: Eleanor, Sadat, Stephen, Derek
 # -----------------------------------------------------------------------
 
 import sys, os, json, random
