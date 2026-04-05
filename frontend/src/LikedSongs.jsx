@@ -22,30 +22,59 @@ function LikedSongs() {
 
     // fetch liked songs
     useEffect(() => {
+    console.log("[LikedSongs] Fetching user auth...")
     fetch("http://localhost:5000/auth/user", { credentials: "include" })
-        .then(res => res.json())
-        .then(data => {
-            setUserId(data.user_id)
-            fetch(`http://localhost:5000/api/songs/liked?user_id=${data.user_id}`)
-                .then(res => res.json())
-                .then(songs => setLikedSongs(songs))
+        .then(res => {
+            console.log("[LikedSongs] Auth response status:", res.status)
+            if (!res.ok) {
+                throw new Error(`Auth failed with status ${res.status}`)
+            }
+            return res.json()
         })
-        .catch(err => console.error(err))
+        .then(data => {
+            console.log("[LikedSongs] Auth response data:", data)
+            if (!data || !data.user_id) {
+                throw new Error("No user_id in auth response")
+            }
+            console.log("[LikedSongs] Setting userId to:", data.user_id)
+            setUserId(data.user_id)
+            console.log("[LikedSongs] Fetching liked songs for userId:", data.user_id)
+            return fetch(`http://localhost:5000/api/songs/liked?user_id=${data.user_id}`, 
+                { credentials: "include" })
+        })
+        .then(res => res.json())
+        .then(songs => {
+            console.log("[LikedSongs] Got response from API:", songs)
+            if (Array.isArray(songs)) {
+                console.log("[LikedSongs] Setting liked songs, count:", songs.length)
+                setLikedSongs(songs)
+            } else {
+                console.error("[LikedSongs] Expected array of songs but got:", songs)
+                setLikedSongs([])
+            }
+        })
+        .catch(err => {
+            console.error("[LikedSongs] Error fetching liked songs:", err)
+            setLikedSongs([])
+        })
 }, [])
 
     // delete a liked song, takes an integer song id and removes it from the 
     // user's liked songs list
     const deleteSong = (songId) => {
+        console.log("[LikedSongs] Deleting song with id:", songId)
         fetch(`http://localhost:5000/api/songs/liked/${songId}`, {
             method: 'DELETE',
             credentials: 'include'
         })
         .then(res => {
+            console.log("[LikedSongs] Delete response status:", res.status)
             if (res.ok) {
+                console.log("[LikedSongs] Successfully deleted song, updating UI")
                 setLikedSongs(prev => prev.filter(song => song.song_id !== songId));
             }
         })
-        .catch(err => console.error("Error deleting song:", err));
+        .catch(err => console.error("[LikedSongs] Error deleting song:", err));
     }
 
     // ------------------ Render Liked Songs Screen ----------------------
