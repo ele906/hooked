@@ -8,6 +8,7 @@
 import React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import { useNavigate} from 'react-router-dom'
+import API_URL from './config'
 
 const GENRES = [
     "pop", "hip-hop", "r&b",
@@ -26,7 +27,7 @@ function SeedPreferences(){
     }
 
     async function handleContinue() {
-        await fetch('/api/preferences', {
+        await fetch(`${API_URL}/api/preferences`, {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },

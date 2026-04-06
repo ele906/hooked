@@ -6,6 +6,7 @@
 
 import {useCallback, useEffect, useState} from 'react'
 import { useNavigate } from 'react-router-dom'
+import API_URL from './config'
 
 function Login(){
 
@@ -15,7 +16,7 @@ function Login(){
     const [password, setPassword] = useState("")
 
     function handleLogin() {
-        window.location.href = "http://localhost:5000/auth/login";
+        window.location.href = `${API_URL}/auth/login`;
     }
 
     function handleBackButton() {

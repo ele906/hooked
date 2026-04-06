@@ -16,6 +16,7 @@ packaging==26.0
 psycopg==3.3.3
 psycopg-binary==3.3.3
 pycparser==3.0
+oauthlib==3.2.2
 python-dotenv==1.2.2
 requests==2.33.1
 typing_extensions==4.15.0

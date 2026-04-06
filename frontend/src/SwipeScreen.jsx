@@ -11,6 +11,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import API_URL from './config'
 
 import searchIcon from './search_button.png'
+import logoutIcon from './logout_button.png'
 
 // Renders the swipe screen interface where users can like or skip songs 
 // via swiping, buttons, or keyboard keys. Displays 30-second audio 
@@ -180,7 +181,7 @@ function SwipeScreen() {
         // pause to let transition finish before new card data
         setTimeout(() => {
             handleAction(action) 
-        }, 400)
+        }, 300)
     }
 
     // Sets state to dragging started
@@ -248,11 +249,29 @@ function SwipeScreen() {
         return () => window.removeEventListener('keydown', handleKeyPress)
     }, [currentSong])
 
+    // ------------------- Logout Handler --------------------------------
+
+    const handleLogout = () => {
+        window.location.href = `${API_URL}/auth/logout`
+    }
+
     // --------------------- Swipe Screen Rendering ----------------------
 
     // main swipe UI
     return (
         <div style={screenStyle}> 
+
+            {/* logout button in top left */}
+            <button 
+                style={cornerButtonStyle('left', 'top')} 
+                onClick={handleLogout}
+                title="Logout"
+            >
+                <img 
+                    src={logoutIcon} 
+                    style={{ width: '30px', height: '30px' }} 
+                />
+            </button>
 
             {/* search button to go to search page */}
             <button 

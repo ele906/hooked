@@ -8,6 +8,7 @@
 import React, { useState } from 'react'
 import {useCallback, useEffect} from 'react'
 import { useNavigate} from 'react-router-dom'
+import API_URL from './config'
 
 function SignUp(){
 
@@ -20,7 +21,7 @@ function SignUp(){
 
     const handleSignup = async () => {
         setError("")
-        const res = await fetch("http://localhost:5000/auth/signup", {
+        const res = await fetch(`${API_URL}/auth/signup`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
