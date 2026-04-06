@@ -22,9 +22,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from data.db import get_db as _open_db
 from data.vector_utils import cosine_similarity, update_weight_vector, l2_normalize, init_weight_vector_from_prefs
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Configure CORS to allow requests from frontend URL
 # In development, allows localhost:3000; in production, uses FRONTEND_URL env var
