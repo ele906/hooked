@@ -1,16 +1,29 @@
 # Defaults to auto-discover top songs for each artist in ARTISTS_BY_GENRE
+#   Connects to local database (.env)
 #   1 API call per artist
 #   60 artists × 5s sleep = ~5 minutes total
 #
-# CLI mode: seed specific songs manually.
+# CLI modes:
+#   python seed_songs.py
+#     → Seeds all artists from ARTISTS_BY_GENRE using local database
+#   
+#   python seed_songs.py --database-url "postgresql://user:password@host:port/db"
+#     → Seeds all artists from ARTISTS_BY_GENRE using remote database (e.g., Render)
+#   
 #   python seed_songs.py "Artist|Song Title" "Artist2|Song Title2" ...
+#     → Seeds specific songs manually using local database
+#   
+#   python seed_songs.py --database-url "postgresql://..." "Artist|Song Title" ...
+#     → Seeds specific songs manually using remote database
 
 import json
 import requests
 import time
+import os
+import sys
+import psycopg
 from db import get_db
 from vector_utils import build_feature_vector, l2_normalize
-import sys
 
 # How many songs to pull per artist (filters for preview URL availability)
 SONGS_PER_ARTIST = 8
@@ -134,7 +147,105 @@ def insert_track(cur, track):
     )
     return True
 
-conn = get_db()
+# Batch insert all tracks in a single operation
+def batch_insert_tracks(cur, tracks):
+    """Insert all tracks at once for better performance"""
+    if not tracks:
+        return 0
+    
+    # Step 1: Insert all unique artists
+    artist_names = {track["artistName"] for track in tracks}
+    artist_values = [(name,) for name in artist_names]
+    cur.executemany(
+        "INSERT INTO artists (artist_name) VALUES (%s) ON CONFLICT (artist_name) DO NOTHING;",
+        artist_values
+    )
+    
+    # Step 2: Get artist IDs
+    cur.execute(
+        "SELECT artist_name, artist_id FROM artists WHERE artist_name = ANY(%s)",
+        (list(artist_names),)
+    )
+    artist_map = {row[0]: row[1] for row in cur.fetchall()}
+    
+    # Step 3: Prepare song data
+    song_data = []
+    song_artist_data = []
+    
+    for track in tracks:
+        genre = track.get("primaryGenreName")
+        release_date = track.get("releaseDate")
+        duration_ms = track.get("trackTimeMillis")
+        itunes_track_id = str(track["trackId"])
+        feature_vec = l2_normalize(build_feature_vector(genre, release_date, duration_ms))
+        
+        song_data.append((
+            track["trackName"],
+            track["previewUrl"],
+            track["artworkUrl100"].replace("100x100bb", "600x600bb"),
+            duration_ms,
+            genre,
+            release_date,
+            itunes_track_id,
+            json.dumps(feature_vec),
+            track["artistName"]  # temporary, will use to link to artist_id
+        ))
+    
+    # Step 4: Batch insert songs and get IDs
+    added = 0
+    for song_row in song_data:
+        # Unpack all but the artist name
+        song_values = song_row[:-1]
+        artist_name = song_row[-1]
+        
+        cur.execute(
+            """INSERT INTO songs (song_name, preview_mp3_url, song_image_url, duration_ms, genre,
+                                  release_date, itunes_track_id, feature_vector)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+               ON CONFLICT (itunes_track_id) DO NOTHING
+               RETURNING song_id""",
+            song_values
+        )
+        result = cur.fetchone()
+        if result:
+            song_id = result[0]
+            artist_id = artist_map[artist_name]
+            song_artist_data.append((song_id, artist_id))
+            added += 1
+    
+    # Step 5: Batch insert song_artist relationships
+    if song_artist_data:
+        cur.executemany(
+            "INSERT INTO song_artists (song_id, artist_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
+            song_artist_data
+        )
+    
+    return added
+
+# Get database connection - checks for DATABASE_URL env var or --database-url CLI arg
+def get_connection():
+    # Check for --database-url argument
+    if len(sys.argv) > 1 and sys.argv[1] == "--database-url" and len(sys.argv) > 2:
+        database_url = sys.argv[2]
+        print(f"Connecting to remote database: {database_url[:50]}...")
+        conn = psycopg.connect(database_url)
+        # Remove these args so they don't get processed as songs
+        sys.argv.pop(1)
+        sys.argv.pop(1)
+        return conn
+    
+    # Check for DATABASE_URL environment variable
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        print(f"Connecting to database from DATABASE_URL env var: {database_url[:50]}...")
+        conn = psycopg.connect(database_url)
+        return conn
+    
+    # Default to local database
+    print("Connecting to local database...")
+    return get_db()
+
+conn = get_connection()
 print(conn)
 # CLI mode: seed specific songs manually
 if len(sys.argv) > 1:
@@ -176,23 +287,19 @@ if len(sys.argv) > 1:
 # fetch top songs per artist in each genre
 else:
     total_added = 0
+    all_tracks = []
+    
+    # Collect all tracks first
     with conn.cursor() as cur:
         for genre, artists in ARTISTS_BY_GENRE.items():
             for artist in artists:
                 print(f"  Fetching: {artist}")
                 tracks = fetch_top_songs_for_artist(artist)
-                # time.sleep(5)  # respect iTunes rate limit (~20 req/min)
-
-                added = 0
-                for track in tracks:
-                    if insert_track(cur, track):
-                        print(f"    + {track['trackName']}")
-                        added += 1
-
-                if not tracks:
-                    print(f"    Skipping {artist}: No results with preview URLs")
+                all_tracks.extend(tracks)
         
-                total_added += added
-
+        # Batch insert all tracks at once
+        print(f"\nBatch inserting {len(all_tracks)} songs...")
+        total_added = batch_insert_tracks(cur, all_tracks)
         conn.commit()
-    print(f"\nDone! {total_added} new songs added.")
+    
+    print(f"Done! {total_added} new songs added.")
