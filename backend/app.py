@@ -33,13 +33,16 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Configure session cookies for cross-domain communication
-# For production (HTTPS): SameSite=None with Secure flag
-# For development (HTTP): SameSite=Lax (more permissive, doesn't require Secure)
-if os.environ.get("FLASK_ENV") == "production":
+# For production (HTTPS/remote): SameSite=None with Secure flag (required for cross-site cookies)
+# For development (localhost): SameSite=Lax (more permissive, doesn't require Secure)
+is_production = os.environ.get("FLASK_ENV") == "production" or "localhost" not in os.environ.get("FRONTEND_URL", "")
+if is_production:
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
     app.config['SESSION_COOKIE_SECURE'] = True
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
 else:
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 # Configure CORS to allow requests from frontend URL
 # In development, allows localhost:3000; in production, uses FRONTEND_URL env var
@@ -474,6 +477,6 @@ def check_password():
 if __name__ == "__main__":
     # Get port from environment (Render sets this), default to 5000 for local dev
     port = int(os.environ.get("PORT", 5000))
-    # Disable debug mode in production
-    debug_mode = os.environ.get("FLASK_ENV", "development") == "development"
+    # Disable debug mode in production (when not on localhost)
+    debug_mode = "localhost" in os.environ.get("FRONTEND_URL", "")
     app.run(host="0.0.0.0", port=port, debug=debug_mode)
