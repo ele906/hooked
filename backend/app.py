@@ -28,6 +28,10 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
+# Configure session cookies for cross-domain communication
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = True
+
 # Configure CORS to allow requests from frontend URL
 # In development, allows localhost:3000; in production, uses FRONTEND_URL env var
 allowed_origins = os.environ.get("ALLOWED_ORIGINS", FRONTEND_URL).split(",")
