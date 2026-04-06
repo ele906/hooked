@@ -1,0 +1,48 @@
+these refs are all for moving circles..
+https://stackoverflow.com/questions/45982244/adding-setinterval-to-componentdidmount-in-react
+
+https://legacy.reactjs.org/docs/state-and-lifecycle.html
+
+https://stackoverflow.com/questions/60049796/circling-motion-animation-in-react-native#:~:text=import%20React%2C%20%7BComponent%7D%20from,%7D%20%7D%20const%20styles%20=%20StyleSheet.
+
+position x, y of element
+https://stackoverflow.com/questions/442404/retrieve-the-position-x-y-of-an-html-element
+
+get screen..
+https://stackoverflow.com/questions/50058258/unexpected-use-of-screen-no-restricted-globals-reactjs
+
+mounting
+https://stackoverflow.com/questions/45982244/adding-setinterval-to-componentdidmount-in-react
+
+example code for animations
+https://stackblitz.com/edit/react-bounce-animation?file=src%2FApp.js
+
+more example code
+https://stackoverflow.com/questions/47911256/react-native-circle-transform-translate-animation?noredirect=1&lq=1
+
+https://developer.mozilla.org/en-US/docs/Web/API/Window/setInterval
+
+bug about () => {}
+https://stackoverflow.com/questions/10182714/why-does-the-setinterval-callback-execute-only-once
+
+prev state
+https://react.dev/reference/react/Component
+
+set state..
+https://stackoverflow.com/questions/52844028/using-setstate-to-change-multiple-values-within-an-array-of-objects-reactjs
+https://dev.to/torianne02/why-do-we-use-this-setstate-432o 
+
+
+set State:
+this.setState((state, props) => {
+  return {counter: state.counter + props.step};
+});
+https://legacy.reactjs.org/docs/react-component.html
+
+
+https://www.reddit.com/r/learnreactjs/comments/agdziy/explain_to_me_how_componentdidmount_works/
+The setIneterval is kicked off in that function, and setInterval works gets continuously called. each time the setState function runs, the state is updated and the render method is called again (hence the componentDidUpdate function continuously getting called)
+
+
+React re-renders all components every time setState is called
+https://stackoverflow.com/questions/24718709/reactjs-does-render-get-called-any-time-setstate-is-called
