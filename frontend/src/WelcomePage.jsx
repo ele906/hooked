@@ -8,6 +8,7 @@ import React from 'react'
 import {useCallback, useEffect} from 'react'
 import { useNavigate} from 'react-router-dom'
 import Circle from "./AnimatedCircle.jsx";
+import API_URL from './config'
 
 function WelcomePage(){
     // this makes it go from one screen to another
@@ -20,7 +21,7 @@ function WelcomePage(){
 
     function handleGoogleClick() {
         console.log("login button clicked, teleport to login pg")
-        window.location.href = "http://localhost:5000/auth/login";
+        window.location.href = `${API_URL}/auth/login`;
     }
 
     function handleCreateClick() {

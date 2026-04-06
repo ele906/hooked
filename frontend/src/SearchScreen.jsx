@@ -1,12 +1,13 @@
 // -----------------------------------------------------------------------
-// SwipeScreen.jsx
-// Swipe interface for Hooked (in progress)
+// SearchScreen.jsx
+// Search interface for Hooked
 // Authors: Eleanor Liu
-// Contributers: Lucille Rizo Patron
+// Contributors: Lucille Rizo Patron
 // -----------------------------------------------------------------------
 import React from 'react'
 import {useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
+import API_URL from './config'
 
 function SearchScreen() {
     const navigate = useNavigate()
@@ -23,7 +24,7 @@ function SearchScreen() {
         // start a new one
         controllerRef.current = new AbortController()
 
-        fetch(`http://localhost:5000/api/songs/search?params=${encodeURIComponent(my_params)}`, {
+        fetch(`${API_URL}/api/songs/search?params=${encodeURIComponent(my_params)}`, {
             signal: controllerRef.current.signal  // attach the abort signal
         })
             .then(res => res.json())

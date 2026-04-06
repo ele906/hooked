@@ -1,44 +1,103 @@
 // -----------------------------------------------------------------------
 // LikedSongs.jsx
 // Liked Songs Interface for Hooked
-// Author: Lucille Rizo Patron
-// Contributors:
+// Author: Lucille Rizo Patron, 
+// Contributors: Eleanor Liu, Derek Geng
 // -----------------------------------------------------------------------
 
 import React from 'react'
 import {useState, useRef, useEffect} from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import API_URL from './config'
 
 import searchIcon from './search_button.png'
 
+// Renders the liked songs screen where users can view and manage their 
+// liked songs list.
 function LikedSongs() {
 
+    // enables flow from one screen to another
     const navigate = useNavigate()
 
+    // list of liked songs to render on screen
     const [likedSongs, setLikedSongs] = useState([])
+
+    // store user id
+    const [userId, setUserId] = useState(null)
 
     // ------------------ Liked Song Fetching ----------------------------
 
     // fetch liked songs
     useEffect(() => {
-    fetch('http://localhost:5000/api/songs/liked?user_id=1')
-        .then(res => res.json())
-        .then(data => setLikedSongs(data))
-        .catch(err => console.error("Error fetching likes:", err))
+        async function fetchLikedSongs() {
+            try {
+                console.log("[LikedSongs] Fetching user authentication")
+                
+                // check for user authentication before fetching liked songs
+                const authResponse = await fetch(`${API_URL}/auth/user`, { 
+                    credentials: "include" 
+                })
+
+                if (!authResponse.ok) {
+                    throw new Error(`Auth failed with status ${authResponse.status}`)
+                }
+
+                const authData = await authResponse.json()
+
+                if (!authData || !authData.user_id) {
+                    throw new Error("No user_id in auth response")
+                }
+
+                // set userId
+                setUserId(authData.user_id)
+                console.log("[LikedSongs] Fetching liked songs for userId:", authData.user_id)
+
+                const songsResponse = await fetch(`${API_URL}/api/songs/liked?user_id=${authData.user_id}`, 
+                    { credentials: "include" }
+                )
+                
+                const songs = await songsResponse.json()
+
+                // update liked songs list after fetching
+                if (Array.isArray(songs)) {
+                    console.log("[LikedSongs] Setting liked songs, count:", songs.length)
+                    setLikedSongs(songs)
+                } else {
+                    console.error("[LikedSongs] Expected array of songs but got:", songs)
+                    setLikedSongs([])
+                }
+
+            } catch (error) {
+                console.error("[LikedSongs] Error fetching liked songs:", error.message)
+                setLikedSongs([])
+            }
+        }
+
+        fetchLikedSongs()
     }, [])
 
     // delete a liked song, takes an integer song id and removes it from the 
     // user's liked songs list
-    const deleteSong = (songId) => {
-        fetch(`http://localhost:5000/api/songs/liked/${songId}`, {
-            method: 'DELETE' 
-        })
-        .then(res => {
-            if (res.ok) {
-                setLikedSongs(prev => prev.filter(song => song.song_id !== songId));
+    async function deleteSong(songId) {
+        try {
+            console.log("[LikedSongs] Deleting song with id:", songId)
+            
+            const response = await fetch(`${API_URL}/api/songs/liked/${songId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            })
+
+            if (response.ok) {
+                console.log("[LikedSongs] Successfully deleted song, updating UI")
+                // update UI by filtering out deleted song
+                setLikedSongs(prev => prev.filter(song => song.song_id !== songId))
+            } else {
+                throw new Error(`Delete failed with status: ${response.status}`)
             }
-        })
-        .catch(err => console.error("Error deleting song:", err));
+
+        } catch (error) {
+            console.error("[LikedSongs] Error deleting song:", error.message)
+        }
     }
 
     // ------------------ Render Liked Songs Screen ----------------------
@@ -68,7 +127,7 @@ function LikedSongs() {
             {/* title of page */}
             <h2 style={headerStyle}>Your Liked Tracks</h2>
             
-
+             {/* list of liked songs */}
             <div style={likedListStyle}>
 
                 {likedSongs.map((song) => (
@@ -76,7 +135,7 @@ function LikedSongs() {
 
                         {/* album art */}
                         <img src={song.song_image_url} 
-                             style={artStyle}  
+                             style={albumArtStyle}  
                         />
                         {/* song info*/}
                         <div style={songInfoStyle}>
@@ -123,25 +182,6 @@ const screenStyle = {
     position: 'relative',
 }
 
-// button style to navigate among screens from swipe screen
-// takes string sides: sideX to determine right or left placement
-// and sideY to determine bottom or top placement
-const cornerButtonStyle = (sideX, sideY) => ({
-    position: 'fixed',
-    width: '50px',
-    height: '50px',
-    [sideX]: '15px',
-    [sideY]: '15px',
-    backgroundColor: '#a995dd4f',
-    color: '#180d2b',
-    fontSize: '30px',
-    fontWeight: 'bold',
-    border: 'none',
-    borderRadius: '12px',
-    cursor: 'pointer',   
-    zIndex: 9999,
-})
-
 const headerStyle = {
     color: '#d6c4c0f6',
     fontSize: '40px',
@@ -162,25 +202,27 @@ const likedListStyle = {
     paddingRight: '10px'
 }
 
+// style for boxes containing each liked song
 const songBoxStyle = {
     display: 'flex',
     alignItems: 'center',
     backgroundColor: '#7a779636',
-    borderRadius: '15px',
+    borderRadius: '12px',
     padding: '10px',
-    marginBottom: '15px',
+    marginBottom: '12px',
     position: 'relative',
 }
 
-const artStyle = {
-    width: '60px',
-    height: '60px',
-    borderRadius: '8px',
+const albumArtStyle = {
+    width: '58px',
+    height: '58px',
+    borderRadius: '7px',
     objectFit: 'cover',
     marginRight: '15px',
-    pointerevents: 'none'
+    pointerEvents: 'none'
 }
 
+// style for song info container
 const songInfoStyle = {
     flex: 1,
     display: 'flex',
@@ -188,6 +230,7 @@ const songInfoStyle = {
     overflow: 'hidden'
 }
 
+// style for song name text
 const nameStyle = {
     color: '#d6c4c0f6',
     fontWeight: 'bold',
@@ -197,6 +240,7 @@ const nameStyle = {
     wordWrap: 'break-word'
 }
 
+// style for artist name text
 const artistStyle = {
     fontSize: '13px',
     fontFamily: 'Outfit, sans-serif',
@@ -212,5 +256,24 @@ const deleteButtonStyle = {
     cursor: 'pointer',
     padding: '10px'
 }
+
+// button style to navigate among screens from swipe screen
+// takes string sides: sideX to determine right or left placement
+// and sideY to determine bottom or top placement
+const cornerButtonStyle = (sideX, sideY) => ({
+    position: 'fixed',
+    width: '50px',
+    height: '50px',
+    [sideX]: '15px',
+    [sideY]: '15px',
+    backgroundColor: '#a995dd4f',
+    color: '#180d2b',
+    fontSize: '30px',
+    fontWeight: 'bold',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',   
+    zIndex: 9999,
+})
 
 export default LikedSongs

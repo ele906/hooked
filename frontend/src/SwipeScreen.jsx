@@ -2,17 +2,19 @@
 // SwipeScreen.jsx
 // Swipe Interface for Hooked
 // Author: Lucille Rizo Patron
-// Contributors: Eleanor Liu
+// Contributors: Eleanor Liu, Derek Geng
 // -----------------------------------------------------------------------
 
 import React from 'react'
 import {useState, useRef, useEffect} from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import API_URL from './config'
 
 import searchIcon from './search_button.png'
 
-// Renders the swipe screen interface based on user mouse and keyboard 
-// actions
+// Renders the swipe screen interface where users can like or skip songs 
+// via swiping, buttons, or keyboard keys. Displays 30-second audio 
+// previews and song info to help users curate a list of liked songs.
 function SwipeScreen() {
 
     // ------------- Screen Flow -----------------------------------------
@@ -42,60 +44,128 @@ function SwipeScreen() {
 
     // message shows like or dislike after swiping
     const [message, setMessage] = useState("")
+    
+    // store user id
+    const [userId, setUserId] = useState(null)
 
     // ------------------ Song Fetching ----------------------------------
 
+    // check if user in authenticated before rendering the swipe screen
+    // and get user id
+    useEffect(() => {
+        async function fetchUserAuth() {
+            try {
+                const response = await fetch(`${API_URL}/auth/user`, { 
+                    credentials: "include" 
+                })
+
+                if (!response.ok) {
+                    throw new Error(`Auth failed: ${response.status}`)
+                }
+
+                const data = await response.json()
+                if (data && data.user_id) {
+                    setUserId(data.user_id)
+                }
+
+            } catch (error) {
+                console.error("Error fetching user auth:", error.message)
+            }
+        }
+
+        fetchUserAuth()
+
+    }, [])
+
     // send user like/dislike action to database, then fetch next song
     // takes a string action, 'like' or 'dislike', as a parameter
-    function handleAction(action) {
-        fetch("http://localhost:5000/api/songs/action", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            // tracks user interaction with song
-            body: JSON.stringify({ user_id: 1, 
-                                   song_id: currentSong.song_id, 
-                                   action })
-        }).then(() => fetchNextSong())
+    async function handleAction(action) {
+        try {
+            const response = await fetch(`${API_URL}/api/songs/action`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                // tracks user interaction with song
+                body: JSON.stringify({ 
+                    user_id: userId, 
+                    song_id: currentSong.song_id, 
+                    action 
+                })
+            })
+
+            if (!response.ok) {
+                throw new Error(`Response status: ${response.status}`)
+            }
+
+            // after recording action, get the next song
+            await fetchNextSong()
+
+        } catch (error) {
+            console.error("Action error:", error.message)
+            setMessage("Action failed, please try again.")
+        }
     }
 
     // fetch next song from backend & reset visual state for new song card
-    function fetchNextSong() {
-        fetch("http://localhost:5000/api/songs/next?user_id=1")
-            .then(res => res.json())
-            .then(data => {
-                // reset card to center position
-                setOffsetX(0)
-                if (data && data.song_id) {
-                    setCurrentSong(data)
-                    setMessage("")
-                } else {
-                    // end of song list
-                    setCurrentSong(null)
-                    setMessage("No more songs!")
-                }
-            })
-            .catch(err => {
-                console.error("Fetch error:", err)
+    async function fetchNextSong() {
+        try {
+            const response = await fetch(`${API_URL}/api/songs/next?user_id=${userId}`)
+
+            if (!response.ok) {
+                throw new Error(`Response status: ${response.status}`)
+            }
+
+            const data = await response.json()
+
+            // reset visual state for swipe card
+            setOffsetX(0)
+
+            if (data && data.song_id) {
+                // end of song list
+                setCurrentSong(data)
+                setMessage("")
+            } else {
                 setCurrentSong(null)
-                setMessage("Server Error")
-            })
+                setMessage("No more songs!")
+            }
+
+        } catch (error) {
+            console.error("Fetch error:", error.message)
+            setCurrentSong(null)
+            setMessage("Server Error")
+        }
     }
 
     // initial load: fetch first song to start swipe session
     useEffect(() => {
-        // check for song clicked on search page
-        const clickedSong = location.state?.song
+        // check for user authentication before song fetch
+        if (!userId) {
+            console.warn("[SwipeScreen] userId is null: cancel song fetch.")
+            return
+        }
+
+        async function initializeSong() {
+            try {
+            // check for song passed from another screen
+            let clickedSong = null
+            if (location.state) {
+                clickedSong = location.state.song
+            }
 
             if (clickedSong) {
-                // arrived from search result
                 setCurrentSong(clickedSong)
             } else {
-                // arrived directly
-                fetchNextSong()
+                await fetchNextSong()
             }
-        }, [])
 
-    // -----------------------  Drag Swipe -------------------------------
+            } catch (error) {
+            console.error("Initialization failed:", error)
+            }
+        }
+
+        initializeSong()
+    }, [userId, location.state])
+
+// -----------------------  Drag Swipe -------------------------------
     
     // triggers the card fly-off animation (left or right) based on
     // user action via drag, button click, or keyboard keys
@@ -115,19 +185,19 @@ function SwipeScreen() {
 
     // Sets state to dragging started
     // takes mouse event e as param
-    function dragStart(e) {
+    const dragStart = (event) => {
         setIsDragging(true)
         // capture exact position of click start
-        dragStartX.current = e.pageX 
+        dragStartX.current = event.pageX 
     }
 
     // Updates position state as the card is dragged
     useEffect(() => {
         // calculate how far mouse has moved
         // takes mouse event e as param
-        const handleMouseMove = (e) => {
+        const handleMouseMove = (event) => {
             if (!isDragging) return
-            const displacement = e.pageX - dragStartX.current
+            const displacement = event.pageX - dragStartX.current
             setOffsetX(displacement)
         }
         
@@ -166,10 +236,10 @@ function SwipeScreen() {
     // Handle keyboard left and right arrow keys
     useEffect(() => { 
         // takes keyboard event e as param
-        const handleKeyPress = (e) => {
+        const handleKeyPress = (event) => {
             if (Math.abs(offsetX) > 100) return // prevent key spamming
-            if (e.key === 'ArrowLeft') doSwipe('dislike')
-            if (e.key === 'ArrowRight') doSwipe('like')
+            if (event.key === 'ArrowLeft') doSwipe('dislike')
+            if (event.key === 'ArrowRight') doSwipe('like')
         }
 
         // respond to user keyboard actions
@@ -204,7 +274,9 @@ function SwipeScreen() {
 
             {/* if no song loaded, show final message or loading screen */}
             {!currentSong ? (
-                <p style={{color: 'white', fontSize: '18px', textAlign: 'center'}}>
+                <p style={{color: 'white', 
+                           fontSize: '18px', 
+                           textAlign: 'center'}}>
                     {message || "Loading..."}
                 </p>
             ) : (   
@@ -236,25 +308,23 @@ function SwipeScreen() {
                         {currentSong.song_image_url ? (
                             <img 
                                 src={currentSong.song_image_url} 
-                                alt={currentSong.song_name}
+                                alt=''
+                                style={albumArtStyle}
                                 // prevent image dragging
-                                onDragStart={(e) => e.preventDefault()}
-                                style={{ width: '220px', 
-                                        height: '220px', 
-                                        borderRadius: '12px', 
-                                        objectFit: 'cover', 
-                                        pointerEvents: 'none',
-                                        margin: '0 0 25px 0' }}
+                                onDragStart={(event) => event.preventDefault()}
                             />
                         ) : (
-                            <p style={{fontSize: '120px', margin: '0 0 25px 0'}}>♫</p>
+                            <p style={{fontSize: '120px', 
+                                       margin: '0 0 25px 0'}}>♫</p>
                         )}
                         {/* audio preview */}
-                        <div style={{ filter: 'brightness(0.7)', 
+                        <div style={{ 
+                                    filter: 'brightness(0.7)', 
                                     display: 'flex',
                                     justifyContent: 'center'
                         }}>
-                            <audio src={currentSong.preview_mp3_url} 
+                            <audio 
+                                src={currentSong.preview_mp3_url} 
                                 autoPlay 
                                 controls 
                                 style={{ width: '220px'}}/>
@@ -329,6 +399,28 @@ const screenStyle = {
     position: 'relative',
 }
 
+// swipe card
+const cardRefStyle = {
+    position: 'relative',
+    width: '350px',
+    padding: '100px 40px',
+    backgroundColor: '#7a779636',
+    borderRadius: '25px',
+    textAlign: 'center',
+    color: 'white',
+    cursor: 'grab',
+    userSelect: 'none',
+}
+
+const albumArtStyle = {
+    width: '220px',
+    height: '220px',
+    margin: '0 0 25px 0',
+    borderRadius: '12px',
+    objectFit: 'cover',
+    pointerEvents: 'none',
+}
+
 const messageStyle = {
     color: '#50fff6',
     fontSize: '18px',
@@ -337,26 +429,25 @@ const messageStyle = {
     height: '25px',
 }
 
-const skipButtonStyle = {
+const actionButtonStyle = {
     padding: '15px 35px',
     fontSize: '16px',
     fontWeight: 'bold',
-    backgroundColor: '#bea2ff',
-    color: '#1d1133',
+    fontFamily: 'Outfit, sans-serif',
     border: 'none',
     borderRadius: '50px',
     cursor: 'pointer',
 }
+const skipButtonStyle = {
+    ...actionButtonStyle,
+    backgroundColor: '#bea2ff',
+    color: '#1d1133',
+}
 
 const likeButtonStyle = {
-    padding: '15px 35px',
-    fontSize: '16px',
+    ...actionButtonStyle,
     backgroundColor: '#50fff6',
     color: '#1d1133',
-    fontWeight: 'bold',
-    border: 'none',
-    borderRadius: '50px',
-    cursor: 'pointer',
 }
 
 // button style to navigate among screens from swipe screen
@@ -377,18 +468,5 @@ const cornerButtonStyle = (sideX, sideY) => ({
     cursor: 'pointer',   
     zIndex: 9999,
 })
-
-// swipe card
-const cardRefStyle = {
-    position: 'relative',
-    width: '350px',
-    padding: '100px 40px',
-    backgroundColor: '#7a779636',
-    borderRadius: '25px',
-    textAlign: 'center',
-    color: 'white',
-    cursor: 'grab',
-    userSelect: 'none',
-}
 
 export default SwipeScreen

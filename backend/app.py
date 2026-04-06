@@ -1,39 +1,43 @@
 # -----------------------------------------------------------------------
 # app.py
 # backend for hooked
-# authors: Eleanor, Sadat, Stephen, Derek, Lucille
+# authors: Eleanor, Sadat, Stephen, Derek
 # -----------------------------------------------------------------------
 
 import sys, os, json, random
 import flask
-from flask import Flask, jsonify, request, session, redirect, url_for
+from flask import Flask, jsonify, request, session, redirect, url_for, g
 from authlib.integrations.flask_client import OAuth
+from dotenv import load_dotenv
+import bcrypt
+
+load_dotenv()
+
+# URLs from environment variables
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
 # adds parent directory to path so we can import from data/
-# only have to do this bc app.py is in backend/ and not the root of the project
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from data.db import get_db
+from data.db import get_db as _open_db
 from data.vector_utils import cosine_similarity, update_weight_vector, l2_normalize, init_weight_vector_from_prefs
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")
-CORS(app, supports_credentials=True)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# helper function to run SQL commands with proper connection handling
-def sql_cmd(command, params=(), fetch=False):
-    conn = get_db()
-    cur = conn.cursor()
-    
-    cur.execute(command, params)
-    conn.commit()
-    
-    result = cur.fetchall() if fetch else None
-    cur.close()
-    conn.close()
-    return result
+# Configure session cookies for cross-domain communication
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True
 
+# Configure CORS to allow requests from frontend URL
+# In development, allows localhost:3000; in production, uses FRONTEND_URL env var
+allowed_origins = os.environ.get("ALLOWED_ORIGINS", FRONTEND_URL).split(",")
+CORS(app, 
+     origins=allowed_origins,
+     supports_credentials=True)
 
 # Google OAuth setup
 oauth = OAuth(app)
@@ -54,6 +58,8 @@ google = oauth.register(
 @app.route("/auth/login")
 def login():
     redirect_uri = url_for("auth_callback", _external=True)
+    print("GOOGLE_CLIENT_ID:", GOOGLE_CLIENT_ID, flush=True)
+    print("REDIRECT_URI:", redirect_uri, flush=True)
     return google.authorize_redirect(redirect_uri)
 
 # callback route that Google redirects to after login
@@ -61,23 +67,38 @@ def login():
 def auth_callback():
     token = google.authorize_access_token()
     user_info = token.get("userinfo")
-    session["user"] = {
-        "email": user_info["email"],
-        "name": user_info.get("name", ""),
-    }
+    email = user_info["email"]
+    name = user_info.get("name", "")
+    
+    # Insert user if not already in DB
     sql_cmd(
         """INSERT INTO users (email, username) 
         VALUES (%s, %s) 
         ON CONFLICT (email) DO NOTHING;""",
-        (user_info["email"], user_info["email"])
+        (email, email)
     )
-    return redirect("http://localhost:3000/swipe")
+    
+    # Get user_id from database
+    rows = sql_cmd(
+        "SELECT user_id FROM users WHERE email = %s",
+        (email,),
+        fetch=True
+    )
+    
+    user_id = rows[0][0] if rows else None
+    
+    session["user"] = {
+        "email": email,
+        "name": name,
+        "user_id": user_id,
+    }
+    return redirect(f"{FRONTEND_URL}/swipe")
 
 # logs out by clearing the session, then redirects back to the frontend
 @app.route("/auth/logout")
 def logout():
     session.pop("user", None)
-    return redirect("http://localhost:3000")
+    return redirect(FRONTEND_URL)
 
 # returns the logged-in user's info, or 401 if not logged in
 @app.route("/auth/user")
@@ -86,9 +107,67 @@ def get_user():
     if user:
         return jsonify(user)
     return jsonify(None), 401
+# signup route 
+@app.route("/auth/signup", methods=["POST"])
+def signup():
+    data = request.get_json()
+    email = data.get("email", "")
+    username = data.get("username", "")
+    password = data.get("password", "")
+    if not email or not username or not password:
+        return jsonify({"error": "All fields are required"}), 400
+    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    try:
+        rows = sql_cmd(
+            """INSERT INTO users (email, username, password_hash)
+            VALUES (%s, %s, %s)
+            RETURNING user_id;""",
+            (email, username, hashed),
+            fetch=True
+        )
+        user_id = rows[0][0]
+        session["user"] = {
+            "email": email,
+            "name": username,
+            "user_id": user_id,
+        }
+        return jsonify({"user_id": user_id}), 201
+    except Exception as e:
+        if "users_email_key" in str(e):
+            return jsonify({"error": "Email already taken"}), 409
+        if "users_username_key" in str(e):
+            return jsonify({"error": "Username already taken"}), 409
+        return jsonify({"error": str(e)}), 500
 
 
 EPSILON = 0.15  # fraction of requests served randomly for exploration
+
+# returns the DB connection for the current request, opening one if needed
+# Flask's teardown closes it automatically when the request ends
+def get_db():
+    if 'db' not in g:
+        g.db = _open_db()
+    return g.db
+
+# closes the DB connection at the end of the request
+@app.teardown_appcontext
+def close_db(e=None):
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+
+# helper to run SQL commands. reuses the single per-request connection
+# before this would open multiple conenections per request which
+# was not neccessary
+def sql_cmd(command, params=(), fetch=False):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(command, params)
+    conn.commit()
+    result = cur.fetchall() if fetch else None
+    cur.close()
+    return result
+
 
 # API route to handle user interactions (like/dislike) and update their profile vector accordingly
 @app.route("/api/songs/action", methods=["POST"])
@@ -216,7 +295,8 @@ def next_song():
 # For deleting a liked song from liked songs
 @app.route("/api/songs/liked/<int:song_id>", methods=["DELETE"])
 def delete_liked_song(song_id):
-    user_id = 1
+    user = session.get("user")
+    user_id = user["user_id"]
     
     sql_cmd("DELETE FROM liked WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
     
@@ -228,7 +308,6 @@ def delete_liked_song(song_id):
 @app.route("/api/songs/search", methods=["GET"])
 def search_songs():
     query = request.args.get("params", "")
-    print("searching for:", query)
 
     if not query:
         return jsonify({"error": "params parameter is required"}), 400
@@ -283,14 +362,30 @@ def check_password():
     password = data.get('password', "")
 
     result = sql_cmd(
-        "SELECT * FROM users WHERE username = %s AND password_hash = %s",
-        (username, password),
+        "SELECT user_id, email, password_hash FROM users WHERE username = %s",
+        (username,),
         fetch=True
     )
 
-    if result:
-        return flask.jsonify({'logged_in': True})
-    return flask.jsonify({'logged_in': False})
+    if not result:
+        return flask.jsonify({'logged_in': False, 'error': 'User not found'}), 401
+
+    user_id, email, stored_hash = result[0]
+
+    import bcrypt
+    if bcrypt.checkpw(password.encode(), stored_hash.encode()):
+        session["user"] = {
+            "email": email,
+            "name": username,
+            "user_id": user_id,
+        }
+        return flask.jsonify({'logged_in': True, 'user_id': user_id})
+
+    return flask.jsonify({'logged_in': False, 'error': 'Wrong password'}), 401
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Get port from environment (Render sets this), default to 5000 for local dev
+    port = int(os.environ.get("PORT", 5000))
+    # Disable debug mode in production
+    debug_mode = os.environ.get("FLASK_ENV", "development") == "development"
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)

@@ -1,0 +1,30 @@
+services:
+  # Backend service
+  - type: web
+    name: hooked-backend
+    runtime: python
+    buildCommand: "cd backend && pip install -r ../requirements.txt"
+    startCommand: "cd backend && python app.py"
+    envVars:
+      - key: FLASK_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        value: "https://hooked-frontend.onrender.com"
+      - key: ALLOWED_ORIGINS
+        value: "https://hooked-frontend.onrender.com"
+
+  # Frontend service  
+  - type: web
+    name: hooked-frontend
+    runtime: node
+    buildCommand: "cd frontend && npm install && npm run build"
+    startCommand: "cd frontend && npm start"
+    envVars:
+      - key: REACT_APP_API_URL
+        value: "https://hooked-backend.onrender.com"
