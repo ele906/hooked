@@ -7,9 +7,13 @@
 import sys, os, json, random
 import flask
 from flask import Flask, jsonify, request, session, redirect, url_for, g
-from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 import bcrypt
+import requests
+import oauthlib.oauth2
+
+# Allow insecure transport for local development
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 load_dotenv()
 
@@ -29,8 +33,13 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Configure session cookies for cross-domain communication
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'
-app.config['SESSION_COOKIE_SECURE'] = True
+# For production (HTTPS): SameSite=None with Secure flag
+# For development (HTTP): SameSite=Lax (more permissive, doesn't require Secure)
+if os.environ.get("FLASK_ENV") == "production":
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+    app.config['SESSION_COOKIE_SECURE'] = True
+else:
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Configure CORS to allow requests from frontend URL
 # In development, allows localhost:3000; in production, uses FRONTEND_URL env var
@@ -40,35 +49,91 @@ CORS(app,
      supports_credentials=True)
 
 # Google OAuth setup
-oauth = OAuth(app)
+GOOGLE_DISCOVERY_URL = 'https://accounts.google.com/.well-known/openid-configuration'
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
-GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')    
-CONF_URL = 'https://accounts.google.com/.well-known/openid-configuration'
-google = oauth.register(
-        name='google',
-        client_id=GOOGLE_CLIENT_ID,
-        client_secret=GOOGLE_CLIENT_SECRET,
-        server_metadata_url=CONF_URL,
-        client_kwargs={
-            'scope': 'openid email profile'
-        }
-    )
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 
 # Authentication routes
 @app.route("/auth/login")
 def login():
+    # Clear any existing session (allow re-login with Google)
+    session.clear()
+    
+    # Get Google's OAuth2 provider config
+    google_provider_cfg = requests.get(GOOGLE_DISCOVERY_URL, timeout=10).json()
+    auth_endpoint = google_provider_cfg['authorization_endpoint']
+    
+    # Create OAuth2 client
+    client = oauthlib.oauth2.WebApplicationClient(GOOGLE_CLIENT_ID)
+    
+    # Build redirect URI and target page (passed as state)
+    redirectToSwipe = f"{FRONTEND_URL}/swipe"
     redirect_uri = url_for("auth_callback", _external=True)
-    print("GOOGLE_CLIENT_ID:", GOOGLE_CLIENT_ID, flush=True)
-    print("REDIRECT_URI:", redirect_uri, flush=True)
-    return google.authorize_redirect(redirect_uri)
+    
+    # Prepare request URI (redirectToSwipe will be passed back as state)
+    request_uri = client.prepare_request_uri(
+        auth_endpoint,
+        redirect_uri=redirect_uri,
+        scope=['openid', 'email', 'profile'],
+        state=redirectToSwipe
+    )
+    return redirect(request_uri)
 
 # callback route that Google redirects to after login
 @app.route("/auth/callback")
 def auth_callback():
-    token = google.authorize_access_token()
-    user_info = token.get("userinfo")
-    email = user_info["email"]
-    name = user_info.get("name", "")
+    # Get authorization code from Google redirect
+    authorization_code = request.args.get('code')
+    
+    # Get the original URL from state parameter
+    redirectToSwipe = request.args.get('state')
+    
+    # Get Google's OAuth2 token endpoint
+    google_provider_cfg = requests.get(GOOGLE_DISCOVERY_URL, timeout=10).json()
+    token_endpoint = google_provider_cfg['token_endpoint']
+    userinfo_endpoint = google_provider_cfg['userinfo_endpoint']
+    
+    # Create OAuth2 client and prepare token request
+    client = oauthlib.oauth2.WebApplicationClient(GOOGLE_CLIENT_ID)
+    redirect_uri = url_for("auth_callback", _external=True)
+    
+    token_url, headers, body = client.prepare_token_request(
+        token_endpoint,
+        authorization_response=request.url,
+        redirect_url=redirect_uri,
+        code=authorization_code
+    )
+    
+    # Exchange code for token
+    token_response = requests.post(
+        token_url,
+        headers=headers,
+        data=body,
+        auth=(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET),
+        timeout=10
+    )
+    
+    if token_response.status_code != 200:
+        return jsonify({"error": "Failed to get token"}), 400
+    
+    # Parse token response
+    client.parse_request_body_response(json.dumps(token_response.json()))
+    
+    # Get user info
+    uri, headers, body = client.add_token(userinfo_endpoint)
+    userinfo_response = requests.get(uri, headers=headers, data=body, timeout=10)
+    
+    if userinfo_response.status_code != 200:
+        return jsonify({"error": "Failed to get user info"}), 400
+    
+    # Verify email
+    if not userinfo_response.json().get('email_verified'):
+        return jsonify({"error": "Email not verified"}), 400
+    
+    # Extract user info
+    user_info = userinfo_response.json()
+    email = user_info.get('email', '')
+    name = user_info.get('name', '')
     
     # Insert user if not already in DB
     sql_cmd(
@@ -87,12 +152,23 @@ def auth_callback():
     
     user_id = rows[0][0] if rows else None
     
+    # Check if user is new (no preferences initialized yet)
+    user_profile_rows = sql_cmd(
+        "SELECT 1 FROM user_profiles WHERE user_id = %s",
+        (user_id,),
+        fetch=True
+    )
+    is_new_user = len(user_profile_rows) == 0
+    
+    # Determine redirect page
+    redirect_page = f"{FRONTEND_URL}/seedprefs" if is_new_user else request.args.get('state', f"{FRONTEND_URL}/swipe")
+    
     session["user"] = {
         "email": email,
         "name": name,
         "user_id": user_id,
     }
-    return redirect(f"{FRONTEND_URL}/swipe")
+    return redirect(redirect_page)
 
 # logs out by clearing the session, then redirects back to the frontend
 @app.route("/auth/logout")
@@ -338,18 +414,30 @@ def search_songs():
     return jsonify(results)
 
 # seed preference
-@app.route('/api/seedpref', methods=['POST'])
+@app.route('/api/preferences', methods=['POST'])
 def save_preferences():
     data = flask.request.get_json()
     genres = data.get('prefs', [])
     vec = init_weight_vector_from_prefs(genres)
     
-    # save to DB
-    user_id = flask.session['user_id']
+    # Get user_id from session
+    user_id = flask.session.get('user', {}).get('user_id')
+    if not user_id:
+        return flask.jsonify({'error': 'Not authenticated'}), 401
 
+    # Update weight vector in users table
     sql_cmd(
         "UPDATE users SET weight_vector = %s WHERE user_id = %s",
-        (vec, user_id)
+        (json.dumps(vec), user_id)
+    )
+    
+    # Create user_profile entry (marks preferences as completed)
+    sql_cmd(
+        """INSERT INTO user_profiles (user_id, weight_vector) 
+           VALUES (%s, %s)
+           ON CONFLICT (user_id) DO UPDATE 
+           SET weight_vector = EXCLUDED.weight_vector""",
+        (user_id, json.dumps(vec))
     )
 
     return flask.jsonify({'added weight vec to DB': True})

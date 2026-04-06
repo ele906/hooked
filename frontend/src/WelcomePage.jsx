@@ -7,6 +7,7 @@
 import React from 'react'
 import {useCallback, useEffect} from 'react'
 import { useNavigate} from 'react-router-dom'
+import Circle from "./AnimatedCircle.jsx";
 import API_URL from './config'
 
 function WelcomePage(){
@@ -44,11 +45,24 @@ function WelcomePage(){
         return () => window.removeEventListener('keydown', handleKeyPress)
     }, [handleKeyPress])
 
+
+    
     return(
         <div style={screenStyle} >
             <h1> Hooked </h1>
             <div> Reel in Your Next Playlist </div>
                 {/* teleports to either login or signup*/}
+
+                    <Circle />
+                    <Circle />
+                    <Circle />
+                    <Circle />
+                    <Circle />
+                    <Circle />                    
+                    <Circle />
+                    <Circle />
+                    <Circle />
+
                     <button style={loginButtonStyle} onClick={(handleLoginClick)}>
                         Login
                     </button>
@@ -60,7 +74,6 @@ function WelcomePage(){
                     <button style={loginButtonStyle} onClick={handleGoogleClick}>
                         Continue with Google
                     </button>
-
 
         </div>
         
