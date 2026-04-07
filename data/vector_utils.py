@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 # 12 main genre types, each with  associated keywords for matching
 # Could be updated in the future but should be good for now
@@ -96,17 +97,18 @@ def build_feature_vector(genre, release_date, duration_ms):
 # returns the L2-normalized form of a vector, which is important for cosine similarity calculations
 # L2 normalization scales the vector to have a sum of squares equal to 1
 def l2_normalize(vec):
-    magnitude = math.sqrt(sum(x * x for x in vec))
+    arr = np.array(vec, dtype=np.float32)
+    magnitude = np.linalg.norm(arr)
     if magnitude == 0:
         return vec[:]
-    return [x / magnitude for x in vec]
+    return (arr / magnitude).tolist()
 
 # computes cosine similarity between two vectors
 # since both vectors are L2-normalized, the cosine similarity is just their dot product
 def cosine_similarity(v1, v2):
     if len(v1) != len(v2):
         raise ValueError(f"Vector length mismatch: {len(v1)} vs {len(v2)}")
-    return sum(a * b for a, b in zip(v1, v2))
+    return float(np.dot(v1, v2))
 
 # update a user's weight vector based on a swipe action
 # for a like, we move the weight vector slightly towards the song vector (scaled by alpha)
@@ -116,11 +118,14 @@ def update_weight_vector(current_vec, song_vec, action, alpha=0.1, beta=0.1):
     if len(current_vec) != len(song_vec):
         raise ValueError(f"Vector length mismatch: {len(current_vec)} vs {len(song_vec)}")
 
+    c = np.array(current_vec, dtype=np.float32)
+    s = np.array(song_vec, dtype=np.float32)
+
     if action == "like":
-        updated = [c + alpha * s for c, s in zip(current_vec, song_vec)]
+        updated = c + alpha * s
     elif action == "dislike":
-        updated = [c - beta * s for c, s in zip(current_vec, song_vec)]
+        updated = c - beta * s
     else:
         return current_vec[:]
 
-    return l2_normalize(updated)
+    return l2_normalize(updated.tolist())
