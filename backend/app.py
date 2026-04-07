@@ -271,23 +271,21 @@ def store_interaction():
             (data["user_id"], data["song_id"])
         )
 
-    # Update user weight vector based on this swipe
-    song_rows = sql_cmd(
-        "SELECT feature_vector FROM songs WHERE song_id = %s",
-        (data["song_id"],), fetch=True
+    # Fetch song feature vector and user profile in one query
+    rows = sql_cmd(
+        """SELECT s.feature_vector, up.weight_vector
+           FROM songs s
+           LEFT JOIN user_profiles up ON up.user_id = %s
+           WHERE s.song_id = %s""",
+        (data["user_id"], data["song_id"]), fetch=True
     )
 
-    # if the song has a feature vector, update the user's weight vector accordingly
-    if song_rows and song_rows[0][0] is not None:
-        song_vec = song_rows[0][0]
+    if rows and rows[0][0] is not None:
+        song_vec = rows[0][0]
+        current_weight = rows[0][1]
 
-        profile_rows = sql_cmd(
-            "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
-            (data["user_id"],), fetch=True
-        )
-
-        if profile_rows and profile_rows[0][0] is not None:
-            new_vec = update_weight_vector(profile_rows[0][0], song_vec, data["action"])
+        if current_weight is not None:
+            new_vec = update_weight_vector(current_weight, song_vec, data["action"])
         else:
             # No profile yet — initialize from this song's vector
             new_vec = l2_normalize(song_vec[:])
