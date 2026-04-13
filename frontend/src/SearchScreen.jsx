@@ -1,8 +1,7 @@
 // -----------------------------------------------------------------------
 // SearchScreen.jsx
 // Search interface for Hooked
-// Authors: Eleanor Liu
-// Contributors: Lucille Rizo Patron
+// Authors: Eleanor Liu, Lucille Rizo Patron
 // -----------------------------------------------------------------------
 import React from 'react'
 import {useState, useRef} from 'react'

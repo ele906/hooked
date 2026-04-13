@@ -1,8 +1,7 @@
 // -----------------------------------------------------------------------
 // LikedSongs.jsx
 // Liked Songs Interface for Hooked
-// Author: Lucille Rizo Patron, 
-// Contributors: Eleanor Liu, Derek Geng
+// Author: Lucille Rizo Patron, Eleanor Liu, Derek Geng
 // -----------------------------------------------------------------------
 
 import React from 'react'
@@ -78,10 +77,10 @@ function LikedSongs() {
 
     // delete a liked song, takes an integer song id and removes it from the 
     // user's liked songs list
-    async function deleteSong(songId) {
+    async function deleteLikedSong(songId) {
         try {
             console.log("[LikedSongs] Deleting song with id:", songId)
-            
+                
             const response = await fetch(`${API_URL}/api/songs/liked/${songId}`, {
                 method: 'DELETE',
                 credentials: 'include'
@@ -151,7 +150,7 @@ function LikedSongs() {
 
                         {/* delete song button */}
                         <button 
-                            onClick={() => deleteSong(song.song_id)}
+                            onClick={() => deleteLikedSong(song.song_id)}
                             style={deleteButtonStyle}>
                             ✕
                         </button>

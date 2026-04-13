@@ -1,8 +1,7 @@
 // -----------------------------------------------------------------------
 // WelcomePage.jsx
 // Swipe interface for Hooked (in progress)
-// Authors: Eleanor Liu
-// Contributors:  Lucille Rizo Patron
+// Authors: Eleanor Liu, Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
 import React, { useState } from 'react'

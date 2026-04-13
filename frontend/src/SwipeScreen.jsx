@@ -1,8 +1,7 @@
 // -----------------------------------------------------------------------
 // SwipeScreen.jsx
 // Swipe Interface for Hooked
-// Author: Lucille Rizo Patron
-// Contributors: Eleanor Liu, Derek Geng
+// Author: Lucille Rizo Patron, Eleanor Liu, Derek Geng
 // -----------------------------------------------------------------------
 
 import React from 'react'
@@ -49,6 +48,12 @@ function SwipeScreen() {
     // store user id
     const [userId, setUserId] = useState(null)
 
+    // store last action for undo functionality
+    const [lastAction, setLastAction] = useState(null)
+
+    // whether user can undo their last action
+    const [canUndo, setCanUndo] = useState(false)
+
     // ------------------ Song Fetching ----------------------------------
 
     // check if user in authenticated before rendering the swipe screen
@@ -81,6 +86,9 @@ function SwipeScreen() {
     // send user like/dislike action to database, then fetch next song
     // takes a string action, 'like' or 'dislike', as a parameter
     async function handleAction(action) {
+        setLastAction({action, song: currentSong})
+        setCanUndo(true)
+
         try {
             const response = await fetch(`${API_URL}/api/songs/action`, {
                 method: "POST",
@@ -103,6 +111,25 @@ function SwipeScreen() {
         } catch (error) {
             console.error("Action error:", error.message)
             setMessage("Action failed, please try again.")
+            setLastAction(null)
+            setCanUndo(false)
+        }
+    }
+
+    async function handleUndo() {
+        if (!lastAction || !lastAction.song) {
+            return
+        }    
+        try {
+            await removeSongAction(lastAction.song.song_id, userId)
+            setMessage("Undo!")
+            setCurrentSong(lastAction.song)
+            setOffsetX(0)
+            setLastAction(null)
+            setCanUndo(false)
+        } catch (error) {
+            console.error("Undo action error:", error.message)
+            setMessage("Undo failed, please try again.")
         }
     }
 
@@ -165,6 +192,31 @@ function SwipeScreen() {
 
         initializeSong()
     }, [userId, location.state])
+
+    // delete a liked song, takes an integer song id and removes it from the 
+    // user's liked songs list
+    async function removeSongAction(songId) {
+        try {
+            console.log("[SwipeScreen] Undoing song action for song with id:", songId)
+                
+            const response = await fetch(`${API_URL}/api/songs/action/${songId}`, {
+                method: 'DELETE',
+                headers: { "Content-Type": "application/json" },
+                credentials: 'include',
+                body: JSON.stringify({ user_id: userId })
+            })
+
+            if (response.ok) {
+                console.log("[SwipeScreen] Successfully undid song action")
+                // update UI by filtering out deleted song
+            } else {
+                throw new Error(`Undo failed with status: ${response.status}`)
+            }
+
+        } catch (error) {
+            console.error("[SwipeScreen] Error undoing song action:", error.message)
+        }
+    }
 
 // -----------------------  Drag Swipe -------------------------------
     
@@ -271,6 +323,13 @@ function SwipeScreen() {
                     src={logoutIcon} 
                     style={{ width: '30px', height: '30px' }} 
                 />
+            </button>
+
+            {/* undo action button */}
+            <button 
+                style={cornerButtonStyle('right', 'top')}
+                onClick={handleUndo}>
+                ⟲
             </button>
 
             {/* search button to go to search page */}

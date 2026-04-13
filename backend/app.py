@@ -186,6 +186,7 @@ def get_user():
     if user:
         return jsonify(user)
     return jsonify(None), 401
+
 # signup route 
 @app.route("/auth/signup", methods=["POST"])
 def signup():
@@ -382,6 +383,28 @@ def delete_liked_song(song_id):
     sql_cmd("DELETE FROM interactions WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
     
     return jsonify({"status": "deleted"}), 200
+
+# For deleting a song action (like/dislike) from interactions
+@app.route("/api/songs/action/<int:song_id>", methods=["DELETE"])
+def delete_song_action(song_id):
+    try:
+        data = request.get_json()
+        user_id = data.get("user_id")
+        
+        sql_cmd("""DELETE FROM interactions 
+                WHERE user_id = %s AND song_id = %s;
+        """, (user_id, song_id))
+        sql_cmd("""DELETE FROM liked 
+                WHERE user_id = %s AND song_id = %s;
+        """, (user_id, song_id))
+        sql_cmd("""DELETE FROM disliked
+                WHERE user_id = %s AND song_id = %s;
+        """, (user_id, song_id))
+        
+        return jsonify({"status": "deleted"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # this is for the search bar function...
 @app.route("/api/songs/search", methods=["GET"])

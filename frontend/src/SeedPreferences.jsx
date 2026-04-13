@@ -1,8 +1,7 @@
 // -----------------------------------------------------------------------
 // SeedPreferences.jsx
 // Swipe Interface for Hooked
-// Author: Eleanor Liu
-// Contributors:  Lucille Rizo Patron
+// Author: Eleanor Liu, Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
 import React from 'react'
