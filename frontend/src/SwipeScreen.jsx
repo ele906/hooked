@@ -8,7 +8,7 @@ import React from 'react'
 import {useState, useRef, useEffect} from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import API_URL from './config'
-
+import { getScreenStyle, cornerButtonStyle, actionButtonStyle } from './styles'
 import searchIcon from './search_button.png'
 import logoutIcon from './logout_button.png'
 
@@ -93,6 +93,7 @@ function SwipeScreen() {
             const response = await fetch(`${API_URL}/api/songs/action`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: 'include',
                 // tracks user interaction with song
                 body: JSON.stringify({ 
                     user_id: userId, 
@@ -136,7 +137,9 @@ function SwipeScreen() {
     // fetch next song from backend & reset visual state for new song card
     async function fetchNextSong() {
         try {
-            const response = await fetch(`${API_URL}/api/songs/next?user_id=${userId}`)
+            const response = await fetch(`${API_URL}/api/songs/next?user_id=${userId}`,
+                {credentials: 'include'}
+            )
 
             if (!response.ok) {
                 throw new Error(`Response status: ${response.status}`)
@@ -233,7 +236,7 @@ function SwipeScreen() {
         // pause to let transition finish before new card data
         setTimeout(() => {
             handleAction(action) 
-        }, 300)
+        }, 450)
     }
 
     // Sets state to dragging started
@@ -311,7 +314,12 @@ function SwipeScreen() {
 
     // main swipe UI
     return (
-        <div style={screenStyle}> 
+        <div style={getScreenStyle(
+            'rgba(158, 123, 255, 0.4)',
+            'rgba(0, 217, 255, 0.25)',
+            'rgba(112, 59, 173, 0.4)',
+            'rgba(0, 128, 128, 0.3)'
+        )}> 
 
             {/* logout button in top left */}
             <button 
@@ -361,12 +369,13 @@ function SwipeScreen() {
                 /* if song loaded, show swipe screen */
                 <>
                     {/* liked/disliked message after swipe above card*/}
-                    <p style={messageStyle}>{message}</p>
+                    <p className="swipe-message-style">{message}</p>
 
                     {/* swipe card */}
                     <div
                         ref = {cardRef}
-                        style={{...cardRefStyle,
+                        className="swipe-card-style"
+                        style={{
                             transition: isDragging
                                 // if dragging, card sticks to mouse 
                                 ? 'none' 
@@ -387,7 +396,7 @@ function SwipeScreen() {
                             <img 
                                 src={currentSong.song_image_url} 
                                 alt=''
-                                style={albumArtStyle}
+                                className="swipe-album-art-style"
                                 // prevent image dragging
                                 onDragStart={(event) => event.preventDefault()}
                             />
@@ -397,7 +406,7 @@ function SwipeScreen() {
                         )}
                         {/* audio preview */}
                         <div style={{ 
-                                    filter: 'brightness(0.7)', 
+                                    filter: 'brightness(0.6)', 
                                     display: 'flex',
                                     justifyContent: 'center'
                         }}>
@@ -439,11 +448,11 @@ function SwipeScreen() {
                             gap: '45px', 
                             marginTop: '25px'
                         }}>
-                            <button style={skipButtonStyle} 
+                            <button style={actionButtonStyle('#bea2ff', '#1d1133')} 
                                 onClick={() => doSwipe('dislike')}>
                                 ✕ Skip
                             </button>
-                            <button style={likeButtonStyle} 
+                            <button style={actionButtonStyle('#50fff6', '#1d1133')} 
                                 onClick={() => doSwipe('like')}>
                                 ♥ Like
                             </button>
@@ -456,95 +465,5 @@ function SwipeScreen() {
         </div>
     )
 }
-
-// --------------------------------- Styles --------------------------------
-
-// background
-const screenStyle = {
-    minHeight: '100vh',
-    backgroundColor: '#121214',
-    backgroundImage: `
-        radial-gradient(circle at 20% 30%, rgba(158, 123, 255, 0.4) 0%, transparent 30%),
-        radial-gradient(circle at 80% 20%, rgba(0, 217, 255, 0.25) 0%, transparent 30%),
-        radial-gradient(circle at 85% 85%, rgba(112, 59, 173, 0.4) 0%, transparent 30%),
-        radial-gradient(circle at 15% 90%, rgba(0, 128, 128, 0.3) 0%, transparent 30%)
-    `,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '20px',
-    position: 'relative',
-}
-
-// swipe card
-const cardRefStyle = {
-    position: 'relative',
-    width: '350px',
-    padding: '100px 40px',
-    backgroundColor: '#7a779636',
-    borderRadius: '25px',
-    textAlign: 'center',
-    color: 'white',
-    cursor: 'grab',
-    userSelect: 'none',
-}
-
-const albumArtStyle = {
-    width: '220px',
-    height: '220px',
-    margin: '0 0 25px 0',
-    borderRadius: '12px',
-    objectFit: 'cover',
-    pointerEvents: 'none',
-}
-
-const messageStyle = {
-    color: '#50fff6',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    fontFamily: 'Outfit, sans-serif',
-    height: '25px',
-}
-
-const actionButtonStyle = {
-    padding: '15px 35px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    fontFamily: 'Outfit, sans-serif',
-    border: 'none',
-    borderRadius: '50px',
-    cursor: 'pointer',
-}
-const skipButtonStyle = {
-    ...actionButtonStyle,
-    backgroundColor: '#bea2ff',
-    color: '#1d1133',
-}
-
-const likeButtonStyle = {
-    ...actionButtonStyle,
-    backgroundColor: '#50fff6',
-    color: '#1d1133',
-}
-
-// button style to navigate among screens from swipe screen
-// takes string sides: sideX to determine right or left placement
-// and sideY to determine bottom or top placement
-const cornerButtonStyle = (sideX, sideY) => ({
-    position: 'fixed',
-    width: '50px',
-    height: '50px',
-    [sideX]: '15px',
-    [sideY]: '15px',
-    backgroundColor: '#a995dd4f',
-    color: '#180d2b',
-    fontSize: '30px',
-    fontWeight: 'bold',
-    border: 'none',
-    borderRadius: '12px',
-    cursor: 'pointer',   
-    zIndex: 9999,
-})
 
 export default SwipeScreen

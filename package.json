@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@fontsource/outfit": "^5.2.8",
     "react-router-dom": "^7.13.2"
   }
 }

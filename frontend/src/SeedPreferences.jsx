@@ -1,13 +1,18 @@
 // -----------------------------------------------------------------------
 // SeedPreferences.jsx
 // Swipe Interface for Hooked
-// Author: Eleanor Liu, Lucille Rizo Patron
+// Author: Eleanor Liu
+// Contributors:  Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
 import React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import { useNavigate} from 'react-router-dom'
-import API_URL from './config'
+import Circle from "./AnimatedCircle.jsx"
+import { getScreenStyle } from './styles'
+import musicNote1 from './musical-note-1.png'
+import musicNote2 from './musical-note-2.png'
+import './index.css'
 
 const GENRES = [
     "pop", "hip-hop", "r&b",
@@ -26,7 +31,7 @@ function SeedPreferences(){
     }
 
     async function handleContinue() {
-        await fetch(`${API_URL}/api/preferences`, {
+        await fetch('/api/preferences', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -54,15 +59,21 @@ function SeedPreferences(){
     }, [handleKeyPress])
 
     return(
-        <div style={screenStyle}>
+        <div style = {{...getScreenStyle(
+            'rgba(158, 123, 255, 0.4)',
+            'rgba(68, 161, 178, 0.25)',
+            'rgba(219, 100, 165, 0.4)',
+            'rgba(126, 169, 194, 0.3)'),
+            color: '#debff7'}}>
+
             <h1>Preferences</h1>
 
-            <div style={gridStyle}>
+            <div className = 'genre-grid'>
                 {GENRES.map(genre => (
                     <button
                         key={genre}
+                        className="pref-button"
                         style={{
-                            ...prefButtonStyle,
                             backgroundColor: selected.has(genre) ? '#debff7' : '#825f9f',
                             color: selected.has(genre) ? '#1d1133' : '#d1c1ef',
                         }}
@@ -73,60 +84,25 @@ function SeedPreferences(){
                 ))}
             </div>
             <div style={{ display: 'flex', gap: '50px' }}>
-                <button style={buttonStyle} onClick={handleClickGoNext}>
+                <button className = 'btn-1' onClick={handleClickGoNext}>
                     Skip
                 </button>
 
-                <button style={buttonStyle} onClick={handleClickGoNext}>
+                <button className = 'btn-1' onClick={handleClickGoNext}>
                     Done
                 </button>
             </div>
+
+            <Circle image={musicNote1} alpha={0.015}/>            
+            <Circle image={musicNote1} alpha={0.015}/>
+            <Circle image={musicNote1} alpha={0.015}/>
+            <Circle image={musicNote2} alpha={0.015}/>
+            <Circle image={musicNote2} alpha={0.015}/>
+            <Circle image={musicNote2} alpha={0.015}/>
         </div>
     )
 }
 
-const screenStyle = {
-    minHeight: '100vh',
-    backgroundColor: '#18171d',
-    backgroundImage: `
-        radial-gradient(circle at 20% 30%, rgba(158, 123, 255, 0.4) 0%, transparent 30%),
-        radial-gradient(circle at 80% 20%, rgba(68, 161, 178, 0.25) 0%, transparent 30%),
-        radial-gradient(circle at 85% 85%, rgba(112, 59, 173, 0.4) 0%, transparent 30%),
-        radial-gradient(circle at 15% 90%, rgba(134, 190, 219, 0.3) 0%, transparent 30%)
-    `,
-    color: '#debff7',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '20px',
-}
 
-const gridStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '12px',
-}
-
-const prefButtonStyle = {
-    padding: '15px 35px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    border: 'none',
-    borderRadius: '50px',
-    cursor: 'pointer',
-    transition: 'background-color 0.15s, color 0.15s',
-}
-
-const buttonStyle = {
-    padding: '15px 35px',
-    fontSize: '16px',
-    backgroundColor: '#debff7',
-    color: '#1d1133',
-    fontWeight: 'bold',
-    border: 'none',
-    borderRadius: '50px',
-    cursor: 'pointer',
-}
-
+// -------------------- EXPORT --------------------
 export default SeedPreferences

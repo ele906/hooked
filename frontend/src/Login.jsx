@@ -1,12 +1,18 @@
 // -----------------------------------------------------------------------
-// WelcomePage.jsx
-// Swipe interface for Hooked (in progress)
-// Authors: Eleanor Liu
+// Login.jsx
+// Login interface for Hooked (in progress)
+// Authors: Eleanor Liu, Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
 import {useCallback, useEffect, useState} from 'react'
 import { useNavigate } from 'react-router-dom'
-import API_URL from './config'
+import { getScreenStyle } from './styles'
+import './index.css'
+
+//circles
+import Circle from "./AnimatedCircle.jsx"
+import musicNote1 from './musical-note-1.png'
+import musicNote2 from './musical-note-2.png'
 
 function Login(){
 
@@ -15,13 +21,9 @@ function Login(){
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
 
-    function handleLogin() {
-        window.location.href = `${API_URL}/auth/login`;
-    }
-
     function handleBackButton() {
         console.log("back button clicked, go back to welcome page")
-        navigate('/')
+        navigate(-1)
     }
 
     async function handleDone(myUsername, myPassword){
@@ -55,19 +57,30 @@ function Login(){
     }, [handleKeyPress])
 
     return (
-        <div style={screenStyle}>
-        <h1>Login to Account</h1>
+        <div style = {{...getScreenStyle(
+            'rgba(170, 109, 217, 0.4)',
+            'rgba(153, 195, 230, 0.562)',
+            'rgba(186, 151, 225, 0.4)',
+            'rgba(164, 189, 218, 0.688)'),
+            color: '#debff7'}}>
 
-        <button style={buttonStyle} onClick={handleBackButton}>
-            Back
-        </button>
+        <div className = 'card'> 
 
+            <div className = 'small-header'> 
+                <h1>Login to Account</h1>
+
+                <button className = 'back-btn' onClick={handleBackButton}>
+                    ⬅
+                </button>
+            </div>
+
+        <div> 
         <input
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
-            style={loginStyle}
+            className = 'input-box-1'
         />
 
         <input
@@ -75,62 +88,30 @@ function Login(){
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
-            style={loginStyle}
+            className = 'input-box-1'
         />
 
-        <button style={buttonStyle} onClick={() => handleDone(username, password)}>
+        </div>
+
+        <button className = 'btn-2' onClick={() => handleDone(username, password)}>
             Done
         </button>
 
-        <h2> Devs: Press space bar to bypass and go to swipe screen... </h2>
+        <button className = 'btn-2' onClick={() => handleDone(username, password)}>
+            Forgot Password
+        </button>
 
+            <Circle image={musicNote1} alpha={0.015}/>            
+            <Circle image={musicNote1} alpha={0.015}/>
+            <Circle image={musicNote1} alpha={0.015}/>
+            <Circle image={musicNote2} alpha={0.015}/>
+            <Circle image={musicNote2} alpha={0.015}/>
+            <Circle image={musicNote2} alpha={0.015}/>
+
+        </div>
         </div>
     );
 }
 
-// --------------------------------- Styles --------------------------------
-const screenStyle = {
-    minHeight: '100vh',
-    backgroundColor: '#18171d',
-    backgroundImage: `
-        radial-gradient(circle at 20% 30%, rgba(178, 201, 221, 0.4) 0%, transparent 30%),
-        radial-gradient(circle at 80% 20%, rgba(214, 163, 226, 0.25) 0%, transparent 30%),
-        radial-gradient(circle at 85% 85%, rgba(167, 202, 224, 0.4) 0%, transparent 30%),
-        radial-gradient(circle at 15% 90%, rgba(190, 126, 194, 0.3) 0%, transparent 30%)
-    `,
-    fontSize: '16px',
-    fontWeight: 'bold',
-    color: '#debff7',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '20px',
-    position: 'relative',
-}
-
-const buttonStyle = {
-    padding: '15px 35px',
-    fontSize: '16px',
-    backgroundColor: '#debff7',
-    color: '#1d1133',
-    fontWeight: 'bold',
-    border: 'none',
-    borderRadius: '50px',
-    cursor: 'pointer',
-}
-
-const loginStyle = {
-    padding: '5px', 
-    borderRadius: '3px',
-    width: '300px',
-    fontSize: '16px',
-    backgroundColor: '#d9bfea',
-    color: '#1d1133',
-    fontWeight: 'bold',
-    border: 'none',
-    cursor: 'pointer',
-}
-
-
+// -------------------- EXPORT --------------------
 export default Login

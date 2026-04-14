@@ -1,17 +1,19 @@
 // -----------------------------------------------------------------------
 // SearchScreen.jsx
-// Search interface for Hooked
+// Search interface for Hooked (in progress)
 // Authors: Eleanor Liu, Lucille Rizo Patron
 // -----------------------------------------------------------------------
-import React from 'react'
-import {useState, useRef} from 'react'
+
+import {useState, useRef, useEffect} from 'react'
 import { useNavigate } from 'react-router-dom'
-import API_URL from './config'
+import { getScreenStyle } from './styles'
+import './index.css'
 
 function SearchScreen() {
     const navigate = useNavigate()
     const [results, setResults] = useState([])
     const [query, setQuery] = useState("")
+    const [user, setUser] = useState(null)
     const controllerRef = useRef(null)
 
     function searchSong(my_params) {
@@ -23,7 +25,7 @@ function SearchScreen() {
         // start a new one
         controllerRef.current = new AbortController()
 
-        fetch(`${API_URL}/api/songs/search?params=${encodeURIComponent(my_params)}`, {
+        fetch(`http://localhost:5000/api/songs/search?params=${encodeURIComponent(my_params)}`, {
             signal: controllerRef.current.signal  // attach the abort signal
         })
             .then(res => res.json())
@@ -40,13 +42,39 @@ function SearchScreen() {
                 }
             })
     }
+
+    // obtain the credentials from cookie
+    // src: https://dev.to/velcruza/how-to-display-different-components-based-on-user-authentication-8o5
+    useEffect(() => {
+        fetch("/auth/user", { credentials: "include" })
+            .then(res => res.json())
+            .then(data => {
+                setUser(data)
+                console.log(data) 
+            })
+    }, [])
     
     return (
-        <div style={screenStyle}>
+        <div style = {{...getScreenStyle(
+            'rgba(158, 123, 255, 0.4)',
+            'rgba(217, 184, 227, 0.25)',
+            'rgba(186, 151, 225, 0.4)',
+            'rgba(219, 185, 210, 0.3)'),
+            color: '#debff7'}}>
+
+            <div className="card">
+
+            <div className='card-header'>
             {/* back button */}
-            <button style={backButtonStyle} onClick={() => navigate('/swipe')}>
-                ← Back to Main
+            <button className = 'back-btn' onClick={() => navigate('/swipe')}>
+                ← Back
             </button>
+
+            {user && <p style={{ color: '#debff7', fontWeight: 'bold', cursor: 'pointer' }} 
+                onClick={() => navigate('/profile')}>Welcome, {user.username}!</p>}
+            
+            </div>
+            
 
             {/* search bar */}
             <input
@@ -58,93 +86,28 @@ function SearchScreen() {
                     searchSong(e.target.value)
                 }}
                 placeholder="Search songs..."
-                style={{searchTabStyle}}
+                className = 'input-box-2'
             />
 
             {/* results */}
             {results.length > 0 ? (
-                results.map(song => (
-                    <div key={song.song_id} style={songBox} onClick={() => navigate('/swipe', {state: {song}} )}>
-                        <img src={song.song_image_url} alt={song.song_name} style={songImageBox} />
-                        <span>{song.song_name} - {song.artist_name ?? 'Unknown Artist'}</span>
-                    </div>
-                ))
+                <div className="results-list">
+                    {results.map(song => (
+                        <div key={song.song_id} className="search-song-box" onClick={() => navigate('/swipe', {state: {song}})}>
+                            <img src={song.song_image_url} alt={song.song_name} className="song-img-box"/>
+                            <span>{song.song_name} - {song.artist_name ?? 'Unknown Artist'}</span>
+                        </div>
+                    ))}
+                </div>
             ) : (
-                <div style={noResultsStyle}>
+                <div className='no-results'>
                     <p>No results found!</p>
                 </div>
             )}
+            </div>
         </div>
     )
 }
 
-
-// --------------------------------- Styles --------------------------------
-
-const screenStyle = {
-    minHeight: '100vh',
-    backgroundColor: '#18171d',
-    backgroundImage: `
-        radial-gradient(circle at 20% 30%, rgba(158, 123, 255, 0.4) 0%, transparent 30%),
-        radial-gradient(circle at 80% 20%, rgba(68, 161, 178, 0.25) 0%, transparent 30%),
-        radial-gradient(circle at 85% 85%, rgba(112, 59, 173, 0.4) 0%, transparent 30%),
-        radial-gradient(circle at 15% 90%, rgba(190, 126, 194, 0.3) 0%, transparent 30%)
-    `,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '20px',
-}
-
-const searchTabStyle = {
-    padding: '5px', 
-    borderRadius: '3px',
-    width: '300px',
-    fontSize: '16px',
-    backgroundColor: '#bfcfea',
-    color: '#1d1133',
-    fontWeight: 'bold',
-    border: 'none',
-    cursor: 'pointer',
-}
-
-const songBox = {
-    width: '400px',
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: '10px',
-    padding: '8px',
-    backgroundColor: '#c7bdec89',
-    color: '#b1ceec',
-    borderRadius: '10px',
-}
-
-const songImageBox = {
-    width: '40px',
-    height: '40px',
-    borderRadius: '4px',
-}
-
-const noResultsStyle = {
-    fontSize: '16px',
-    color: '#a9bacb',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '20px',
-}
-
-const backButtonStyle = {
-    padding: '10px 10px',
-    fontSize: '14px',
-    backgroundColor: '#bfcfea',
-    color: '#1d1133',
-    border: 'none',
-    borderRadius: '5px',
-    cursor: 'pointer',
-}
-
+// -------------------- EXPORT --------------------
 export default SearchScreen
