@@ -1,7 +1,8 @@
 // -----------------------------------------------------------------------
 // SwipeScreen.jsx
 // Swipe Interface for Hooked
-// Author: Lucille Rizo Patron, Eleanor Liu, Derek Geng
+// Author: Lucille Rizo Patron, 
+// Contributors: Eleanor Liu, Derek Geng
 // -----------------------------------------------------------------------
 
 import React from 'react'

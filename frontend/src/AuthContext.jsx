@@ -1,3 +1,9 @@
+// -----------------------------------------------------------------------
+// Profile.jsx
+// Profile interface for Hooked (in progress)
+// Authors: Eleanor Liu
+// -----------------------------------------------------------------------
+
 import { createContext, useContext, useEffect, useState } from "react";
 
 const AuthContext = createContext(null);

@@ -101,6 +101,7 @@ function SeedPreferences(){
             <Circle image={musicNote2} alpha={0.008}/>    
             <Circle image={musicNote2} alpha={0.008}/>    
             <Circle image={musicNote2} alpha={0.008}/>  
+            
         </div>
     )
 }

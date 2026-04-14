@@ -1,3 +1,10 @@
+// -----------------------------------------------------------------------
+// Profile.jsx
+// Profile interface for Hooked (in progress)
+// Authors: Eleanor Liu
+// -----------------------------------------------------------------------
+
+
 import { Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import {useEffect} from 'react'

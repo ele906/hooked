@@ -1,3 +1,10 @@
+// -----------------------------------------------------------------------
+// Profile.jsx
+// Profile interface for Hooked (in progress)
+// Authors: Eleanor Liu
+// Contributors: Lucille
+// -----------------------------------------------------------------------
+
 import React, { Component } from 'react';
 
 export default class Circle extends Component {
