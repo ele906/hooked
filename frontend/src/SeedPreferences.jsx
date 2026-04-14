@@ -1,8 +1,7 @@
 // -----------------------------------------------------------------------
 // SeedPreferences.jsx
 // Swipe Interface for Hooked
-// Author: Eleanor Liu
-// Contributors:  Lucille Rizo Patron
+// Author: Eleanor Liu,  Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
 import React from 'react'
@@ -101,7 +100,7 @@ function SeedPreferences(){
             <Circle image={musicNote2} alpha={0.008}/>    
             <Circle image={musicNote2} alpha={0.008}/>    
             <Circle image={musicNote2} alpha={0.008}/>  
-            
+
         </div>
     )
 }

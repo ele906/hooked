@@ -2,6 +2,7 @@
 // Profile.jsx
 // Profile interface for Hooked (in progress)
 // Authors: Eleanor Liu
+// Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
 import {useCallback, useEffect, useState} from 'react'
