@@ -9,6 +9,7 @@ import {useCallback, useEffect, useState} from 'react'
 import { useNavigate} from 'react-router-dom'
 import { getScreenStyle } from './styles'
 import './index.css'
+import { useAuth } from './AuthContext'
 
 //circles
 import Circle from "./AnimatedCircle.jsx"
@@ -17,12 +18,35 @@ import musicNote2 from './musical-note-2.png'
 
 function SignUp(){
 
-    // this makes it go from one screen to another
-    const navigate = useNavigate()
+    const navigate = useNavigate() // this makes it go from one screen to another
+    const { fetchUser } = useAuth() // fetch user
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
     const [email, setEmail] = useState("")
     const [profileImg, setProfileImg] = useState(null)
+
+    async function handleSignUp() {
+        const res = await fetch('/auth/signup', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                email, 
+                username, 
+                password, 
+                user_image_url: profileImg ?? '' 
+            })
+        })
+        const data = await res.json()
+
+        if (res.ok) {
+            await fetchUser()
+            navigate('/seedprefs')
+        } else {
+            alert(data.error)
+        }
+    }
+
 
     const handleKeyPress = useCallback((e) => {
         if (e.key === ' ' || e.code === "Space") {
@@ -124,10 +148,7 @@ function SignUp(){
                 ⬅ 
             </button>
 
-            <button className = 'btn-2' onClick = {() => {
-                navigate('/seedprefs')
-                console.log("acc created... we are going to seed our preferences")}
-                }> 
+            <button className='btn-2' onClick={handleSignUp}>
                 Create!
             </button>
             </div>

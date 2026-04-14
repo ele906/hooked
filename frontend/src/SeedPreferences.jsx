@@ -13,6 +13,7 @@ import { getScreenStyle } from './styles'
 import musicNote1 from './musical-note-1.png'
 import musicNote2 from './musical-note-2.png'
 import './index.css'
+import { useAuth } from './AuthContext'
 
 const GENRES = [
     "pop", "hip-hop", "r&b",
@@ -24,6 +25,7 @@ const GENRES = [
 function SeedPreferences(){
     const navigate = useNavigate()
     const [selected, setSelected] = useState(new Set())
+    const { fetchUser } = useAuth() // fetch from auth
 
     function handleClickGoNext() {
         handleContinue()
@@ -92,13 +94,13 @@ function SeedPreferences(){
                     Done
                 </button>
             </div>
-
-            <Circle image={musicNote1} alpha={0.015}/>            
-            <Circle image={musicNote1} alpha={0.015}/>
-            <Circle image={musicNote1} alpha={0.015}/>
-            <Circle image={musicNote2} alpha={0.015}/>
-            <Circle image={musicNote2} alpha={0.015}/>
-            <Circle image={musicNote2} alpha={0.015}/>
+            
+            <Circle image={musicNote1} alpha={0.008}/>            
+            <Circle image={musicNote1} alpha={0.008}/>    
+            <Circle image={musicNote1} alpha={0.008}/>    
+            <Circle image={musicNote2} alpha={0.008}/>    
+            <Circle image={musicNote2} alpha={0.008}/>    
+            <Circle image={musicNote2} alpha={0.008}/>  
         </div>
     )
 }

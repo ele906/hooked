@@ -5,15 +5,19 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(undefined);
 
-  useEffect(() => {
-    fetch("/auth/user", { credentials: "include" })
+  function fetchUser() {
+    return fetch("/auth/user", { credentials: "include" })
       .then(res => res.ok ? res.json() : null)
       .then(data => setUser(data))
       .catch(() => setUser(null));
+  }
+
+  useEffect(() => {
+    fetchUser();
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user }}>
+    <AuthContext.Provider value={{ user, fetchUser }}>
       {children}
     </AuthContext.Provider>
   );
