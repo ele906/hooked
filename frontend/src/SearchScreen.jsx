@@ -26,7 +26,8 @@ function SearchScreen() {
         controllerRef.current = new AbortController()
 
         fetch(`http://localhost:5000/api/songs/search?params=${encodeURIComponent(my_params)}`, {
-            signal: controllerRef.current.signal  // attach the abort signal
+            signal: controllerRef.current.signal,
+            credentials: "include" 
         })
             .then(res => res.json())
             .then(data => {

@@ -38,16 +38,17 @@ function Profile(){
             .then(data => {
             if (!isMounted) return;
             setUser(data);
+
             // 2. Safely check for data.user_id before fetching again
             if (data && data.user_id) {
                 console.log(data.user_id);
                 console.log(data.username);
                 console.log(data.email);
-                console.log(user_image_url);
+                console.log(data.picture);
                 
-                return fetch(`/auth/user?user_id=${data.user_id}`, { 
-                credentials: "include",
-                signal: controller.signal 
+                return fetch(`/api/songs/liked`, { 
+                    credentials: "include",
+                    signal: controller.signal 
                 });
             }
             })
@@ -112,18 +113,32 @@ function Profile(){
             </div>
                         
             <div className='small-header'>
-                <h3 style={{ textAlign: 'left' , padding: '5px'}}>My Top Liked Songs</h3>
+                <h3 style={{ textAlign: 'left' , padding: '5px'}}>Recently Liked Songs</h3>
+                <button className='add-btn' onClick={() => navigate('/liked')}>♡</button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 12px 12px' }}>
                 {likedSongs.length === 0
                     ? <p style={{ color: '#e0e0e08e', fontSize: 13 }}>No liked songs yet!</p>
                     : likedSongs.map(song => (
-                        <div key={song.song_id} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div key={song.song_id}
+                            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', position: 'relative' }}
+                            onClick={() => new Audio(song.preview_mp3_url).play()}
+                            onMouseEnter={e => e.currentTarget.querySelector('.hover-overlay').style.opacity = 1}
+                            onMouseLeave={e => e.currentTarget.querySelector('.hover-overlay').style.opacity = 0}
+                        >
+                            <div className='hover-overlay' style={{
+                                position: 'absolute', inset: '-6px -8px',  // ← extends beyond the div
+                                backgroundColor: 'rgba(255,255,255,0.2)',
+                                borderRadius: '12px',
+                                opacity: 0,
+                                transition: 'opacity 0.2s',
+                                pointerEvents: 'none'
+                            }}/>
                             <img src={song.song_image_url} alt={song.song_name}
                                 style={{ width: 45, height: 45, borderRadius: '8px' }} />
                             <div>
-                                <p style={{ color: 'white', margin: 0, fontSize: 13 }}>{song.song_name}</p>
-                                <p style={{ color: '#debff7', margin: 0, fontSize: 11 }}>{song.artist_name}</p>
+                                <p style={{ color: 'white', margin: 0, fontSize: 13, textAlign: 'left' }}>{song.song_name}</p>
+                                <p style={{ color: '#debff7', margin: 0, fontSize: 11, textAlign: 'left' }}>{song.artist_name}</p>
                             </div>
                         </div>
                     ))

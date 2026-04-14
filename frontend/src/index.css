@@ -37,7 +37,7 @@ code {
   position: relative;
   overflow-y: auto;
   width: 50vh;
-  height: 90vh;
+  height: 95vh;
   padding: 0;
   background-color: #d2c5df50;
   border-radius: 25px;
@@ -189,6 +189,7 @@ code {
     color: #d6c4c0a4;
 }
 
+
 .search-song-box {
   margin: 0 auto;
   width: 300px;
@@ -202,7 +203,11 @@ code {
   align-items: center;
   text-align: left;
   justify-content: flex-start;
-} 
+}
+
+.search-song-box:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
 
 /* -------- INPUT BOXES -------- */
 
