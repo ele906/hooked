@@ -77,7 +77,10 @@ export default class Circle extends Component {
             width: size,
             height: size,
             borderRadius: '50%',
-            backgroundImage: 'radial-gradient(circle at 20% 30%, rgba(255, 235, 185, 0.64) 0%, transparent 30%)',
+            backgroundImage: `
+            radial-gradient(circle at 20% 30%, rgba(204, 244, 250, 0.64) 0%, transparent 60%),
+            radial-gradient(circle at 80% 70%, rgba(196, 164, 222, 0.5) 0%, transparent 40%)
+            `,
             backgroundColor: 'rgba(255, 255, 234, 0.42)',
             pointerEvents: 'none',
             overflow: 'hidden',

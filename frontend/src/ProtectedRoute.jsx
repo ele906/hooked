@@ -1,10 +1,29 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
+import {useEffect} from 'react'
 
 export default function ProtectedRoute({ children }) {
   const { user } = useAuth();
 
-  if (user === undefined) return <div>Loading...</div>; // still checking
-  if (!user) return <Navigate to="/login" />;           // not logged in
-  return children;                                       // logged in
+  useEffect(() => {
+    if (user === null) {
+      alert("You are not logged in!");
+    }
+  }, [user]);
+
+  if (user === undefined) return (
+    <div style={{ 
+      backgroundColor: "#18171d", 
+      height: "100vh", 
+      display: "flex", 
+      alignItems: "center", 
+      justifyContent: "center",
+      color: "#debff7"
+    }}>
+      Loading...
+    </div>
+  );
+
+  if (!user) return <Navigate to="/" />;
+  return children;                                 
 }
