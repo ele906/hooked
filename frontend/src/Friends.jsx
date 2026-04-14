@@ -13,8 +13,7 @@ function Friends(){
 
     const navigate = useNavigate()
     const [friendUsername, setFriendUsername] = useState("")
-    const [likedSongs, setLikedSongs] = useState([]);
-
+    
     function handleBackButton() {
         console.log("back button clicked, go back to sw9pe page")
         navigate(-1)

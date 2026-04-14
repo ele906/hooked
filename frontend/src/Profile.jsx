@@ -27,15 +27,47 @@ function Profile(){
     // obtain the credentials from cookie
     // src: https://dev.to/velcruza/how-to-display-different-components-based-on-user-authentication-8o5
     useEffect(() => {
-        fetch("/auth/user", { credentials: "include" })
-            .then(res => res.json())
-            .then(data => {
-                setUser(data)
-                return fetch(`/api/songs/liked?user_id=${data.user_id}`, { credentials: "include" })
+        let isMounted = true; // 1. Prevent state updates on unmounted component
+        const controller = new AbortController();
+
+        fetch("/auth/user", { credentials: "include", signal: controller.signal })
+            .then(res => {
+            if (!res.ok) throw new Error("User auth failed");
+            return res.json();
             })
-            .then(res => res.json())
-            .then(data => setLikedSongs(data.slice(0, 3)))
-    }, [])
+            .then(data => {
+            if (!isMounted) return;
+            setUser(data);
+            // 2. Safely check for data.user_id before fetching again
+            if (data && data.user_id) {
+                console.log(data.user_id);
+                console.log(data.username);
+                console.log(data.email);
+                console.log(user_image_url);
+                
+                return fetch(`/auth/user?user_id=${data.user_id}`, { 
+                credentials: "include",
+                signal: controller.signal 
+                });
+            }
+            })
+            .then(res => res?.json())
+            .then(data => {
+            if (isMounted && data) {
+                // 3. Ensure data exists before slicing
+                setLikedSongs(Array.isArray(data) ? data.slice(0, 3) : []);
+            }
+            })
+            .catch(err => {
+            if (err.name === 'AbortError') return;
+            console.error("Fetch error:", err); // 4. Add error handling [7]
+            });
+
+        return () => {
+            isMounted = false;
+            controller.abort(); // 5. Cleanup to prevent memory leaks
+        };
+        }, []);
 
     return (
         <div style = {{...getScreenStyle(

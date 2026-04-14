@@ -101,12 +101,12 @@ function Login(){
             Forgot Password
         </button>
 
-            <Circle image={musicNote1} alpha={0.015}/>            
-            <Circle image={musicNote1} alpha={0.015}/>
-            <Circle image={musicNote1} alpha={0.015}/>
-            <Circle image={musicNote2} alpha={0.015}/>
-            <Circle image={musicNote2} alpha={0.015}/>
-            <Circle image={musicNote2} alpha={0.015}/>
+            <Circle image={musicNote1} alpha={0.008}/>            
+            <Circle image={musicNote1} alpha={0.008}/>    
+            <Circle image={musicNote1} alpha={0.008}/>    
+            <Circle image={musicNote2} alpha={0.008}/>    
+            <Circle image={musicNote2} alpha={0.008}/>    
+            <Circle image={musicNote2} alpha={0.008}/>    
 
         </div>
         </div>

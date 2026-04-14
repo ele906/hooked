@@ -20,7 +20,7 @@ export default class Circle extends Component {
             y: Math.random() * _height,
         };
 
-        this.r = (props.alpha ?? 0.02) * (_width - _height);
+        this.r = (props.alpha ?? 0.007) * (_width + _height);
     }
     
     move() {
@@ -77,8 +77,8 @@ export default class Circle extends Component {
             width: size,
             height: size,
             borderRadius: '50%',
-            backgroundImage: 'radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.32) 0%, transparent 30%)',
-            backgroundColor: 'rgba(253, 255, 239, 0.38)',
+            backgroundImage: 'radial-gradient(circle at 20% 30%, rgba(255, 235, 185, 0.64) 0%, transparent 30%)',
+            backgroundColor: 'rgba(255, 255, 234, 0.42)',
             pointerEvents: 'none',
             overflow: 'hidden',
             display: 'flex',

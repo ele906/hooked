@@ -12,3 +12,12 @@ https://dev.to/velcruza/how-to-display-different-components-based-on-user-authen
 
 pfp.. no auth sometmes doesnt work because HTMLIFrameElement
 https://developer.mozilla.org/en-US/docs/Web/API/HTMLIFrameElement/referrerPolicy
+
+auth
+https://stackoverflow.com/questions/69864165/error-privateroute-is-not-a-route-component-all-component-children-of-rou
+
+protected route
+https://www.geeksforgeeks.org/reactjs/what-are-protected-routes-in-react-js/
+
+hooks for authentication
+https://stackoverflow.com/questions/62366578/how-to-use-context-with-hooks-for-authentication

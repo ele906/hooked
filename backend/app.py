@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 import bcrypt
 import requests
 import oauthlib.oauth2
+import cloudinary_config 
+import cloudinary.uploader
 
 # Allow insecure transport for local development
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -137,13 +139,15 @@ def auth_callback():
     user_info = userinfo_response.json()
     email = user_info.get('email', '')
     name = user_info.get('name', '')
-    
+    pfp = user_info.get('picture', '')
+    username = email.split('@')[0]
+
     # Insert user if not already in DB
     sql_cmd(
-        """INSERT INTO users (email, username) 
-        VALUES (%s, %s) 
+        """INSERT INTO users (email, username, user_image_url) 
+        VALUES (%s, %s, %s) 
         ON CONFLICT (email) DO NOTHING;""",
-        (email, email)
+        (email, username, pfp)
     )
     
     # Get user_id from database
@@ -166,10 +170,12 @@ def auth_callback():
     # Determine redirect page
     redirect_page = f"{FRONTEND_URL}/seedprefs" if is_new_user else request.args.get('state', f"{FRONTEND_URL}/swipe")
     
+
     session["user"] = {
         "email": email,
-        "name": name,
+        "name": username,  # "abc@gmail.com" → "abc",      # ← was just `name` from Google (full name)
         "user_id": user_id,
+        "user_image_url": pfp,
     }
     return redirect(redirect_page)
 
@@ -184,7 +190,12 @@ def logout():
 def get_user():
     user = session.get("user")
     if user:
-        return jsonify(user)
+        return jsonify({
+            "user_id":  user["user_id"],
+            "username": user.get("name"),
+            "email":    user["email"],
+            "picture":  user.get("user_image_url")
+        })
     return jsonify(None), 401
 
 # signup route 
@@ -194,15 +205,18 @@ def signup():
     email = data.get("email", "")
     username = data.get("username", "")
     password = data.get("password", "")
-    if not email or not username or not password:
+    pfp = data.get("user_image_url", "")
+
+    if not email or not username or not password or not pfp:
         return jsonify({"error": "All fields are required"}), 400
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
     try:
         rows = sql_cmd(
-            """INSERT INTO users (email, username, password_hash)
-            VALUES (%s, %s, %s)
+            """INSERT INTO users (email, username, password_hash, user_image_url)
+            VALUES (%s, %s, %s, %s)
             RETURNING user_id;""",
-            (email, username, hashed),
+            (email, username, hashed, pfp),
             fetch=True
         )
         user_id = rows[0][0]
@@ -210,6 +224,7 @@ def signup():
             "email": email,
             "name": username,
             "user_id": user_id,
+            "user_image_url": pfp,
         }
         return jsonify({"user_id": user_id}), 201
     except Exception as e:
@@ -252,45 +267,47 @@ def sql_cmd(command, params=(), fetch=False):
 # API route to handle user interactions (like/dislike) and update their profile vector accordingly
 @app.route("/api/songs/action", methods=["POST"])
 def store_interaction():
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "not logged in"}), 401
+    
+    user_id = user["user_id"]  # from session, not frontend
     data = request.get_json()
 
     # Update interactions table
     sql_cmd(
         "INSERT INTO interactions (user_id, song_id, type) VALUES (%s, %s, %s);",
-        (data["user_id"], data["song_id"], data["action"])
+        (user_id, data["song_id"], data["action"])
     )
 
     # Update liked/disliked tables
     if data["action"] == "like":
         sql_cmd(
             "INSERT INTO liked (user_id, song_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
-            (data["user_id"], data["song_id"])
+            (user_id, data["song_id"])
         )
     elif data["action"] == "dislike":
         sql_cmd(
             "INSERT INTO disliked (user_id, song_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
-            (data["user_id"], data["song_id"])
+            (user_id, data["song_id"])
         )
 
-    # Update user weight vector based on this swipe
     song_rows = sql_cmd(
         "SELECT feature_vector FROM songs WHERE song_id = %s",
         (data["song_id"],), fetch=True
     )
 
-    # if the song has a feature vector, update the user's weight vector accordingly
     if song_rows and song_rows[0][0] is not None:
         song_vec = song_rows[0][0]
 
         profile_rows = sql_cmd(
             "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
-            (data["user_id"],), fetch=True
+            (user_id,), fetch=True
         )
 
         if profile_rows and profile_rows[0][0] is not None:
             new_vec = update_weight_vector(profile_rows[0][0], song_vec, data["action"])
         else:
-            # No profile yet — initialize from this song's vector
             new_vec = l2_normalize(song_vec[:])
 
         sql_cmd(
@@ -298,7 +315,7 @@ def store_interaction():
                VALUES (%s, %s, NOW())
                ON CONFLICT (user_id) DO UPDATE
                SET weight_vector = EXCLUDED.weight_vector, updated_at = NOW()""",
-            (data["user_id"], json.dumps(new_vec))
+            (user_id, json.dumps(new_vec))
         )
 
     return jsonify({"status": "ok"}), 201
@@ -306,7 +323,10 @@ def store_interaction():
 # API route to get a list of songs the user has liked, along with artist info and when they liked it
 @app.route("/api/songs/liked", methods=["GET"])
 def get_liked_songs():
-    user_id = request.args.get("user_id")
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "not logged in"}), 401
+    user_id = user["user_id"]  # from session, not request.args
 
     rows = sql_cmd("""
         SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
@@ -317,24 +337,25 @@ def get_liked_songs():
         JOIN artists a ON sa.artist_id = a.artist_id
         WHERE l.user_id = %s
         ORDER BY l.created_at DESC;
-        """, 
-        (user_id, ),
-        fetch = True
-    )
+        """, (user_id,), fetch=True)
 
     return jsonify([{
-            "song_id":          r[0],
-            "song_name":        r[1],
-            "song_image_url":   r[2],
-            "preview_mp3_url":  r[3],
-            "artist_name":      r[4],
-            "liked_at":         r[5].isoformat() if r[5] else None
+            "song_id":        r[0],
+            "song_name":      r[1],
+            "song_image_url": r[2],
+            "preview_mp3_url": r[3],
+            "artist_name":    r[4],
+            "liked_at":       r[5].isoformat() if r[5] else None
         } for r in rows])
 
 # API route to get the next song recommendation for a user, using cosine similarity ranking with epsilon-greedy exploration
 @app.route("/api/songs/next", methods=["GET"])
 def next_song():
-    user_id = request.args.get("user_id")
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "not logged in"}), 401
+    user_id = user["user_id"]  
+
     rows = sql_cmd("""
             SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
                 a.artist_name, s.feature_vector
@@ -352,12 +373,11 @@ def next_song():
     if not rows:
         return jsonify({"message": "no more songs"}), 404
 
-    # Use cosine similarity ranking unless exploring randomly
     profile_rows = sql_cmd(
         "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
         (user_id,), fetch=True
     )
- 
+
     if profile_rows and profile_rows[0][0] is not None and random.random() > EPSILON:
         weight_vec = profile_rows[0][0]
         best = max(rows, key=lambda r: cosine_similarity(weight_vec, r[5]))
@@ -365,17 +385,20 @@ def next_song():
         best = random.choice(rows)
 
     return jsonify({
-        "song_id":          best[0],
-        "song_name":        best[1],
-        "song_image_url":   best[2],
-        "preview_mp3_url":  best[3],
-        "artist_name":      best[4]
+        "song_id":        best[0],
+        "song_name":      best[1],
+        "song_image_url": best[2],
+        "preview_mp3_url": best[3],
+        "artist_name":    best[4]
     })
 
 # For deleting a liked song from liked songs
 @app.route("/api/songs/liked/<int:song_id>", methods=["DELETE"])
 def delete_liked_song(song_id):
     user = session.get("user")
+
+    if not user:
+        return jsonify({"error": "not logged in"}), 401
     user_id = user["user_id"]
     
     sql_cmd("DELETE FROM liked WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
@@ -387,28 +410,26 @@ def delete_liked_song(song_id):
 # For deleting a song action (like/dislike) from interactions
 @app.route("/api/songs/action/<int:song_id>", methods=["DELETE"])
 def delete_song_action(song_id):
-    try:
-        data = request.get_json()
-        user_id = data.get("user_id")
-        
-        sql_cmd("""DELETE FROM interactions 
-                WHERE user_id = %s AND song_id = %s;
-        """, (user_id, song_id))
-        sql_cmd("""DELETE FROM liked 
-                WHERE user_id = %s AND song_id = %s;
-        """, (user_id, song_id))
-        sql_cmd("""DELETE FROM disliked
-                WHERE user_id = %s AND song_id = %s;
-        """, (user_id, song_id))
-        
-        return jsonify({"status": "deleted"}), 200
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "not logged in"}), 401
+    user_id = user["user_id"]
 
+    try:
+        sql_cmd("DELETE FROM interactions WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
+        sql_cmd("DELETE FROM liked WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
+        sql_cmd("DELETE FROM disliked WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
+        return jsonify({"status": "deleted"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 # this is for the search bar function...
 @app.route("/api/songs/search", methods=["GET"])
 def search_songs():
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "not logged in"}), 401
+
     query = request.args.get("params", "")
 
     if not query:
@@ -442,14 +463,14 @@ def search_songs():
 # seed preference
 @app.route('/api/preferences', methods=['POST'])
 def save_preferences():
-    data = flask.request.get_json()
-    genres = data.get('prefs', [])
-    vec = init_weight_vector_from_prefs(genres)
-    
     # Get user_id from session
     user_id = flask.session.get('user', {}).get('user_id')
     if not user_id:
         return flask.jsonify({'error': 'Not authenticated'}), 401
+    
+    data = flask.request.get_json()
+    genres = data.get('prefs', [])
+    vec = init_weight_vector_from_prefs(genres)
 
     # Update weight vector in users table
     sql_cmd(
@@ -496,6 +517,28 @@ def check_password():
         return flask.jsonify({'logged_in': True, 'user_id': user_id})
 
     return flask.jsonify({'logged_in': False, 'error': 'Wrong password'}), 401
+
+
+@app.route("/api/user/upload-pfp", methods=["POST"])
+def upload_pfp():
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "not logged in"}), 401
+    
+    file = request.files.get("picture")
+    result = cloudinary.uploader.upload(file)
+    url = result["secure_url"]
+
+    sql_cmd("UPDATE users SET user_image_url = %s WHERE user_id = %s", [url, user["user_id"]])
+    return jsonify({"url": url})
+
+# check we are logged in..
+@app.route('/api/me')
+def me():
+    user = session.get("user")
+    if user:
+        return jsonify({ "user_id": user["user_id"] })
+    return jsonify({ "error": "not logged in" }), 401
 
 if __name__ == "__main__":
     # Get port from environment (Render sets this), default to 5000 for local dev

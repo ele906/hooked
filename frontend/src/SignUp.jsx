@@ -132,12 +132,12 @@ function SignUp(){
             </button>
             </div>
 
-            <Circle image={musicNote1} alpha={0.015}/>            
-            <Circle image={musicNote1} alpha={0.015}/>
-            <Circle image={musicNote1} alpha={0.015}/>
-            <Circle image={musicNote2} alpha={0.015}/>
-            <Circle image={musicNote2} alpha={0.015}/>
-            <Circle image={musicNote2} alpha={0.015}/>
+            <Circle image={musicNote1} alpha={0.008}/>            
+            <Circle image={musicNote1} alpha={0.008}/>    
+            <Circle image={musicNote1} alpha={0.008}/>    
+            <Circle image={musicNote2} alpha={0.008}/>    
+            <Circle image={musicNote2} alpha={0.008}/>    
+            <Circle image={musicNote2} alpha={0.008}/>  
 
         </div>
         </div>
