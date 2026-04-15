@@ -130,36 +130,35 @@ def auth_callback():
         return jsonify({"error": "Failed to get user info"}), 400
     
     # Verify email
-    if not userinfo_response.json().get('email_verified'):
-        return jsonify({"error": "Email not verified"}), 400
-    
-    # Extract user info
     user_info = userinfo_response.json()
+    if not user_info.get('email_verified'):
+        return jsonify({"error": "Email not verified"}), 400
     email = user_info.get('email', '')
     name = user_info.get('name', '')
     
-    # Insert user if not already in DB
-    sql_cmd(
-        """INSERT INTO users (email, username) 
-        VALUES (%s, %s) 
-        ON CONFLICT (email) DO NOTHING;""",
-        (email, email)
-    )
-    
-    # Get user_id from database
-    rows = sql_cmd(
-        "SELECT user_id FROM users WHERE email = %s",
-        (email,),
+    # Insert user if not already in DB — RETURNING gives us user_id without a second query
+    inserted = sql_cmd(
+        """INSERT INTO users (email, username)
+        VALUES (%s, %s)
+        ON CONFLICT (email) DO NOTHING
+        RETURNING user_id;""",
+        (email, email),
         fetch=True
     )
-    
-    user_id = rows[0][0] if rows else None
-    
-    # Check if user is new (no preferences initialized yet)
+    if inserted:
+        user_id = inserted[0][0]
+    else:
+        rows = sql_cmd(
+            "SELECT user_id FROM users WHERE email = %s",
+            (email,), fetch=True
+        )
+        user_id = rows[0][0] if rows else None
+
+    # Check user_profiles — not just users — to detect incomplete onboarding
+    # (user may exist in DB but never finished seed preferences)
     user_profile_rows = sql_cmd(
         "SELECT 1 FROM user_profiles WHERE user_id = %s",
-        (user_id,),
-        fetch=True
+        (user_id,), fetch=True
     )
     is_new_user = len(user_profile_rows) == 0
     
@@ -332,12 +331,11 @@ def get_liked_songs():
 @app.route("/api/songs/next", methods=["GET"])
 def next_song():
     user_id = request.args.get("user_id")
-    rows = sql_cmd("""
-            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
-                a.artist_name, s.feature_vector
+
+    # Fetch only what's needed for ranking — song_id + feature_vector
+    candidates = sql_cmd("""
+            SELECT s.song_id, s.feature_vector
             FROM songs s
-            JOIN song_artists sa ON s.song_id = sa.song_id
-            JOIN artists a ON sa.artist_id = a.artist_id
             WHERE s.song_id NOT IN (
                 SELECT song_id FROM liked WHERE user_id = %s
                 UNION
@@ -346,21 +344,32 @@ def next_song():
             AND s.feature_vector IS NOT NULL;
         """, (user_id, user_id), fetch=True)
 
-    if not rows:
+    if not candidates:
         return jsonify({"message": "no more songs"}), 404
 
-    # Use cosine similarity ranking unless exploring randomly
+    # Pick the best song_id via cosine similarity, or randomly for exploration
     profile_rows = sql_cmd(
         "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
         (user_id,), fetch=True
     )
- 
+
     if profile_rows and profile_rows[0][0] is not None and random.random() > EPSILON:
         weight_vec = profile_rows[0][0]
-        best = max(rows, key=lambda r: cosine_similarity(weight_vec, r[5]))
+        best_id = max(candidates, key=lambda r: cosine_similarity(weight_vec, r[1]))[0]
     else:
-        best = random.choice(rows)
+        best_id = random.choice(candidates)[0]
 
+    # Fetch full details for only the winning song
+    rows = sql_cmd("""
+            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
+                   a.artist_name
+            FROM songs s
+            JOIN song_artists sa ON s.song_id = sa.song_id
+            JOIN artists a ON sa.artist_id = a.artist_id
+            WHERE s.song_id = %s;
+        """, (best_id,), fetch=True)
+
+    best = rows[0]
     return jsonify({
         "song_id":          best[0],
         "song_name":        best[1],
@@ -426,13 +435,7 @@ def save_preferences():
     if not user_id:
         return flask.jsonify({'error': 'Not authenticated'}), 401
 
-    # Update weight vector in users table
-    sql_cmd(
-        "UPDATE users SET weight_vector = %s WHERE user_id = %s",
-        (json.dumps(vec), user_id)
-    )
-    
-    # Create user_profile entry (marks preferences as completed)
+    # Upsert weight vector into user_profiles
     sql_cmd(
         """INSERT INTO user_profiles (user_id, weight_vector) 
            VALUES (%s, %s)
@@ -461,7 +464,6 @@ def check_password():
 
     user_id, email, stored_hash = result[0]
 
-    import bcrypt
     if bcrypt.checkpw(password.encode(), stored_hash.encode()):
         session["user"] = {
             "email": email,
