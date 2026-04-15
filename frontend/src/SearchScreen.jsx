@@ -72,7 +72,7 @@ function SearchScreen() {
             </button>
 
             {user && <p style={{ color: '#debff7', fontWeight: 'bold', cursor: 'pointer' }} 
-                onClick={() => navigate('/profile')}>Welcome, {user.username}!</p>}
+                onClick={() => navigate(`/profile/${user.username}`)}>Welcome, {user.username}!</p>}
             
             </div>
             

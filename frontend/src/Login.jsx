@@ -6,6 +6,8 @@
 
 import {useCallback, useEffect, useState} from 'react'
 import { useNavigate } from 'react-router-dom'
+
+// styles
 import { getScreenStyle } from './styles'
 import './index.css'
 

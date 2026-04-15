@@ -146,7 +146,8 @@ def auth_callback():
     sql_cmd(
         """INSERT INTO users (email, username, user_image_url) 
         VALUES (%s, %s, %s) 
-        ON CONFLICT (email) DO NOTHING;""",
+        ON CONFLICT (email) DO UPDATE 
+        SET user_image_url = EXCLUDED.user_image_url;""",
         (email, username, pfp)
     )
     
@@ -178,6 +179,34 @@ def auth_callback():
         "user_image_url": pfp,
     }
     return redirect(redirect_page)
+
+# gets user's liked songs
+@app.route("/api/users/<username>/liked", methods=["GET"])
+def get_user_liked_songs(username):
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "not logged in"}), 401
+
+    rows = sql_cmd("""
+        SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
+               a.artist_name, l.created_at
+        FROM liked l
+        JOIN songs s ON l.song_id = s.song_id
+        JOIN song_artists sa ON s.song_id = sa.song_id
+        JOIN artists a ON sa.artist_id = a.artist_id
+        JOIN users u ON l.user_id = u.user_id
+        WHERE u.username = %s
+        ORDER BY l.created_at DESC;
+    """, (username,), fetch=True)
+
+    return jsonify([{
+        "song_id":         r[0],
+        "song_name":       r[1],
+        "song_image_url":  r[2],
+        "preview_mp3_url": r[3],
+        "artist_name":     r[4],
+        "liked_at":        r[5].isoformat() if r[5] else None
+    } for r in rows])
 
 # logs out by clearing the session, then redirects back to the frontend
 @app.route("/auth/logout")
@@ -459,6 +488,104 @@ def search_songs():
         })
 
     return jsonify(results)
+
+# this is for the search bar for freiendsfunction...
+@app.route("/api/friends/search", methods=["GET"])
+def search_friends():
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "not logged in"}), 401
+
+    query = request.args.get("query", "")
+
+    if not query:
+        return jsonify({"error": "query parameter is required"}), 400
+
+    rows = sql_cmd("""
+        SELECT u.username, u.user_image_url
+        FROM users u
+        WHERE u.username ILIKE %s OR u.email ILIKE %s
+        LIMIT 8;
+    """, (f"%{query}%", f"%{query}%",), fetch=True)
+
+    if not rows:
+        return jsonify({"users": []}), 200
+
+    results = []
+    for r in rows:
+        results.append({
+            "username":       r[0],
+            "user_image_url": r[1],
+        })
+
+    return jsonify({"users": results}), 200
+
+@app.route("/api/users/get/<username>", methods=["GET"])
+def get_user_profile(username):
+    user = session.get("user")
+    if not user:
+        return jsonify({"error": "not logged in"}), 401
+
+    try:
+        rows = sql_cmd("""
+            SELECT username, user_image_url
+            FROM users
+            WHERE username = %s
+        """, (username,), fetch=True)
+
+        if not rows:
+            return jsonify({"error": "user not found"}), 404
+
+        r = rows[0]
+        return jsonify({
+            "username":       r[0],
+            "user_image_url": r[1],
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/friends/add', methods=['POST']) 
+def add_friend():
+    user = flask.session.get('user')
+    if not user:
+        return flask.jsonify({'error': 'Not authenticated'}), 401
+    
+    data = flask.request.get_json()
+    friend_username = data.get('friend_username')
+
+    if not friend_username:
+        return flask.jsonify({'error': 'friend_username required'}), 400
+
+    # look up the friend's user_id from their username
+    rows = sql_cmd(
+        "SELECT user_id FROM users WHERE username = %s",
+        (friend_username,), fetch=True
+    )
+    if not rows:
+        return flask.jsonify({'error': 'user not found'}), 404
+
+    my_id = user['user_id']
+    friend_id = rows[0][0]
+
+    if my_id == friend_id:
+        return flask.jsonify({'error': 'cannot add yourself'}), 400
+
+    # insert both directions
+    sql_cmd(
+        """INSERT INTO friends (user_id, friend_id)
+           VALUES (%s, %s)
+           ON CONFLICT (user_id, friend_id) DO NOTHING""",
+        (my_id, friend_id)
+    )
+    sql_cmd(
+        """INSERT INTO friends (user_id, friend_id)
+           VALUES (%s, %s)
+           ON CONFLICT (user_id, friend_id) DO NOTHING""",
+        (friend_id, my_id)
+    )
+
+    return flask.jsonify({'added': True}), 200
 
 # seed preference
 @app.route('/api/preferences', methods=['POST'])

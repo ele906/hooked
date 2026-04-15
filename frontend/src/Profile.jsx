@@ -5,8 +5,8 @@
 // Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
-import {useCallback, useEffect, useState} from 'react'
-import { useNavigate } from 'react-router-dom'
+import {useEffect, useState} from 'react'
+import {useParams, useNavigate } from 'react-router-dom'
 import './index.css'
 import { getScreenStyle } from './styles'
 
@@ -15,14 +15,47 @@ function Profile(){
 
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
+    const { username } = useParams()       // whoever's profile we're viewing
+    const isOwnProfile = user?.username === username
+
+    // --- stats ---
     const [likedSongs, setLikedSongs] = useState([]);
     const [friends, setFriends] = useState([]);
     const [friendPage, setFriendPage] = useState(0);
+    const [isFriend, setIsFriend] = useState(false)
     const FRIENDS_PER_PAGE = 6;
+
+    const [profileData, setProfileData] = useState(null)
+
+    // get whoever's profile we're viewing
+    useEffect(() => {
+        fetch(`http://localhost:5000/api/users/get/${username}`, { credentials: "include" })
+            .then(res => res.json())
+            .then(data => setProfileData(data))
+    }, [username])
+
 
     function handleBackButton() {
         console.log("back button clicked, go back to sw9pe page")
         navigate(-1)
+    }
+
+    function handleAddFriend() {
+        fetch("http://localhost:5000/api/friends/add", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ friend_username: profileData.username })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.added) {
+                    setIsFriend(true)  // ← add this
+                } else {
+                    alert(data.error || "Something went wrong")
+                }
+            })
+            .catch(err => console.error("Add friend failed", err))
     }
 
     // obtain the credentials from cookie
@@ -47,7 +80,7 @@ function Profile(){
                 console.log(data.email);
                 console.log(data.picture);
                 
-                return fetch(`/api/songs/liked`, { 
+                fetch(`/api/users/${username}/liked`, { 
                     credentials: "include",
                     signal: controller.signal 
                 });
@@ -71,6 +104,15 @@ function Profile(){
         };
         }, []);
 
+    console.log("user:", user)
+    console.log("username from url:", username)
+    console.log("isOwnProfile:", isOwnProfile)
+    console.log("profileData:", profileData)
+
+    if (!user) return null
+    if (!profileData && !isOwnProfile) return null  
+
+
     return (
         <div style = {{...getScreenStyle(
             'rgba(202, 190, 235, 0.4)',
@@ -81,35 +123,58 @@ function Profile(){
 
         <div className='card'>
             <div className='card-header'>
-                <h2>My Profile</h2>
+                {isOwnProfile ? (
+                    <h2>My Profile</h2>
+                ) : (
+                    <h2>View Profile</h2>
+                )}
+                
                 <button className = 'back-btn' onClick={handleBackButton}>
                 Back
                 </button>
             </div>
+
             
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px', margin: '16px 0' }}>
-            { /*Left: profile pic */}
                 <div>
-                    {user?.picture
-                        ? <img
-                            src={user.picture}
-                            alt="Profile"
-                            referrerPolicy="no-referrer"
-                            style={{ width: 80, height: 80, borderRadius: '50%', border: '2px solid #debff7' }}
-                        />
-                        : <div style={{
-                            width: 80, height: 80, borderRadius: '50%',
-                            background: '#1d1133', border: '2px solid #debff7',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#debff7', fontSize: 32
-                        }}>👤</div>
-                    }
+                    {isOwnProfile ? (
+                        user?.picture
+                            ? <div className='pfp-border'>
+                                <img src={user.picture} alt="Profile" referrerPolicy="no-referrer"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                            </div>
+                            : <div className='pfp-border'>👤</div>
+                    ) : (
+                        profileData?.user_image_url
+                            ? <div className='pfp-border'>
+                                <img src={profileData.user_image_url} alt="Profile" referrerPolicy="no-referrer"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                            </div>
+                            : <div className='pfp-border'>👤</div>
+                    )}
                 </div>
 
-                {/* Right: user info */}
-                <div style={{ color: 'white', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <p><span style={{ color: '#debff7' }}>username:</span> {user?.username}</p>
-                    <p><span style={{ color: '#debff7' }}>email:</span> {user?.email}</p>
+                <div style={{ color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <p><span style={{ color: '#debff7' }}>username:</span> {profileData?.username}</p>
+                    {isOwnProfile && <p><span style={{ color: '#debff7' }}>email:</span> {user?.email}</p>}
+                    {!isOwnProfile &&
+                        <button onClick={handleAddFriend} disabled={isFriend} style={{
+                            marginTop: '8px',
+                            padding: '5px 12px',
+                            borderRadius: '5px',
+                            border: '2px solid #debff7',
+                            background: isFriend ? '#debff7' : '#1d1133',
+                            color: isFriend ? '#1d1133' : '#debff7',
+                            fontSize: '16px',
+                            fontWeight: 'bold',
+                            cursor: isFriend ? 'default' : 'pointer',
+                            width: 'fit-content',
+                        }}>
+                            {isFriend ? 'Friended!' : '+ Add Friend'}
+                        </button>
+                    }
                 </div>
             </div>
                         
@@ -117,6 +182,7 @@ function Profile(){
                 <h3 style={{ textAlign: 'left' , padding: '5px'}}>Recently Liked Songs</h3>
                 <button className='add-btn' onClick={() => navigate('/liked')}>♡</button>
             </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 12px 12px' }}>
                 {likedSongs.length === 0
                     ? <p style={{ color: '#e0e0e08e', fontSize: 13 }}>No liked songs yet!</p>
@@ -147,7 +213,7 @@ function Profile(){
             </div>
 
             <div className='small-header'>
-                <h3 style={{ textAlign: 'left', padding: '5px' }}>My Friends</h3>
+                <h3 style={{ textAlign: 'left', padding: '5px' }}>Friends</h3>
                 <button className='add-btn' onClick={() => navigate('/friends')}>+</button>
             </div>
 
