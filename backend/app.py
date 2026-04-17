@@ -16,6 +16,10 @@ import oauthlib.oauth2
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 load_dotenv()
+from backend.email_utils import (
+    send_verification_email, send_reset_email,send_username_reminder_email,
+    read_token, VERIFY_SALT, RESET_SALT, VERIFY_MAX_AGE, RESET_MAX_AGE,
+)
 
 # URLs from environment variables
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
@@ -140,9 +144,9 @@ def auth_callback():
     
     # Insert user if not already in DB
     sql_cmd(
-        """INSERT INTO users (email, username) 
-        VALUES (%s, %s) 
-        ON CONFLICT (email) DO NOTHING;""",
+        """INSERT INTO users (email, username, email_verified) 
+        VALUES (%s, %s, TRUE) 
+        ON CONFLICT (email) DO UPDATE SET email_verified = TRUE;""",
         (email, email)
     )
     
@@ -195,6 +199,8 @@ def signup():
     password = data.get("password", "")
     if not email or not username or not password:
         return jsonify({"error": "All fields are required"}), 400
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     try:
         rows = sql_cmd(
@@ -210,6 +216,11 @@ def signup():
             "name": username,
             "user_id": user_id,
         }
+        try:
+            send_verification_email(email, FRONTEND_URL)
+        except Exception as mail_err:
+            print(f"[signup] failed to send verification email: {mail_err}")
+
         return jsonify({"user_id": user_id}), 201
     except Exception as e:
         if "users_email_key" in str(e):
@@ -453,26 +464,120 @@ def check_password():
     password = data.get('password', "")
 
     result = sql_cmd(
-        "SELECT user_id, email, password_hash FROM users WHERE username = %s",
+        "SELECT user_id, email, password_hash, email_verified FROM users WHERE username = %s",
         (username,),
         fetch=True
     )
 
+
     if not result:
         return flask.jsonify({'logged_in': False, 'error': 'User not found'}), 401
 
-    user_id, email, stored_hash = result[0]
+    user_id, email, stored_hash, email_verified = result[0]
+
 
     import bcrypt
     if bcrypt.checkpw(password.encode(), stored_hash.encode()):
+        if not email_verified:
+            return flask.jsonify({
+                'logged_in': False,
+                'error': 'Please verify your email before logging in. Check your inbox.'
+            }), 403
         session["user"] = {
             "email": email,
             "name": username,
             "user_id": user_id,
         }
-        return flask.jsonify({'logged_in': True, 'user_id': user_id})
+        session["user"]["email_verified"] = bool(email_verified)
+        return flask.jsonify({
+            'logged_in': True,
+            'user_id': user_id,
+            'email_verified': bool(email_verified),
+        })
+
 
     return flask.jsonify({'logged_in': False, 'error': 'Wrong password'}), 401
+# ---------------- email verification ----------------
+@app.route("/auth/verify-email/<token>", methods=["GET"])
+def verify_email(token):
+    email = read_token(token, VERIFY_SALT, VERIFY_MAX_AGE)
+    if not email:
+        return jsonify({"verified": False, "error": "Invalid or expired link"}), 400
+    sql_cmd("UPDATE users SET email_verified = TRUE WHERE email = %s", (email,))
+    return jsonify({"verified": True, "email": email})
+
+
+@app.route("/auth/resend-verification", methods=["POST"])
+def resend_verification():
+    data = request.get_json() or {}
+    email = data.get("email", "").strip()
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    rows = sql_cmd("SELECT email_verified FROM users WHERE email = %s",
+                   (email,), fetch=True)
+    if rows and rows[0][0]:
+        return jsonify({"status": "already_verified"})
+    if rows and not rows[0][0]:
+        try:
+            send_verification_email(email, FRONTEND_URL)
+        except Exception as e:
+            print(f"[resend_verification] {e}")
+    # "sent" is returned even when no user exists, so we don't leak registration
+    return jsonify({"status": "sent"})
+
+
+# ---------------- forgot / reset password ----------------
+@app.route("/auth/forgot-password", methods=["POST"])
+def forgot_password():
+    data = request.get_json() or {}
+    email = data.get("email", "").strip()
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    rows = sql_cmd("SELECT 1 FROM users WHERE email = %s", (email,), fetch=True)
+    if rows:
+        try:
+            send_reset_email(email, FRONTEND_URL)
+        except Exception as e:
+            print(f"[forgot_password] {e}")
+    # Always return ok so we don't reveal which emails are registered
+    return jsonify({"sent": True})
+
+
+@app.route("/auth/reset-password", methods=["POST"])
+def reset_password():
+    data = request.get_json() or {}
+    token = data.get("token", "")
+    new_password = data.get("password", "")
+    if not token or not new_password:
+        return jsonify({"error": "Token and password required"}), 400
+    if len(new_password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+
+    email = read_token(token, RESET_SALT, RESET_MAX_AGE)
+    if not email:
+        return jsonify({"error": "Invalid or expired link"}), 400
+
+    hashed = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    sql_cmd("UPDATE users SET password_hash = %s WHERE email = %s",
+            (hashed, email))
+    return jsonify({"reset": True})
+
+@app.route("/auth/forgot-username", methods=["POST"])
+def forgot_username():
+    data = request.get_json() or {}
+    email = data.get("email", "").strip()
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    rows = sql_cmd("SELECT username FROM users WHERE email = %s",
+                   (email,), fetch=True)
+    if rows:
+        try:
+            send_username_reminder_email(email, rows[0][0])
+        except Exception as e:
+            print(f"[forgot_username] {e}")
+    # Always return ok — don't reveal whether email is registered
+    return jsonify({"sent": True})
+
 
 if __name__ == "__main__":
     # Get port from environment (Render sets this), default to 5000 for local dev

@@ -12,6 +12,12 @@ import SignUp from './SignUp'
 import Login from './Login'
 import LikedSongs from './LikedSongs'
 import SeedPreferences from './SeedPreferences'
+import ForgotPassword from './ForgotPassword'
+import ResetPassword from './ResetPassword'
+import VerifyEmail from './VerifyEmail'
+import ForgotUsername from './ForgotUsername'
+
+
 
 function App() {
     return (
@@ -24,6 +30,12 @@ function App() {
                 <Route path="/search" element={<SearchScreen />} />
                 <Route path="/liked" element={<LikedSongs />} />
                 <Route path="/seedprefs" element={<SeedPreferences />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password/:token" element={<ResetPassword />} />
+                <Route path="/verify-email/:token" element={<VerifyEmail />} />
+                <Route path="/forgot-username" element={<ForgotUsername />} />
+
+
             </Routes>
         </BrowserRouter>
     )
