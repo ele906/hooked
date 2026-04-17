@@ -18,8 +18,13 @@ function Friends(){
     const controllerRef = useRef(null)
     
     function handleBackButton() {
-        console.log("back button clicked, go back to sw9pe page")
+        console.log("back button clicked, go back to swipe page")
         navigate(-1)
+    }
+
+    function handleHomeButton(){
+        console.log("back to home page")
+        navigate("/swipe")
     }
 
     function searchFriend(my_frd_username) {
@@ -74,12 +79,13 @@ function Friends(){
             </div>
             <div className='small-header' style={{ marginTop: 0 }}>
                 <h1>Friends</h1>
-
-                <button className = 'back-btn' onClick={handleBackButton}>
-                    Back
-                </button>
+                <div style={{ flex: 1 }} />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className='back-btn' onClick={() => navigate("/swipe")}>Home</button>
+                    <button className='back-btn' onClick={() => navigate(-1)}>Back</button>
+                </div>
             </div>
-                    
+
             <input
                 type="text"
                 value={friendQuery}

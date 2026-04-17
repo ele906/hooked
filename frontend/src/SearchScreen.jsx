@@ -64,30 +64,30 @@ function SearchScreen() {
             color: '#debff7'}}>
 
             <div className="card">
-
-            <div className='card-header'>
-            {/* back button */}
-            <button className = 'back-btn' onClick={() => navigate('/swipe')}>
-                ← Back
-            </button>
-
-            {user && <p style={{ color: '#debff7', fontWeight: 'bold', cursor: 'pointer' }} 
-                onClick={() => navigate(`/profile/${user.username}`)}>Welcome, {user.username}!</p>}
-            
+            <div className='card-header-2' style={{ paddingBottom: 0 }}> 
+                {user && <p style={{ color: '#debff7', fontWeight: 'bold', cursor: 'pointer' }} 
+                    onClick={() => navigate(`/profile/${user.username}`)}>Welcome, {user.username}!</p>}
             </div>
-            
+
+            <div className='small-header' style={{ marginTop: 0 }}>
+                <h1>Search</h1>
+                <div style={{ flex: 1 }} />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className='back-btn' onClick={() => navigate("/swipe")}>Home</button>
+                    <button className='back-btn' onClick={() => navigate(-1)}>Back</button>
+                </div>
+            </div>
 
             {/* search bar */}
             <input
                 type="text"
                 value={query}
-                // this detects changes in search and does the search function...
                 onChange={(e) => {
                     setQuery(e.target.value)
                     searchSong(e.target.value)
                 }}
                 placeholder="Search songs..."
-                className = 'input-box-2'
+                className='input-box-2'
             />
 
             {/* results */}
@@ -105,7 +105,7 @@ function SearchScreen() {
                     <p>No results found!</p>
                 </div>
             )}
-            </div>
+        </div>
         </div>
     )
 }

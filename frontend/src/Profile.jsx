@@ -9,7 +9,7 @@ import {useEffect, useState} from 'react'
 import {useParams, useNavigate } from 'react-router-dom'
 import './index.css'
 import { getScreenStyle } from './styles'
-
+import API_URL from './config'
 
 function Profile(){
 
@@ -56,6 +56,12 @@ function Profile(){
                 }
             })
             .catch(err => console.error("Add friend failed", err))
+    }
+
+    // ------------------- Logout Handler --------------------------------
+
+    const handleLogout = () => {
+        window.location.href = `${API_URL}/auth/logout`
     }
 
     // obtain the credentials from cookie
@@ -129,9 +135,15 @@ function Profile(){
                     <h2>View Profile</h2>
                 )}
                 
-                <button className = 'back-btn' onClick={handleBackButton}>
-                Back
-                </button>
+                <div style={{ flex: 1 }} />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className='back-btn' onClick={() => navigate("/swipe")}>Home</button>
+                    <button className='back-btn' onClick={() => navigate(-1)}>Back</button>
+                    <button onClick={() => window.location.href = `${API_URL}/auth/logout`}>
+                        Logout
+                    </button>
+                </div>
+
             </div>
 
             
