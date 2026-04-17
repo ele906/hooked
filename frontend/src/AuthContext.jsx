@@ -13,8 +13,14 @@ export function AuthProvider({ children }) {
 
   function fetchUser() {
     return fetch("/auth/user", { credentials: "include" })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => setUser(data))
+      .then(res => {
+          console.log("auth/user status:", res.status)  // add this
+          return res.ok ? res.json() : null
+      })
+      .then(data => {
+          console.log("auth/user data:", data)  // add this
+          setUser(data)
+      })
       .catch(() => setUser(null));
   }
 

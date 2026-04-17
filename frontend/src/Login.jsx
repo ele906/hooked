@@ -16,6 +16,9 @@ import Circle from "./AnimatedCircle.jsx"
 import musicNote1 from './musical-note-1.png'
 import musicNote2 from './musical-note-2.png'
 
+// auth
+import { useAuth } from './AuthContext'
+
 function Login(){
 
     // this makes it go from one screen to another
@@ -23,13 +26,10 @@ function Login(){
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
 
-    function handleBackButton() {
-        console.log("back button clicked, go back to welcome page")
-        navigate(-1)
-    }
+    const { fetchUser } = useAuth() 
 
     async function handleDone(myUsername, myPassword){
-        console.log("lets see if the pw is right")
+        console.log("validate password")
 
         const result = await fetch('/api/checkpw', {
             method: 'POST',
@@ -37,13 +37,24 @@ function Login(){
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: myUsername, password: myPassword })
         })
+        console.log("status:", result.status) 
         const data = await result.json()
+        console.log("data:", data)  
 
+        if (!data){
+            alert('Wrong username or password!')
+        }
         if (data.logged_in) {
+            await fetchUser()
             navigate('/swipe')
         } else {
             alert('Wrong username or password!')
         }
+    }
+
+    function handleBackButton() {
+        console.log("back button clicked, go back to sw9pe page")
+        navigate(-1)
     }
 
     const handleKeyPress = useCallback((e) => {

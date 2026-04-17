@@ -12,6 +12,7 @@ import API_URL from './config'
 import { getScreenStyle, cornerButtonStyle, actionButtonStyle } from './styles'
 import searchIcon from './search_button.png'
 import logoutIcon from './logout_button.png'
+import { useAuth } from "./AuthContext"
 
 // Renders the swipe screen interface where users can like or skip songs 
 // via swiping, buttons, or keyboard keys. Displays 30-second audio 
@@ -47,6 +48,7 @@ function SwipeScreen() {
     const [message, setMessage] = useState("")
     
     // store user id
+    const { user } = useAuth() 
     const [userId, setUserId] = useState(null)
 
     // store last action for undo functionality
@@ -60,29 +62,8 @@ function SwipeScreen() {
     // check if user in authenticated before rendering the swipe screen
     // and get user id
     useEffect(() => {
-        async function fetchUserAuth() {
-            try {
-                const response = await fetch(`${API_URL}/auth/user`, { 
-                    credentials: "include" 
-                })
-
-                if (!response.ok) {
-                    throw new Error(`Auth failed: ${response.status}`)
-                }
-
-                const data = await response.json()
-                if (data && data.user_id) {
-                    setUserId(data.user_id)
-                }
-
-            } catch (error) {
-                console.error("Error fetching user auth:", error.message)
-            }
-        }
-
-        fetchUserAuth()
-
-    }, [])
+        if (user) setUserId(user.user_id)
+    }, [user])
 
     // send user like/dislike action to database, then fetch next song
     // takes a string action, 'like' or 'dislike', as a parameter

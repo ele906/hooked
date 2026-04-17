@@ -31,7 +31,8 @@ from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+# app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key-change-in-prod")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Configure session cookies for cross-domain communication
@@ -59,7 +60,7 @@ GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 
 # Authentication routes
-@app.route("/auth/login")
+@app.route("/auth/login", methods=['POST'])
 def login():
     # Clear any existing session (allow re-login with Google)
     session.clear()
@@ -85,7 +86,7 @@ def login():
     return redirect(request_uri)
 
 # callback route that Google redirects to after login
-@app.route("/auth/callback")
+@app.route("/auth/callback", methods=['POST'])
 def auth_callback():
     # Get authorization code from Google redirect
     authorization_code = request.args.get('code')
@@ -215,7 +216,7 @@ def logout():
     return redirect(FRONTEND_URL)
 
 # returns the logged-in user's info, or 401 if not logged in
-@app.route("/auth/user")
+@app.route("/auth/user", methods=['GET'])
 def get_user():
     user = session.get("user")
     if user:
@@ -350,7 +351,7 @@ def store_interaction():
     return jsonify({"status": "ok"}), 201
 
 # API route to get a list of songs the user has liked, along with artist info and when they liked it
-@app.route("/api/songs/liked", methods=["GET"])
+@app.route("/api/songs/liked", methods=['GET'])
 def get_liked_songs():
     user = session.get("user")
     if not user:
@@ -378,7 +379,7 @@ def get_liked_songs():
         } for r in rows])
 
 # API route to get the next song recommendation for a user, using cosine similarity ranking with epsilon-greedy exploration
-@app.route("/api/songs/next", methods=["GET"])
+@app.route("/api/songs/next", methods=['GET'])
 def next_song():
     user = session.get("user")
     if not user:
@@ -453,7 +454,7 @@ def delete_song_action(song_id):
         return jsonify({"error": str(e)}), 500
 
 # this is for the search bar function...
-@app.route("/api/songs/search", methods=["GET"])
+@app.route("/api/songs/search", methods=["POST"])
 def search_songs():
     user = session.get("user")
     if not user:
@@ -635,6 +636,8 @@ def check_password():
     user_id, email, stored_hash = result[0]
 
     import bcrypt
+    print(f"stored_hash: {repr(stored_hash)}")
+    print(f"checkpw result: {bcrypt.checkpw(password.encode(), stored_hash.encode())}")
     if bcrypt.checkpw(password.encode(), stored_hash.encode()):
         session["user"] = {
             "email": email,

@@ -138,7 +138,7 @@ function Profile(){
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px', margin: '16px 0' }}>
                 <div>
                     {isOwnProfile ? (
-                        user?.picture
+                        (user?.picture || profileData?.user_image_url)
                             ? <div className='pfp-border'>
                                 <img src={user.picture} alt="Profile" referrerPolicy="no-referrer"
                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}

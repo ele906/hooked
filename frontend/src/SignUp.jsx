@@ -23,9 +23,25 @@ function SignUp(){
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
     const [email, setEmail] = useState("")
-    const [profileImg, setProfileImg] = useState(null)
+    const [profileImg, setProfileImg] = useState(null) // blob url
+    const [imageFile, setImageFile] = useState(null) // actual File object
+
+    async function uploadToCloudinary(file) {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('upload_preset', 'a3grzjto')
+
+        const res = await fetch('https://api.cloudinary.com/v1_1/dutrsvhz4/image/upload', {
+            method: 'POST',
+            body: formData
+        })
+        const data = await res.json()
+        return data.secure_url
+    }
 
     async function handleSignUp() {
+        const imageUrl = imageFile ? await uploadToCloudinary(imageFile) : ''
+
         const res = await fetch('/auth/signup', {
             method: 'POST',
             credentials: 'include',
@@ -34,10 +50,10 @@ function SignUp(){
                 email, 
                 username, 
                 password, 
-                user_image_url: profileImg ?? '' 
+                user_image_url: imageUrl   // real URL now
             })
         })
-        const data = await res.json()
+                const data = await res.json()
 
         if (res.ok) {
             await fetchUser()
@@ -47,6 +63,15 @@ function SignUp(){
         }
     }
 
+
+    function handleDrop(e) {
+        e.preventDefault()
+        const file = e.dataTransfer.files[0]
+        if (file && file.type.startsWith('image/')) {
+            setImageFile(file)                               // save File
+            setProfileImg(URL.createObjectURL(file))         // just for preview
+        }
+    }
 
     const handleKeyPress = useCallback((e) => {
         if (e.key === ' ' || e.code === "Space") {
@@ -63,14 +88,6 @@ function SignUp(){
     function handleBackButton() {
         console.log("back button clicked, go back to welcome page")
         navigate(-1)
-    }
-
-    function handleDrop(e) {
-        e.preventDefault()
-        const file = e.dataTransfer.files[0]
-        if (file && file.type.startsWith('image/')) {
-            setProfileImg(URL.createObjectURL(file))
-        }
     }
 
     function handleDragOver(e) {
