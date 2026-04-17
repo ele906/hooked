@@ -24,7 +24,7 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from data.db import get_db as _open_db
-from data.vector_utils import cosine_similarity, update_weight_vector, l2_normalize, init_weight_vector_from_prefs
+from data.vector_utils import update_weight_vector, l2_normalize, init_weight_vector_from_prefs
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -271,8 +271,9 @@ def store_interaction():
         )
 
     # Fetch song feature vector and user profile in one query
+    # Cast to text so psycopg returns strings we can parse
     rows = sql_cmd(
-        """SELECT s.feature_vector, up.weight_vector
+        """SELECT s.feature_vector::text, up.weight_vector::text
            FROM songs s
            LEFT JOIN user_profiles up ON up.user_id = %s
            WHERE s.song_id = %s""",
@@ -280,8 +281,8 @@ def store_interaction():
     )
 
     if rows and rows[0][0] is not None:
-        song_vec = rows[0][0]
-        current_weight = rows[0][1]
+        song_vec = json.loads(rows[0][0])
+        current_weight = json.loads(rows[0][1]) if rows[0][1] else None
 
         if current_weight is not None:
             new_vec = update_weight_vector(current_weight, song_vec, data["action"])
@@ -291,7 +292,7 @@ def store_interaction():
 
         sql_cmd(
             """INSERT INTO user_profiles (user_id, weight_vector, updated_at)
-               VALUES (%s, %s, NOW())
+               VALUES (%s, %s::vector, NOW())
                ON CONFLICT (user_id) DO UPDATE
                SET weight_vector = EXCLUDED.weight_vector, updated_at = NOW()""",
             (data["user_id"], json.dumps(new_vec))
@@ -327,47 +328,53 @@ def get_liked_songs():
             "liked_at":         r[5].isoformat() if r[5] else None
         } for r in rows])
 
-# API route to get the next song recommendation for a user, using cosine similarity ranking with epsilon-greedy exploration
+# API route to get the next song recommendation for a user, using pgvector cosine similarity
 @app.route("/api/songs/next", methods=["GET"])
 def next_song():
     user_id = request.args.get("user_id")
 
-    # Fetch only what's needed for ranking — song_id + feature_vector
-    candidates = sql_cmd("""
-            SELECT s.song_id, s.feature_vector
+    profile_rows = sql_cmd(
+        "SELECT weight_vector::text FROM user_profiles WHERE user_id = %s",
+        (user_id,), fetch=True
+    )
+
+    has_profile = profile_rows and profile_rows[0][0] is not None
+
+    if has_profile and random.random() > EPSILON:
+        # Similarity-ranked: let pgvector find the closest unseen song in one query
+        rows = sql_cmd("""
+            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
             FROM songs s
+            JOIN song_artists sa ON s.song_id = sa.song_id
+            JOIN artists a ON sa.artist_id = a.artist_id
             WHERE s.song_id NOT IN (
                 SELECT song_id FROM liked WHERE user_id = %s
                 UNION
                 SELECT song_id FROM disliked WHERE user_id = %s
             )
-            AND s.feature_vector IS NOT NULL;
-        """, (user_id, user_id), fetch=True)
-
-    if not candidates:
-        return jsonify({"message": "no more songs"}), 404
-
-    # Pick the best song_id via cosine similarity, or randomly for exploration
-    profile_rows = sql_cmd(
-        "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
-        (user_id,), fetch=True
-    )
-
-    if profile_rows and profile_rows[0][0] is not None and random.random() > EPSILON:
-        weight_vec = profile_rows[0][0]
-        best_id = max(candidates, key=lambda r: cosine_similarity(weight_vec, r[1]))[0]
+            AND s.feature_vector IS NOT NULL
+            ORDER BY s.feature_vector <=> %s::vector
+            LIMIT 1
+        """, (user_id, user_id, profile_rows[0][0]), fetch=True)
     else:
-        best_id = random.choice(candidates)[0]
-
-    # Fetch full details for only the winning song
-    rows = sql_cmd("""
-            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
-                   a.artist_name
+        # Random exploration or no profile yet
+        rows = sql_cmd("""
+            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
             FROM songs s
             JOIN song_artists sa ON s.song_id = sa.song_id
             JOIN artists a ON sa.artist_id = a.artist_id
-            WHERE s.song_id = %s;
-        """, (best_id,), fetch=True)
+            WHERE s.song_id NOT IN (
+                SELECT song_id FROM liked WHERE user_id = %s
+                UNION
+                SELECT song_id FROM disliked WHERE user_id = %s
+            )
+            AND s.feature_vector IS NOT NULL
+            ORDER BY RANDOM()
+            LIMIT 1
+        """, (user_id, user_id), fetch=True)
+
+    if not rows:
+        return jsonify({"message": "no more songs"}), 404
 
     best = rows[0]
     return jsonify({
@@ -437,16 +444,16 @@ def save_preferences():
 
     # Upsert weight vector into user_profiles
     sql_cmd(
-        """INSERT INTO user_profiles (user_id, weight_vector) 
-           VALUES (%s, %s)
-           ON CONFLICT (user_id) DO UPDATE 
+        """INSERT INTO user_profiles (user_id, weight_vector)
+           VALUES (%s, %s::vector)
+           ON CONFLICT (user_id) DO UPDATE
            SET weight_vector = EXCLUDED.weight_vector""",
         (user_id, json.dumps(vec))
     )
 
     return flask.jsonify({'added weight vec to DB': True})
 
-# check if password is right... 
+# check if password is right 
 @app.route('/api/checkpw', methods=['POST'])
 def check_password():
     data = flask.request.get_json()
