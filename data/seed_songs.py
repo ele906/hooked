@@ -23,14 +23,14 @@ import os
 import sys
 import psycopg
 from db import get_db
-from vector_utils import build_feature_vector, l2_normalize
+from vector_utils import build_feature_vector, build_full_feature_vector, fetch_lyrics, l2_normalize
 
 # How many songs to pull per artist (filters for preview URL availability)
 SONGS_PER_ARTIST = 8
 
 # Artists grouped by genre — iTunes returns their top songs sorted by popularity
 # Covers all 12 genre slots in the feature vector
-# ~60 artists × 8 songs = ~480 songs (before filtering for missing preview URLs)
+# adds ~700 songs
 ARTISTS_BY_GENRE = {
     "pop": [
         "Taylor Swift", "Ed Sheeran", "Ariana Grande", "Dua Lipa",
@@ -141,6 +141,16 @@ def insert_track(cur, track):
         return False  # already in DB
     song_id = row[0]
 
+    lyrics, is_instrumental = fetch_lyrics(track["artistName"], track["trackName"])
+    label = "instrumental" if is_instrumental else ("found" if lyrics else "not found")
+    print(f"  {track['artistName']} — {track['trackName']} ... {label}")
+    full_vec = l2_normalize(build_full_feature_vector(genre, release_date, duration_ms, lyrics))
+    cur.execute(
+        "UPDATE songs SET feature_vector = %s::jsonb WHERE song_id = %s",
+        (json.dumps(full_vec), song_id)
+    )
+    time.sleep(0.3)
+
     cur.execute(
         "INSERT INTO song_artists (song_id, artist_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
         (song_id, artist_id)
@@ -191,13 +201,17 @@ def batch_insert_tracks(cur, tracks):
             track["artistName"]  # temporary, will use to link to artist_id
         ))
     
-    # Step 4: Batch insert songs and get IDs
+    # Step 4: Batch insert songs, embed lyrics, and get IDs
     added = 0
     for song_row in song_data:
         # Unpack all but the artist name
+        song_name = song_row[0]
+        duration_ms = song_row[3]
+        genre = song_row[4]
+        release_date = song_row[5]
         song_values = song_row[:-1]
         artist_name = song_row[-1]
-        
+
         cur.execute(
             """INSERT INTO songs (song_name, preview_mp3_url, song_image_url, duration_ms, genre,
                                   release_date, itunes_track_id, feature_vector)
@@ -212,6 +226,16 @@ def batch_insert_tracks(cur, tracks):
             artist_id = artist_map[artist_name]
             song_artist_data.append((song_id, artist_id))
             added += 1
+
+            lyrics, is_instrumental = fetch_lyrics(artist_name, song_name)
+            label = "instrumental" if is_instrumental else ("found" if lyrics else "not found")
+            print(f"  [{added}] {artist_name} — {song_name} ... {label}")
+            full_vec = l2_normalize(build_full_feature_vector(genre, release_date, duration_ms, lyrics))
+            cur.execute(
+                "UPDATE songs SET feature_vector = %s::jsonb WHERE song_id = %s",
+                (json.dumps(full_vec), song_id)
+            )
+            time.sleep(0.3)
     
     # Step 5: Batch insert song_artist relationships
     if song_artist_data:

@@ -26,9 +26,8 @@ function SeedPreferences(){
     const [selected, setSelected] = useState(new Set())
     const { fetchUser } = useAuth() // fetch from auth
 
-    function handleClickGoNext() {
-        handleContinue()
-        navigate('/swipe')
+    async function handleClickGoNext() {
+        await handleContinue()
     }
 
     async function handleContinue() {
@@ -36,7 +35,7 @@ function SeedPreferences(){
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prefs: [...selected] })  // selected is your Set
+            body: JSON.stringify({ prefs: [...selected] })
         })
         navigate('/swipe')
     }
