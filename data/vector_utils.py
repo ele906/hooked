@@ -1,4 +1,7 @@
-import math
+import re
+import urllib.parse
+import numpy as np
+import requests
 
 # 12 main genre types, each with  associated keywords for matching
 # Could be updated in the future but should be good for now
@@ -18,6 +21,11 @@ GENRE_TYPES = [
 ]
 
 N_GENRES = len(GENRE_TYPES)  # 12
+LYRIC_DIMS = 384             # sentence-transformers all-MiniLM-L6-v2
+TOTAL_DIMS = N_GENRES + 2 + LYRIC_DIMS  # 398
+
+# sentence-transformers model is cached here after first load to speed up future calls
+_model = None
 
 # Normalization bounds for year and duration
 _MIN_YEAR = 1960
@@ -25,20 +33,19 @@ _MAX_YEAR = 2026
 _MIN_MS   = 60_000   # 1 min
 _MAX_MS   = 600_000  # 10 min
 
-# initialize weight vec from prefernecnes 
-# returns the L2-normalized form of a vector
-
+# initialize weight vec from preferences
+# lyric dims are zeroed out at signup — they fill in as the user swipes songs
 def init_weight_vector_from_prefs(prefs_frontend):
-    # build a vector for each selected genre
+    # build a vector for each selected genre (14-dim metadata only)
     vectors = [build_feature_vector(genre, None, None) for genre in prefs_frontend]
-    
+
     if not vectors:
-        return l2_normalize([1.0] * 14)  # default if nothing selected
-    
-    # average them together
-    avg = [sum(v[i] for v in vectors) / len(vectors) for i in range(14)]
-    
-    return l2_normalize(avg)
+        base = [1.0] * N_GENRES + [0.5, 0.5]  # default if nothing selected
+    else:
+        base = [sum(v[i] for v in vectors) / len(vectors) for i in range(N_GENRES + 2)]
+
+    # pad with zeros for lyric dims
+    return l2_normalize(base + [0.0] * LYRIC_DIMS)
 
 # encodes a genre string into N_GENRES types
 # If the genre matches multiple types, weight is split evenly across matches
@@ -96,17 +103,85 @@ def build_feature_vector(genre, release_date, duration_ms):
 # returns the L2-normalized form of a vector, which is important for cosine similarity calculations
 # L2 normalization scales the vector to have a sum of squares equal to 1
 def l2_normalize(vec):
-    magnitude = math.sqrt(sum(x * x for x in vec))
+    arr = np.array(vec, dtype=np.float32)
+    magnitude = np.linalg.norm(arr)
     if magnitude == 0:
         return vec[:]
-    return [x / magnitude for x in vec]
+    return (arr / magnitude).tolist()
 
 # computes cosine similarity between two vectors
 # since both vectors are L2-normalized, the cosine similarity is just their dot product
 def cosine_similarity(v1, v2):
     if len(v1) != len(v2):
         raise ValueError(f"Vector length mismatch: {len(v1)} vs {len(v2)}")
-    return sum(a * b for a, b in zip(v1, v2))
+    return float(np.dot(v1, v2))
+
+# loads sentence-transformers model on first use and caches it for future calls
+def _get_model():
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+        _model = SentenceTransformer('all-MiniLM-L6-v2')
+    return _model
+
+# strip collaboration suffixes from song title since LRCLIB doesn't store them
+def _clean_title(title):
+    title = re.sub(r'\s*\(with [^)]+\)', '', title, flags=re.IGNORECASE)
+    title = re.sub(r'\s*\(feat\.?\s*[^)]+\)', '', title, flags=re.IGNORECASE)
+    return title.strip()
+
+# fetch lyrics for a song, trying LRCLIB first and falling back to lyrics.ovh if not found
+# returns (lyrics, instrumental)
+def fetch_lyrics(artist, title):
+    clean = _clean_title(title)
+
+    # LRCLIB — free, no auth, has an explicit instrumental flag
+    try:
+        resp = requests.get(
+            'https://lrclib.net/api/get',
+            params={'artist_name': artist, 'track_name': clean},
+            timeout=8
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get('instrumental'):
+                return None, True
+            lyrics = data.get('plainLyrics')
+            if lyrics:
+                return lyrics, False
+    except requests.exceptions.RequestException:
+        pass
+
+    # lyrics.ovh fallback, has a much larger, but less accurate database
+    try:
+        url = (
+            f'https://api.lyrics.ovh/v1/'
+            f'{urllib.parse.quote(artist)}/{urllib.parse.quote(clean)}'
+        )
+        resp = requests.get(url, timeout=8)
+        if resp.status_code == 200:
+            lyrics = resp.json().get('lyrics')
+            if lyrics:
+                return lyrics, False
+    except requests.exceptions.RequestException:
+        pass
+
+    return None, False
+
+# embeds lyrics into a 384-dim vector via sentence-transformers.
+# returns a zero vector if lyrics_text is None (instrumental or not found)
+def embed_lyrics(lyrics_text):
+    if not lyrics_text:
+        return [0.0] * LYRIC_DIMS
+    embedding = _get_model().encode(lyrics_text, normalize_embeddings=False)
+    return embedding.tolist()
+
+# builds a full 398-dim feature vector for a song by combining metadata and lyrics
+def build_full_feature_vector(genre, release_date, duration_ms, lyrics_text=None):
+    metadata = build_feature_vector(genre, release_date, duration_ms)  # 14-dim
+    lyric_vec = embed_lyrics(lyrics_text)                               # 384-dim
+    return metadata + lyric_vec
+
 
 # update a user's weight vector based on a swipe action
 # for a like, we move the weight vector slightly towards the song vector (scaled by alpha)
@@ -116,11 +191,14 @@ def update_weight_vector(current_vec, song_vec, action, alpha=0.1, beta=0.1):
     if len(current_vec) != len(song_vec):
         raise ValueError(f"Vector length mismatch: {len(current_vec)} vs {len(song_vec)}")
 
+    c = np.array(current_vec, dtype=np.float32)
+    s = np.array(song_vec, dtype=np.float32)
+
     if action == "like":
-        updated = [c + alpha * s for c, s in zip(current_vec, song_vec)]
+        updated = c + alpha * s
     elif action == "dislike":
-        updated = [c - beta * s for c, s in zip(current_vec, song_vec)]
+        updated = c - beta * s
     else:
         return current_vec[:]
 
-    return l2_normalize(updated)
+    return l2_normalize(updated.tolist())

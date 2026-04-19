@@ -24,7 +24,7 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from data.db import get_db as _open_db
-from data.vector_utils import cosine_similarity, update_weight_vector, l2_normalize, init_weight_vector_from_prefs
+from data.vector_utils import update_weight_vector, l2_normalize, init_weight_vector_from_prefs
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -130,36 +130,35 @@ def auth_callback():
         return jsonify({"error": "Failed to get user info"}), 400
     
     # Verify email
-    if not userinfo_response.json().get('email_verified'):
-        return jsonify({"error": "Email not verified"}), 400
-    
-    # Extract user info
     user_info = userinfo_response.json()
+    if not user_info.get('email_verified'):
+        return jsonify({"error": "Email not verified"}), 400
     email = user_info.get('email', '')
     name = user_info.get('name', '')
     
-    # Insert user if not already in DB
-    sql_cmd(
-        """INSERT INTO users (email, username) 
-        VALUES (%s, %s) 
-        ON CONFLICT (email) DO NOTHING;""",
-        (email, email)
-    )
-    
-    # Get user_id from database
-    rows = sql_cmd(
-        "SELECT user_id FROM users WHERE email = %s",
-        (email,),
+    # Insert user if not already in DB — RETURNING gives us user_id without a second query
+    inserted = sql_cmd(
+        """INSERT INTO users (email, username)
+        VALUES (%s, %s)
+        ON CONFLICT (email) DO NOTHING
+        RETURNING user_id;""",
+        (email, email),
         fetch=True
     )
-    
-    user_id = rows[0][0] if rows else None
-    
-    # Check if user is new (no preferences initialized yet)
+    if inserted:
+        user_id = inserted[0][0]
+    else:
+        rows = sql_cmd(
+            "SELECT user_id FROM users WHERE email = %s",
+            (email,), fetch=True
+        )
+        user_id = rows[0][0] if rows else None
+
+    # Check user_profiles — not just users — to detect incomplete onboarding
+    # (user may exist in DB but never finished seed preferences)
     user_profile_rows = sql_cmd(
         "SELECT 1 FROM user_profiles WHERE user_id = %s",
-        (user_id,),
-        fetch=True
+        (user_id,), fetch=True
     )
     is_new_user = len(user_profile_rows) == 0
     
@@ -271,30 +270,29 @@ def store_interaction():
             (data["user_id"], data["song_id"])
         )
 
-    # Update user weight vector based on this swipe
-    song_rows = sql_cmd(
-        "SELECT feature_vector FROM songs WHERE song_id = %s",
-        (data["song_id"],), fetch=True
+    # Fetch song feature vector and user profile in one query
+    # Cast to text so psycopg returns strings we can parse
+    rows = sql_cmd(
+        """SELECT s.feature_vector::text, up.weight_vector::text
+           FROM songs s
+           LEFT JOIN user_profiles up ON up.user_id = %s
+           WHERE s.song_id = %s""",
+        (data["user_id"], data["song_id"]), fetch=True
     )
 
-    # if the song has a feature vector, update the user's weight vector accordingly
-    if song_rows and song_rows[0][0] is not None:
-        song_vec = song_rows[0][0]
+    if rows and rows[0][0] is not None:
+        song_vec = json.loads(rows[0][0])
+        current_weight = json.loads(rows[0][1]) if rows[0][1] else None
 
-        profile_rows = sql_cmd(
-            "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
-            (data["user_id"],), fetch=True
-        )
-
-        if profile_rows and profile_rows[0][0] is not None:
-            new_vec = update_weight_vector(profile_rows[0][0], song_vec, data["action"])
+        if current_weight is not None:
+            new_vec = update_weight_vector(current_weight, song_vec, data["action"])
         else:
             # No profile yet — initialize from this song's vector
             new_vec = l2_normalize(song_vec[:])
 
         sql_cmd(
             """INSERT INTO user_profiles (user_id, weight_vector, updated_at)
-               VALUES (%s, %s, NOW())
+               VALUES (%s, %s::vector, NOW())
                ON CONFLICT (user_id) DO UPDATE
                SET weight_vector = EXCLUDED.weight_vector, updated_at = NOW()""",
             (data["user_id"], json.dumps(new_vec))
@@ -330,13 +328,22 @@ def get_liked_songs():
             "liked_at":         r[5].isoformat() if r[5] else None
         } for r in rows])
 
-# API route to get the next song recommendation for a user, using cosine similarity ranking with epsilon-greedy exploration
+# API route to get the next song recommendation for a user, using pgvector cosine similarity
 @app.route("/api/songs/next", methods=["GET"])
 def next_song():
     user_id = request.args.get("user_id")
-    rows = sql_cmd("""
-            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
-                a.artist_name, s.feature_vector
+
+    profile_rows = sql_cmd(
+        "SELECT weight_vector::text FROM user_profiles WHERE user_id = %s",
+        (user_id,), fetch=True
+    )
+
+    has_profile = profile_rows and profile_rows[0][0] is not None
+
+    if has_profile and random.random() > EPSILON:
+        # Similarity-ranked: let pgvector find the closest unseen song in one query
+        rows = sql_cmd("""
+            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
             FROM songs s
             JOIN song_artists sa ON s.song_id = sa.song_id
             JOIN artists a ON sa.artist_id = a.artist_id
@@ -345,24 +352,31 @@ def next_song():
                 UNION
                 SELECT song_id FROM disliked WHERE user_id = %s
             )
-            AND s.feature_vector IS NOT NULL;
+            AND s.feature_vector IS NOT NULL
+            ORDER BY s.feature_vector <=> %s::vector
+            LIMIT 1
+        """, (user_id, user_id, profile_rows[0][0]), fetch=True)
+    else:
+        # Random exploration or no profile yet
+        rows = sql_cmd("""
+            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
+            FROM songs s
+            JOIN song_artists sa ON s.song_id = sa.song_id
+            JOIN artists a ON sa.artist_id = a.artist_id
+            WHERE s.song_id NOT IN (
+                SELECT song_id FROM liked WHERE user_id = %s
+                UNION
+                SELECT song_id FROM disliked WHERE user_id = %s
+            )
+            AND s.feature_vector IS NOT NULL
+            ORDER BY RANDOM()
+            LIMIT 1
         """, (user_id, user_id), fetch=True)
 
     if not rows:
         return jsonify({"message": "no more songs"}), 404
 
-    # Use cosine similarity ranking unless exploring randomly
-    profile_rows = sql_cmd(
-        "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
-        (user_id,), fetch=True
-    )
- 
-    if profile_rows and profile_rows[0][0] is not None and random.random() > EPSILON:
-        weight_vec = profile_rows[0][0]
-        best = max(rows, key=lambda r: cosine_similarity(weight_vec, r[5]))
-    else:
-        best = random.choice(rows)
-
+    best = rows[0]
     return jsonify({
         "song_id":          best[0],
         "song_name":        best[1],
@@ -428,24 +442,18 @@ def save_preferences():
     if not user_id:
         return flask.jsonify({'error': 'Not authenticated'}), 401
 
-    # Update weight vector in users table
+    # Upsert weight vector into user_profiles
     sql_cmd(
-        "UPDATE users SET weight_vector = %s WHERE user_id = %s",
-        (json.dumps(vec), user_id)
-    )
-    
-    # Create user_profile entry (marks preferences as completed)
-    sql_cmd(
-        """INSERT INTO user_profiles (user_id, weight_vector) 
-           VALUES (%s, %s)
-           ON CONFLICT (user_id) DO UPDATE 
+        """INSERT INTO user_profiles (user_id, weight_vector)
+           VALUES (%s, %s::vector)
+           ON CONFLICT (user_id) DO UPDATE
            SET weight_vector = EXCLUDED.weight_vector""",
         (user_id, json.dumps(vec))
     )
 
     return flask.jsonify({'added weight vec to DB': True})
 
-# check if password is right... 
+# check if password is right 
 @app.route('/api/checkpw', methods=['POST'])
 def check_password():
     data = flask.request.get_json()
@@ -463,7 +471,6 @@ def check_password():
 
     user_id, email, stored_hash = result[0]
 
-    import bcrypt
     if bcrypt.checkpw(password.encode(), stored_hash.encode()):
         session["user"] = {
             "email": email,
