@@ -7,6 +7,7 @@
 import React from 'react'
 import {useCallback, useEffect} from 'react'
 import { useNavigate} from 'react-router-dom'
+import API_URL from './config'
 import Circle from "./AnimatedCircle.jsx"
 import musicNote1 from './musical-note-1.png'
 import musicNote2 from './musical-note-2.png'
@@ -23,8 +24,8 @@ function WelcomePage(){
     }
 
     function handleGoogleClick() {
-        console.log("login button clicked, teleport to login pg")
-        window.location.href = "http://localhost:5000/auth/login";
+        console.log("Google login button clicked, redirecting to Google OAuth")
+        window.location.href = `${API_URL}/auth/login`;
     }
 
     function handleCreateClick() {

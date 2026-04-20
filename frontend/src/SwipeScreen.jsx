@@ -66,6 +66,12 @@ function SwipeScreen() {
     // whether user can undo their last action
     const [canUndo, setCanUndo] = useState(false)
 
+    // audio player state
+    const audioRef = useRef(null)
+    const [isPlaying, setIsPlaying] = useState(false)
+    const [currentTime, setCurrentTime] = useState(0)
+    const [duration, setDuration] = useState(0)
+
     // ------------------ Song Fetching ----------------------------------
 
     // fetch user id from JWT-protected endpoint
@@ -222,10 +228,18 @@ function SwipeScreen() {
                 
             const response = await fetch(`${API_URL}/api/songs/action/${songId}`, {
                 method: 'DELETE',
-                headers: { "Content-Type": "application/json" },
-                credentials: 'include',
-                body: JSON.stringify({ user_id: userId })
+                headers: { 
+                    "Content-Type": "application/json",
+                    'Authorization': 'Bearer ' + sessionStorage.getItem('accesstoken'),
+                }
             })
+
+            if (response.status === 401 || response.status === 422) {
+                window.location.replace(
+                    API_URL + '/auth/login?originalurl=' + window.location.pathname
+                )
+                return
+            }
 
             if (response.ok) {
                 console.log("[SwipeScreen] Successfully undid song action")
@@ -305,28 +319,63 @@ function SwipeScreen() {
         }
     }, [isDragging, offsetX])
 
+    // format timestamp as mm:ss
+    const formatTime = (seconds) => {
+        if (!seconds || isNaN(seconds)) return '0:00'
+        const mins = Math.floor(seconds / 60)
+        const secs = Math.floor(seconds % 60)
+        return `${mins}:${secs.toString().padStart(2, '0')}`
+    }
+
+    // auto-play when song changes or page loads
+    useEffect(() => {
+        if (audioRef.current && currentSong) {
+            const attemptPlay = () => {
+                audioRef.current?.play()
+                    .then(() => setIsPlaying(true))
+                    .catch(err => console.log('Autoplay prevented by browser:', err))
+            }
+            
+            // Try to play immediately and also on loadeddata event
+            attemptPlay()
+            audioRef.current.addEventListener('loadeddata', attemptPlay)
+            
+            return () => {
+                audioRef.current?.removeEventListener('loadeddata', attemptPlay)
+            }
+        }
+    }, [currentSong])
+
     // ------------------- Keyboard Swipe --------------------------------  
 
     // Handle keyboard left and right arrow keys
     useEffect(() => { 
         // takes keyboard event e as param
         const handleKeyPress = (event) => {
+            if (event.code === 'Space') {
+                event.preventDefault()
+                if (audioRef.current) {
+                    if (isPlaying) {
+                        audioRef.current.pause()
+                    } else {
+                        audioRef.current.play()
+                    }
+                    setIsPlaying(!isPlaying)
+                }
+                return
+            }
             if (Math.abs(offsetX) > 100) return // prevent key spamming
             if (event.key === 'ArrowLeft') doSwipe('dislike')
             if (event.key === 'ArrowRight') doSwipe('like')
+            if (event.code === 'Backspace') handleUndo()
         }
 
         // respond to user keyboard actions
         window.addEventListener('keydown', handleKeyPress)
         // clean up listeners
         return () => window.removeEventListener('keydown', handleKeyPress)
-    }, [currentSong])
+    }, [currentSong, isPlaying, canUndo])
 
-    // ------------------- Logout Handler --------------------------------
-
-    const handleLogout = () => {
-        window.location.href = `${API_URL}/logoutapp`
-    }
 
     // --------------------- Swipe Screen Rendering ----------------------
 
@@ -339,44 +388,16 @@ function SwipeScreen() {
             'rgba(0, 128, 128, 0.3)'
         )}> 
 
-            {/* logout button in top left */}
-            <button 
-                style={cornerButtonStyle('left', 'top')} 
-                onClick={handleLogout}
-                title="Logout"
-            >
-                <img
-                    src={logoutIcon}
-                    alt=""
-                    style={{ width: '30px', height: '30px' }}
-                />
+            {/* top left action buttons */}
+            <button style={cornerButtonStyle('left', 'top')} onClick={() => navigate('/liked')} title="Liked Songs">♥</button>
+            <button style={{...cornerButtonStyle('left', 'top'), left: '71px'}} onClick={() => navigate('/search')} title="Search">
+                <img src={searchIcon} alt="Search" style={{ width: '24px', height: '24px' }} />
             </button>
-
-            {/* undo action button */}
-            <button 
-                style={cornerButtonStyle('right', 'top')}
-                onClick={handleUndo}>
-                ⟲
+            <button style={{...cornerButtonStyle('left', 'top'), left: '126px'}} onClick={() => navigate('/profile/' + sessionStorage.getItem('username'))} title="Profile">👤</button>
+            <button style={{...cornerButtonStyle('left', 'top'), left: '181px'}} onClick={() => window.location.href = `${API_URL}/logoutapp`} title="Logout">
+                <img src={logoutIcon} alt="Logout" style={{ width: '24px', height: '24px' }} />
             </button>
-
-            {/* search button to go to search page */}
-            <button 
-                style={cornerButtonStyle('right', 'bottom')} 
-                onClick={() => navigate('/search') }
-            >
-                <img
-                    src={searchIcon}
-                    alt=""
-                    style={{ width: '30px', height: '30px' }}
-                />
-            </button>
-
-            {/* button to go to liked songs page */}
-            <button 
-                style={cornerButtonStyle('left', 'bottom')}
-                onClick={() => navigate('/liked')}>
-                ♥
-            </button>
+            <button style={{...cornerButtonStyle('left', 'top'), left: '236px'}} onClick={() => navigate('/swipe')} title="Swipe">↔</button>
 
             {/* if no song loaded, show final message or loading screen */}
             {!currentSong ? (
@@ -396,6 +417,7 @@ function SwipeScreen() {
                         ref = {cardRef}
                         className="swipe-card-style"
                         style={{
+                            position: 'relative',
                             transition: isDragging
                                 // if dragging, card sticks to mouse 
                                 ? 'none' 
@@ -408,7 +430,28 @@ function SwipeScreen() {
                             zIndex: isDragging ? 100 : 1 
                         }}
                         onMouseDown={dragStart}
-                    >   
+                    >
+                        {/* undo button on card */}
+                        <button 
+                            style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                width: '40px',
+                                height: '40px',
+                                backgroundColor: '#a995dd4f',
+                                color: '#180d2b',
+                                fontSize: '24px',
+                                fontWeight: 'bold',
+                                border: 'none',
+                                borderRadius: '12px',
+                                cursor: 'pointer',
+                                zIndex: 10
+                            }}
+                            onClick={handleUndo}
+                            title="Undo">
+                            ⟲
+                        </button>   
 
                         {/* album art */}
                         {/* display song image or a default music icon */}
@@ -424,17 +467,72 @@ function SwipeScreen() {
                             <p style={{fontSize: '120px', 
                                        margin: '0 0 25px 0'}}>♫</p>
                         )}
-                        {/* audio preview */}
-                        <div style={{ 
-                                    filter: 'brightness(0.6)', 
-                                    display: 'flex',
-                                    justifyContent: 'center'
+                        {/* audio element */}
+                        <audio 
+                            ref={audioRef}
+                            src={currentSong.preview_mp3_url} 
+                            onPlay={() => setIsPlaying(true)}
+                            onPause={() => setIsPlaying(false)}
+                            onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
+                            onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration)}
+                        />
+
+                        {/* custom audio player */}
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            gap: '12px',
+                            marginTop: '20px',
+                            padding: '12px',
+                            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                            borderRadius: '8px'
                         }}>
-                            <audio 
-                                src={currentSong.preview_mp3_url} 
-                                autoPlay 
-                                controls 
-                                style={{ width: '220px'}}/>
+                            <button
+                                onClick={() => {
+                                    if (audioRef.current) {
+                                        if (isPlaying) audioRef.current.pause()
+                                        else audioRef.current.play()
+                                    }
+                                }}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#debff7',
+                                    fontSize: '18px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold'
+                                }}
+                                title="Play/Pause (Space)"
+                            >
+                                {isPlaying ? '⏸' : '▶'}
+                            </button>
+
+                            {/* progress bar */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max={duration || 0}
+                                    value={currentTime}
+                                    onChange={(e) => {
+                                        const newTime = parseFloat(e.target.value)
+                                        setCurrentTime(newTime)
+                                        if (audioRef.current) audioRef.current.currentTime = newTime
+                                    }}
+                                    style={{
+                                        flex: 1,
+                                        height: '3px',
+                                        borderRadius: '2px',
+                                        backgroundColor: '#444',
+                                        outline: 'none',
+                                        cursor: 'pointer'
+                                    }}
+                                />
+                                <span style={{ color: '#cdbfea', fontSize: '10px', width: '50px', textAlign: 'right', fontWeight: 'bold' }}>
+                                    {formatTime(currentTime)} / {formatTime(duration)}
+                                </span>
+                            </div>
                         </div>
 
                         {/* song info */}
@@ -459,6 +557,14 @@ function SwipeScreen() {
                             marginTop: '20px'
                         }}>
                             Swipe left to skip, right to like
+                        </p>
+                        <p style={{
+                            color: '#888', 
+                            fontFamily: 'Outfit, sans-serif', 
+                            fontSize: '11px', 
+                            marginTop: '6px'
+                        }}>
+                            <strong>Keys:</strong> Space (play/pause) | ← (skip) | → (like) | Backspace (undo)
                         </p>
                         
                         {/* Like and skip buttons (as an alternative to swiping) */}

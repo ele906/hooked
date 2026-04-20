@@ -57,7 +57,7 @@ GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 
 # Authentication routes
-@app.route("/auth/login", methods=['POST'])
+@app.route("/auth/login", methods=['GET', 'POST'])
 def login():
     original_url = request.args.get("originalurl", "/swipe")
     google_provider_cfg = requests.get(GOOGLE_DISCOVERY_URL, timeout=10).json()
@@ -78,7 +78,7 @@ def current_user_id():
     return rows[0][0] if rows else None
 
 # callback route that Google redirects to after login
-@app.route("/auth/callback", methods=['POST'])
+@app.route("/auth/callback", methods=['GET'])
 def auth_callback():
     authorization_code = request.args.get('code')
     original_url = request.args.get('state', '/swipe')
@@ -198,8 +198,8 @@ def signup():
     password = data.get("password", "")
     pfp = data.get("user_image_url", "")
 
-    if not email or not username or not password or not pfp:
-        return jsonify({"error": "All fields are required"}), 400
+    if not email or not username or not password:
+        return jsonify({"error": "Email, username, and password are required"}), 400
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
@@ -209,7 +209,7 @@ def signup():
             """INSERT INTO users (email, username, password_hash, user_image_url)
             VALUES (%s, %s, %s, %s)
             RETURNING user_id;""",
-            (email, username, hashed, pfp),
+            (email, username, hashed, pfp if pfp else None),
             fetch=True
         )
         user_id = rows[0][0]
@@ -259,36 +259,39 @@ def sql_cmd(command, params=(), fetch=False):
 @app.route("/api/songs/action", methods=["POST"])
 @flask_jwt_extended.jwt_required()
 def store_interaction():
-    user = session.get("user")
-    if not user:
+    user_id = current_user_id()
+    if not user_id:
         return jsonify({"error": "not logged in"}), 401
     
-    user_id = user["user_id"]  # from session, not frontend
     data = request.get_json()
-    data["user_id"] = current_user_id()
+    song_id = data.get("song_id")
+    action = data.get("action")
+    
+    if not song_id or not action:
+        return jsonify({"error": "song_id and action are required"}), 400
 
     # Update interactions table
     sql_cmd(
         "INSERT INTO interactions (user_id, song_id, type) VALUES (%s, %s, %s);",
-        (user_id, data["song_id"], data["action"])
+        (user_id, song_id, action)
     )
 
     # Update liked/disliked tables
-    if data["action"] == "like":
+    if action == "like":
         sql_cmd(
             "INSERT INTO liked (user_id, song_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
-            (user_id, data["song_id"])
+            (user_id, song_id)
         )
-    elif data["action"] == "dislike":
+    elif action == "dislike":
         sql_cmd(
             "INSERT INTO disliked (user_id, song_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
-            (user_id, data["song_id"])
+            (user_id, song_id)
         )
 
     # Update user weight vector based on this swipe
     song_rows = sql_cmd(
         "SELECT feature_vector FROM songs WHERE song_id = %s",
-        (data["song_id"],), fetch=True
+        (song_id,), fetch=True
     )
 
     # if the song has a feature vector, update the user's weight vector accordingly
@@ -297,11 +300,11 @@ def store_interaction():
 
         profile_rows = sql_cmd(
             "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
-            (data["user_id"],), fetch=True
+            (user_id,), fetch=True
         )
 
         if profile_rows and profile_rows[0][0] is not None:
-            new_vec = update_weight_vector(profile_rows[0][0], song_vec, data["action"])
+            new_vec = update_weight_vector(profile_rows[0][0], song_vec, action)
         else:
             new_vec = l2_normalize(song_vec[:])
 
@@ -394,11 +397,11 @@ def delete_liked_song(song_id):
 
 # For deleting a song action (like/dislike) from interactions
 @app.route("/api/songs/action/<int:song_id>", methods=["DELETE"])
+@flask_jwt_extended.jwt_required()
 def delete_song_action(song_id):
-    user = session.get("user")
-    if not user:
+    user_id = current_user_id()
+    if not user_id:
         return jsonify({"error": "not logged in"}), 401
-    user_id = user["user_id"]
 
     try:
         sql_cmd("DELETE FROM interactions WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
@@ -412,8 +415,8 @@ def delete_song_action(song_id):
 @app.route("/api/songs/search", methods=["GET"])
 @flask_jwt_extended.jwt_required()
 def search_songs():
-    user = session.get("user")
-    if not user:
+    user_id = current_user_id()
+    if not user_id:
         return jsonify({"error": "not logged in"}), 401
 
     query = request.args.get("params", "")
@@ -448,9 +451,10 @@ def search_songs():
 
 # this is for the search bar for freiendsfunction...
 @app.route("/api/friends/search", methods=["GET"])
+@flask_jwt_extended.jwt_required()
 def search_friends():
-    user = session.get("user")
-    if not user:
+    user_id = current_user_id()
+    if not user_id:
         return jsonify({"error": "not logged in"}), 401
 
     query = request.args.get("query", "")
@@ -459,7 +463,7 @@ def search_friends():
         return jsonify({"error": "query parameter is required"}), 400
 
     rows = sql_cmd("""
-        SELECT u.username, u.user_image_url
+        SELECT u.user_id, u.username, u.user_image_url
         FROM users u
         WHERE u.username ILIKE %s OR u.email ILIKE %s
         LIMIT 8;
@@ -471,16 +475,18 @@ def search_friends():
     results = []
     for r in rows:
         results.append({
-            "username":       r[0],
-            "user_image_url": r[1],
+            "user_id":        r[0],
+            "username":       r[1],
+            "user_image_url": r[2],
         })
 
     return jsonify({"users": results}), 200
 
 @app.route("/api/users/get/<username>", methods=["GET"])
+@flask_jwt_extended.jwt_required()
 def get_user_profile(username):
-    user = session.get("user")
-    if not user:
+    user_id = current_user_id()
+    if not user_id:
         return jsonify({"error": "not logged in"}), 401
 
     try:
@@ -502,10 +508,52 @@ def get_user_profile(username):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/friends/add', methods=['POST']) 
+@app.route("/api/users/<username>/liked", methods=["GET"])
+@flask_jwt_extended.jwt_required()
+def get_user_liked_songs(username):
+    """Get the last 5 liked songs for a given user"""
+    try:
+        # Get user_id from username
+        rows = sql_cmd(
+            "SELECT user_id FROM users WHERE username = %s",
+            (username,),
+            fetch=True
+        )
+        if not rows:
+            return jsonify({"error": "user not found"}), 404
+        
+        user_id = rows[0][0]
+        
+        # Get the last 5 liked songs ordered by most recent
+        liked_rows = sql_cmd("""
+            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
+                   a.artist_name, l.created_at
+            FROM liked l
+            JOIN songs s ON l.song_id = s.song_id
+            JOIN song_artists sa ON s.song_id = sa.song_id
+            JOIN artists a ON sa.artist_id = a.artist_id
+            WHERE l.user_id = %s
+            ORDER BY l.created_at DESC
+            LIMIT 5;
+        """, (user_id,), fetch=True)
+        
+        return jsonify([{
+            "song_id": r[0],
+            "song_name": r[1],
+            "song_image_url": r[2],
+            "preview_mp3_url": r[3],
+            "artist_name": r[4],
+            "liked_at": r[5].isoformat() if r[5] else None
+        } for r in liked_rows]), 200
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/friends/add', methods=['POST'])
+@flask_jwt_extended.jwt_required()
 def add_friend():
-    user = flask.session.get('user')
-    if not user:
+    user_id = current_user_id()
+    if not user_id:
         return flask.jsonify({'error': 'Not authenticated'}), 401
     
     data = flask.request.get_json()
@@ -522,10 +570,9 @@ def add_friend():
     if not rows:
         return flask.jsonify({'error': 'user not found'}), 404
 
-    my_id = user['user_id']
     friend_id = rows[0][0]
 
-    if my_id == friend_id:
+    if user_id == friend_id:
         return flask.jsonify({'error': 'cannot add yourself'}), 400
 
     # insert both directions
@@ -533,16 +580,52 @@ def add_friend():
         """INSERT INTO friends (user_id, friend_id)
            VALUES (%s, %s)
            ON CONFLICT (user_id, friend_id) DO NOTHING""",
-        (my_id, friend_id)
+        (user_id, friend_id)
     )
     sql_cmd(
         """INSERT INTO friends (user_id, friend_id)
            VALUES (%s, %s)
            ON CONFLICT (user_id, friend_id) DO NOTHING""",
-        (friend_id, my_id)
+        (friend_id, user_id)
     )
 
     return flask.jsonify({'added': True}), 200
+
+@app.route('/api/users/<username>/friends', methods=['GET'])
+@flask_jwt_extended.jwt_required()
+def get_user_friends(username):
+    """Get list of friends for a specific user"""
+    # Get user_id from username
+    rows = sql_cmd(
+        "SELECT user_id FROM users WHERE username = %s",
+        (username,), fetch=True
+    )
+    if not rows:
+        return flask.jsonify({'error': 'user not found'}), 404
+    
+    user_id = rows[0][0]
+    
+    # Get all friends for this user
+    rows = sql_cmd("""
+        SELECT u.user_id, u.username, u.user_image_url, u.email
+        FROM friends f
+        JOIN users u ON f.friend_id = u.user_id
+        WHERE f.user_id = %s
+    """, (user_id,), fetch=True)
+    
+    if not rows:
+        return flask.jsonify([]), 200
+    
+    friends = []
+    for r in rows:
+        friends.append({
+            'user_id': r[0],
+            'username': r[1],
+            'user_image_url': r[2],
+            'email': r[3]
+        })
+    
+    return flask.jsonify(friends), 200
 
 # seed preference
 @app.route('/api/preferences', methods=['POST'])

@@ -60,7 +60,7 @@ function App() {
                     <Route path="/liked" element={<ProtectedRoute><LikedSongs /></ProtectedRoute>} />
                     <Route path="/seedprefs" element={<ProtectedRoute><SeedPreferences /></ProtectedRoute>} />
                     <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
-                    <Route path="/profile/:username" element={<Profile />} />
+                    <Route path="/profile/:username" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                 </Routes>
             </AuthProvider>
         </BrowserRouter>

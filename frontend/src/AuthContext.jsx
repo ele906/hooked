@@ -1,7 +1,6 @@
 // -----------------------------------------------------------------------
-// Profile.jsx
-// Profile interface for Hooked (in progress)
-// Authors: Eleanor Liu
+// AuthContext.jsx
+// Authentication context and provider
 // -----------------------------------------------------------------------
 
 import { createContext, useContext, useEffect, useState } from "react";
@@ -12,16 +11,18 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(undefined);
 
   function fetchUser() {
-    return fetch("/auth/user", { credentials: "include" })
-      .then(res => {
-          console.log("auth/user status:", res.status)  // add this
-          return res.ok ? res.json() : null
-      })
-      .then(data => {
-          console.log("auth/user data:", data)  // add this
-          setUser(data)
-      })
-      .catch(() => setUser(null));
+    // Check if tokens exist in sessionStorage
+    const accessToken = sessionStorage.getItem('accesstoken');
+    const username = sessionStorage.getItem('username');
+    
+    if (!accessToken || !username) {
+      setUser(null);
+      return Promise.resolve(null);
+    }
+
+    // If tokens exist, user is logged in
+    setUser({ username, accessToken });
+    return Promise.resolve({ username, accessToken });
   }
 
   useEffect(() => {

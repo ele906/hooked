@@ -5,8 +5,11 @@
 // -----------------------------------------------------------------------
 
 import {useRef, useEffect, useState} from 'react'
-import { getScreenStyle } from './styles'
+import { getScreenStyle, cornerButtonStyle } from './styles'
+import searchIcon from './search_button.png'
+import logoutIcon from './logout_button.png'
 import { useNavigate } from 'react-router-dom'
+import API_URL from './config'
 import './index.css'
 
 function Friends(){
@@ -14,18 +17,8 @@ function Friends(){
     const navigate = useNavigate()
     const [user, setUser] = useState(null) // user for cookie
     const [friendQuery, setFriendQuery] = useState("")
-    const [results, setResults] = useState("")
+    const [results, setResults] = useState([])
     const controllerRef = useRef(null)
-    
-    function handleBackButton() {
-        console.log("back button clicked, go back to swipe page")
-        navigate(-1)
-    }
-
-    function handleHomeButton(){
-        console.log("back to home page")
-        navigate("/swipe")
-    }
 
     function searchFriend(my_frd_username) {
         if (controllerRef.current !== null) {
@@ -33,12 +26,27 @@ function Friends(){
         }
 
         controllerRef.current = new AbortController()
+        const accessToken = sessionStorage.getItem('accesstoken')
 
-        fetch(`http://localhost:5000/api/friends/search?query=${encodeURIComponent(my_frd_username)}`, {
+        fetch(`${API_URL}/api/friends/search?query=${encodeURIComponent(my_frd_username)}`, {
             signal: controllerRef.current.signal,
-            credentials: "include" 
+            headers: {
+                'Authorization': 'Bearer ' + accessToken,
+                'Accept': 'application/json',
+            }
         })
-            .then(res => res.json())
+            .then(res => {
+                if (res.status === 401 || res.status === 422) {
+                    window.location.replace(
+                        API_URL + '/auth/login?originalurl=' + window.location.pathname
+                    )
+                    return Promise.reject(new Error('Unauthorized'))
+                }
+                if (!res.ok) {
+                    return Promise.reject(new Error(`HTTP ${res.status}`))
+                }
+                return res.json()
+            })
             .then(data => {
                 if (Array.isArray(data.users)) {
                     setResults(data.users)
@@ -49,17 +57,16 @@ function Friends(){
             .catch(err => {
                 if (err.name !== 'AbortError') {
                     console.error("Search failed", err)
+                    setResults([])
                 }
             })
     }
 
     useEffect(() => {
-        fetch("/auth/user", { credentials: "include" })
-            .then(res => res.json())
-            .then(data => {
-                setUser(data)
-                console.log(data) 
-            })
+        const username = sessionStorage.getItem('username')
+        if (username) {
+            setUser({ username })
+        }
     }, [])
 
     return (
@@ -73,17 +80,19 @@ function Friends(){
             color: '#debff7'}}>
         
             <div className='card'>
-            <div className='card-header-2' style={{ paddingBottom: 0 }}> 
-                {user && <p style={{ color: '#debff7', fontWeight: 'bold', cursor: 'pointer' }} 
-                onClick={() => navigate(`/profile/${user.username}`)}>Welcome, {user.username}!</p>}
-            </div>
-            <div className='small-header' style={{ marginTop: 0 }}>
-                <h1>Friends</h1>
+            <div className='card-header'>
+                <button style={cornerButtonStyle('left', 'top')} onClick={() => navigate('/liked')} title="Liked Songs">♥</button>
+                <button style={{...cornerButtonStyle('left', 'top'), left: '71px'}} onClick={() => navigate('/search')} title="Search">
+                    <img src={searchIcon} alt="Search" style={{ width: '24px', height: '24px' }} />
+                </button>
+                <button style={{...cornerButtonStyle('left', 'top'), left: '126px'}} onClick={() => navigate('/profile/' + user?.username)} title="Profile">👤</button>
+                <button style={{...cornerButtonStyle('left', 'top'), left: '181px'}} onClick={() => window.location.href = `${API_URL}/logoutapp`} title="Logout">
+                    <img src={logoutIcon} alt="Logout" style={{ width: '24px', height: '24px' }} />
+                </button>
+                <button style={{...cornerButtonStyle('left', 'top'), left: '236px'}} onClick={() => navigate('/swipe')} title="Swipe">↔</button>
+                
                 <div style={{ flex: 1 }} />
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className='back-btn' onClick={() => navigate("/swipe")}>Home</button>
-                    <button className='back-btn' onClick={() => navigate(-1)}>Back</button>
-                </div>
+                <h2>Friends</h2>
             </div>
 
             <input

@@ -8,6 +8,7 @@
 import React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import { useNavigate} from 'react-router-dom'
+import API_URL from './config'
 import Circle from "./AnimatedCircle.jsx"
 import { getScreenStyle } from './styles'
 import musicNote1 from './musical-note-1.png'
@@ -82,6 +83,11 @@ function SeedPreferences(){
             'rgba(219, 100, 165, 0.4)',
             'rgba(126, 169, 194, 0.3)'),
             color: '#debff7'}}>
+
+            <div style={{ position: 'fixed', top: '16px', left: '16px', display: 'flex', gap: '8px', zIndex: 100 }}>
+                <button className='back-btn' onClick={() => navigate(-1)}>Back</button>
+                <button onClick={() => window.location.href = `${API_URL}/logoutapp`}>Logout</button>
+            </div>
 
             <h1>Preferences</h1>
 
