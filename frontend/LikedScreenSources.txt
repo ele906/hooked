@@ -1,4 +1,7 @@
-// Liked Screen
+-----------------------------------------------------------------------
+Sources used for liked songs screen
+Authors: Lucille Rizo Patron
+-----------------------------------------------------------------------
 
 Scrollbar (for when liked songs list too long):
 https://www.w3schools.com/css/css_overflow.asp
@@ -6,8 +9,13 @@ https://www.w3schools.com/css/css_overflow.asp
 JavaScript map() function (for rendering list of songs):
 https://legacy.reactjs.org/docs/lists-and-keys.html
 
-//filter
+filter array:
+https://www.w3schools.com/jsref/jsref_filter.asp
 
-//::placeholder
+change placeholder color:
+https://stackoverflow.com/questions/2610497/change-an-html-inputs-placeholder-color-with-css
 
-not finished...
+blur background:
+https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/backdrop-filter
+
+to be continued...

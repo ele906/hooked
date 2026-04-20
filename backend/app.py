@@ -683,7 +683,7 @@ def check_password():
         refresh = flask_jwt_extended.create_refresh_token(identity=email)
         return jsonify({
             'logged_in': True,
-            'username': email,
+            'username': username,
             'accesstoken': access,
             'refreshtoken': refresh,
             'email_verified': bool(email_verified),

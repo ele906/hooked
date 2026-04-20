@@ -56,37 +56,47 @@ function WelcomePage(){
             'rgba(158, 123, 255, 0.4)',
             'rgba(68, 161, 178, 0.25)',
             'rgba(112, 59, 173, 0.4)',
-            'rgba(134, 190, 219, 0.3)'),
+            'rgba(134, 191, 219, 0.37)'),
             color: '#debff7'}}>
             
-            <h1> Hooked </h1>
-            <div> Reel in Your Next Playlist </div>
-                {/* teleports to either login or signup*/}
+            <div className = "welcome-card-style">
 
-                    <Circle image={musicNote1}/>
-                    <Circle image={musicNote1}/>
-                    <Circle image={musicNote1}/>
-                    <Circle image={musicNote1}/>
-                    <Circle image={musicNote2}/>
-                    <Circle image={musicNote2}/>                    
-                    <Circle image={musicNote2}/>
-                    <Circle image={musicNote2}/>
-                    <Circle image={musicNote2}/>
+                <div className = "hooked-header-style"
+                style = {{fontSize: '100px'}}>
+                    ♫
+                </div>
 
-                    <button className = 'btn-3' onClick={(handleLoginClick)}>
+                <div className = "hooked-header-style">
+                    Hooked 
+                </div>
+
+                <div style = {{marginBottom: '85px'}}> Reel in Your Next Playlist </div>
+                    {/* teleports to either login or signup*/}
+
+                <button className = 'welcome-button' onClick={(handleLoginClick)}>
                         Login
                     </button>
 
-                    <button className = 'btn-3' onClick={(handleCreateClick)}> 
+                <button className = 'welcome-button' onClick={(handleCreateClick)}>
                         Sign Up
-                    </button>
+                </button>
 
-                    <button className = 'btn-3' onClick={handleGoogleClick}>
-                        Continue with Google
-                    </button>
+                <button className = 'welcome-button' onClick={handleGoogleClick}
+                    style={{backgroundColor: '#9bf0ff', marginBottom: '50px'}}>
+                    Continue with Google
+                </button>      
+            
+            </div>
+                        <Circle image={musicNote1}/>
+                        <Circle image={musicNote1}/>
+                        <Circle image={musicNote1}/>
+                        <Circle image={musicNote1}/>
+                        <Circle image={musicNote2}/>
+                        <Circle image={musicNote2}/>                    
+                        <Circle image={musicNote2}/>
+                        <Circle image={musicNote2}/>
+                        <Circle image={musicNote2}/>
         </div>
-        
-        
     )
 }
 
