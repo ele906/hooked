@@ -4,7 +4,7 @@
 // Authors: Lucille Rizo Patron, Eleanor Liu
 // -----------------------------------------------------------------------
 
-import React, { use } from 'react'
+import React from 'react'
 import {useState, useEffect} from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
@@ -28,6 +28,8 @@ function Navigation() {
 
     // ------------------ Set Up Navigation ----------------------------
 
+    const username = user?.username || sessionStorage.getItem('username') || ''
+
     const menu = [
         {name: 'Swipe', path: '/swipe', protected: true},
         {name: 'Liked Songs', path: '/liked', protected: true},
@@ -35,7 +37,7 @@ function Navigation() {
         {name: 'Friends', path: '/friends', protected: true},
         { 
             name: 'Profile', 
-            path: `/profile/${user.username}`, 
+            path: `/profile/${username}`, 
             protected: true 
         },
     ]
