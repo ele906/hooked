@@ -318,12 +318,13 @@ def store_interaction():
     # Update weight vector
     new_vec = update_weight_vector(prof_vec, song_vec, action)
 
+    vec_str = "[" + ",".join(str(v) for v in new_vec) + "]"
     sql_cmd(
         """INSERT INTO user_profiles (user_id, weight_vector, updated_at)
-           VALUES (%s, %s, NOW())
+           VALUES (%s, %s::text::vector, NOW())
            ON CONFLICT (user_id) DO UPDATE
            SET weight_vector = EXCLUDED.weight_vector, updated_at = NOW()""",
-        (user_id, json.dumps(new_vec))
+        (user_id, vec_str)
     )
 
     return jsonify({"status": "ok"}), 201
@@ -401,7 +402,7 @@ def next_song():
                     SELECT song_id FROM disliked WHERE user_id = %s
                 )
                 AND s.feature_vector IS NOT NULL
-                ORDER BY s.feature_vector <=> %s::vector
+                ORDER BY s.feature_vector <=> %s::text::vector
                 LIMIT 1
             """, (user_id, user_id, profile_rows[0][0]), fetch=True)
         else:
@@ -417,6 +418,22 @@ def next_song():
                     SELECT song_id FROM disliked WHERE user_id = %s
                 )
                 AND s.feature_vector IS NOT NULL
+                ORDER BY RANDOM()
+                LIMIT 1
+            """, (user_id, user_id), fetch=True)
+
+        if not rows:
+            # Fallback: serve any unseen song even without feature_vector
+            rows = sql_cmd("""
+                SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
+                FROM songs s
+                JOIN song_artists sa ON s.song_id = sa.song_id
+                JOIN artists a ON sa.artist_id = a.artist_id
+                WHERE s.song_id NOT IN (
+                    SELECT song_id FROM liked WHERE user_id = %s
+                    UNION
+                    SELECT song_id FROM disliked WHERE user_id = %s
+                )
                 ORDER BY RANDOM()
                 LIMIT 1
             """, (user_id, user_id), fetch=True)
@@ -694,12 +711,13 @@ def save_preferences():
     )
     
     # Create user_profile entry (marks preferences as completed)
+    vec_str = "[" + ",".join(str(v) for v in vec) + "]"
     sql_cmd(
         """INSERT INTO user_profiles (user_id, weight_vector) 
-           VALUES (%s, %s)
+           VALUES (%s, %s::text::vector)
            ON CONFLICT (user_id) DO UPDATE 
            SET weight_vector = EXCLUDED.weight_vector""",
-        (user_id, json.dumps(vec))
+        (user_id, vec_str)
     )
 
     return flask.jsonify({'added weight vec to DB': True})
