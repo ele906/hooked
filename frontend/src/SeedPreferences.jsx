@@ -3,10 +3,12 @@
 // Swipe Interface for Hooked
 // Author: Eleanor Liu,  Lucille Rizo Patron
 // -----------------------------------------------------------------------
+/* eslint-disable react-hooks/rules-of-hooks */
 
 import React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import { useNavigate} from 'react-router-dom'
+import API_URL from './config'
 import Circle from "./AnimatedCircle.jsx"
 import { getScreenStyle } from './styles'
 import musicNote1 from './musical-note-1.png'
@@ -22,6 +24,13 @@ const GENRES = [
 ]
 
 function SeedPreferences(){
+    if (!sessionStorage.getItem('username')) {
+        window.location.replace(
+            API_URL + '/auth/login?originalurl=' + window.location.pathname
+        )
+        return null
+    }
+
     const navigate = useNavigate()
     const [selected, setSelected] = useState(new Set())
     const { fetchUser } = useAuth() // fetch from auth
@@ -32,12 +41,20 @@ function SeedPreferences(){
     }
 
     async function handleContinue() {
-        await fetch('/api/preferences', {
+        const response = await fetch(`${API_URL}/api/preferences`, {
             method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prefs: [...selected] })  // selected is your Set
+            headers: {
+                'Authorization': 'Bearer ' + sessionStorage.getItem('accesstoken'),
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ prefs: [...selected] })
         })
+        if (response.status === 401 || response.status === 422) {
+            window.location.replace(
+                API_URL + '/auth/login?originalurl=' + window.location.pathname
+            )
+            return
+        }
         navigate('/swipe')
     }
 
@@ -66,6 +83,11 @@ function SeedPreferences(){
             'rgba(219, 100, 165, 0.4)',
             'rgba(126, 169, 194, 0.3)'),
             color: '#debff7'}}>
+
+            <div style={{ position: 'fixed', top: '16px', left: '16px', display: 'flex', gap: '8px', zIndex: 100 }}>
+                <button className='back-btn' onClick={() => navigate(-1)}>Back</button>
+                <button onClick={() => window.location.href = `${API_URL}/logoutapp`}>Logout</button>
+            </div>
 
             <h1>Preferences</h1>
 

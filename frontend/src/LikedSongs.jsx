@@ -1,21 +1,29 @@
 // -----------------------------------------------------------------------
 // LikedSongs.jsx
 // Liked Songs Interface for Hooked
-// Authors: Lucille Rizo Patron, Eleanor Liu
+// Author: Lucille Rizo Patron, Eleanor Liu
 // -----------------------------------------------------------------------
+/* eslint-disable react-hooks/rules-of-hooks */
 
 import React, { use } from 'react'
 import {useState, useRef, useEffect} from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { getScreenStyle, cornerButtonStyle } from './styles'
-import API_URL from './config'
-import { useAuth } from './AuthContext'
 import searchIcon from './search_button.png'
-import Navigation from './Navigation'
+import logoutIcon from './logout_button.png'
+import API_URL from './config'
+
 
 // Renders the liked songs screen where users can view and manage their 
 // liked songs list.
 function LikedSongs() {
+
+    if (!sessionStorage.getItem('username')) {
+        window.location.replace(
+            API_URL + '/auth/login?originalurl=' + window.location.pathname
+        )
+        return null
+    }
 
     // enables flow from one screen to another
     const navigate = useNavigate()
@@ -24,90 +32,56 @@ function LikedSongs() {
     const [likedSongs, setLikedSongs] = useState([])
 
     // store user id
-    const { user } = useAuth() 
     const [userId, setUserId] = useState(null)
 
     // search query to filter liked songs
     const [query, setQuery] = useState("")
 
-    // ------------------ Liked Song Fetching ----------------------------
+    // pagination
+    const [currentPage, setCurrentPage] = useState(0)
+    const SONGS_PER_PAGE = 10
 
-    // check if user in authenticated before rendering the liked screen
-    // and get user id
-    useEffect(() => {
-        if (user) setUserId(user.user_id)
-    }, [user])
+    // ------------------ Liked Song Fetching ----------------------------
 
     // fetch liked songs
     useEffect(() => {
         async function fetchLikedSongs() {
-            try {
-                console.log("[LikedSongs] Fetching user authentication")
-                
-                // check for user authentication before fetching liked songs
-                const authResponse = await fetch(`${API_URL}/auth/user`, { 
-                    credentials: "include" 
-                })
-
-                if (!authResponse.ok) {
-                    throw new Error(`Auth failed with status ${authResponse.status}`)
-                }
-
-                const authData = await authResponse.json()
-
-                if (!authData || !authData.user_id) {
-                    throw new Error("No user_id in auth response")
-                }
-
-                // set userId
-                setUserId(authData.user_id)
-                console.log("[LikedSongs] Fetching liked songs for userId:", authData.user_id)
-
-                const songsResponse = await fetch(`${API_URL}/api/songs/liked?user_id=${authData.user_id}`, 
-                    { credentials: "include" }
-                )
-                
-                const songs = await songsResponse.json()
-
-                // update liked songs list after fetching
-                if (Array.isArray(songs)) {
-                    console.log("[LikedSongs] Setting liked songs, count:", songs.length)
-                    setLikedSongs(songs)
-                } else {
-                    console.error("[LikedSongs] Expected array of songs but got:", songs)
-                    setLikedSongs([])
-                }
-
-            } catch (error) {
-                console.error("[LikedSongs] Error fetching liked songs:", error.message)
-                setLikedSongs([])
+            const authHeader = {
+                'Authorization': 'Bearer ' + sessionStorage.getItem('accesstoken'),
+                'Accept': 'application/json',
             }
+            const songsResponse = await fetch(`${API_URL}/api/songs/liked`, { headers: authHeader })
+            if (songsResponse.status === 401 || songsResponse.status === 422) {
+                window.location.replace(
+                    API_URL + '/auth/login?originalurl=' + window.location.pathname
+                )
+                return
+            }
+            const songs = await songsResponse.json()
+            if (Array.isArray(songs)) setLikedSongs(songs)
+            else setLikedSongs([])
         }
-
         fetchLikedSongs()
     }, [])
 
     // delete a liked song, takes an integer song id and removes it from the 
     // user's liked songs list
     async function deleteLikedSong(songId) {
-        try {
-            console.log("[LikedSongs] Deleting song with id:", songId)
-                
-            const response = await fetch(`${API_URL}/api/songs/liked/${songId}`, {
-                method: 'DELETE',
-                credentials: 'include'
-            })
-
-            if (response.ok) {
-                console.log("[LikedSongs] Successfully deleted song, updating UI")
-                // update UI by filtering out deleted song
-                setLikedSongs(prev => prev.filter(song => song.song_id !== songId))
-            } else {
-                throw new Error(`Delete failed with status: ${response.status}`)
+        const response = await fetch(`${API_URL}/api/songs/liked/${songId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': 'Bearer ' + sessionStorage.getItem('accesstoken'),
+                'Accept': 'application/json',
             }
-
-        } catch (error) {
-            console.error("[LikedSongs] Error deleting song:", error.message)
+        })
+        if (response.status === 401 || response.status === 422) {
+            window.location.replace(
+                API_URL + '/auth/login?originalurl=' + window.location.pathname
+            )
+            return
+        }
+        if (response.ok) {
+            setLikedSongs(prev => prev.filter(song => song.song_id !== songId))
         }
     }
 
@@ -116,6 +90,12 @@ function LikedSongs() {
         song.song_name.toLowerCase().includes(query.toLowerCase()) || 
         song.artist_name.toLowerCase().includes(query.toLowerCase())
     );
+
+    // calculate pagination
+    const totalPages = Math.ceil(filteredSongs.length / SONGS_PER_PAGE);
+    const paginatedSongs = filteredSongs.slice(currentPage * SONGS_PER_PAGE, (currentPage + 1) * SONGS_PER_PAGE);
+    const hasNextPage = currentPage < totalPages - 1;
+    const hasPrevPage = currentPage > 0;
 
     // ------------------ Render Liked Songs Screen ----------------------
     
@@ -127,7 +107,16 @@ function LikedSongs() {
             'rgba(137, 59, 173, 0.4)',
             'rgba(255, 102, 0, 0.49)')}>
 
-            <Navigation />
+            {/* top left buttons */}
+            <button style={cornerButtonStyle('left', 'top')} onClick={() => navigate('/liked')} title="Liked Songs">♥</button>
+            <button style={{...cornerButtonStyle('left', 'top'), left: '71px'}} onClick={() => navigate('/search')} title="Search">
+                <img src={searchIcon} alt="Search" style={{ width: '24px', height: '24px' }} />
+            </button>
+            <button style={{...cornerButtonStyle('left', 'top'), left: '126px'}} onClick={() => navigate('/profile/' + sessionStorage.getItem('username'))} title="Profile">👤</button>
+            <button style={{...cornerButtonStyle('left', 'top'), left: '181px'}} onClick={() => window.location.href = `${API_URL}/logoutapp`} title="Logout">
+                <img src={logoutIcon} alt="Logout" style={{ width: '24px', height: '24px' }} />
+            </button>
+            <button style={{...cornerButtonStyle('left', 'top'), left: '236px'}} onClick={() => navigate('/swipe')} title="Swipe">↔</button>
 
             {/* title of page */}
             <h2 className="liked-songs-header-style">Your Liked Tracks</h2>
@@ -140,39 +129,79 @@ function LikedSongs() {
                     type="text"
                     placeholder="  Search for liked songs"
                     value={query}
-                    onChange={(e) => 
+                    onChange={(e) => {
                         setQuery(e.target.value)
-                    }
+                        setCurrentPage(0)
+                    }}
                     className="liked-search-bar"
                 />
                 
                 {/* display liked songs */}
-                {filteredSongs.length > 0 ? (
-                    filteredSongs.map((song) => (
-                        <div key={song.song_id} 
-                            className="liked-song-box-style">
+                {paginatedSongs.length > 0 ? (
+                    <>
+                        {paginatedSongs.map((song) => (
+                            <div key={song.song_id} 
+                                className="liked-song-box-style">
 
-                            {/* album art */}
-                            <img src={song.song_image_url} 
-                                className="liked-album-art-style"  
-                            />
-                            
-                            {/* song info*/}
-                            <div className="liked-song-info-style">
-                                {/* song name */}
-                                <div className="liked-song-name-style">{song.song_name}</div>
-                                {/* artist name */}
-                                <div className="liked-artist-name-style">{song.artist_name}</div>
+                                {/* album art */}
+                                <img src={song.song_image_url} 
+                                    className="liked-album-art-style"  
+                                />
+                                
+                                {/* song info*/}
+                                <div className="liked-song-info-style">
+                                    {/* song name */}
+                                    <div className="liked-song-name-style">{song.song_name}</div>
+                                    {/* artist name */}
+                                    <div className="liked-artist-name-style">{song.artist_name}</div>
+                                </div>
+
+                                {/* delete song button */}
+                                <button 
+                                    onClick={() => deleteLikedSong(song.song_id)}
+                                    className="delete-liked-button-style">
+                                    ✕
+                                </button>
                             </div>
-
-                            {/* delete song button */}
-                            <button 
-                                onClick={() => deleteLikedSong(song.song_id)}
-                                className="delete-liked-button-style">
-                                ✕
-                            </button>
-                        </div>
-                    ))
+                        ))}
+                        
+                        {/* pagination controls */}
+                        {totalPages > 1 && (
+                            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', padding: '16px', alignItems: 'center' }}>
+                                <button 
+                                    onClick={() => setCurrentPage(p => p - 1)}
+                                    disabled={!hasPrevPage}
+                                    style={{
+                                        opacity: hasPrevPage ? 1 : 0.3,
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#debff7',
+                                        fontSize: '20px',
+                                        cursor: hasPrevPage ? 'pointer' : 'default'
+                                    }}
+                                >
+                                    ‹ Prev
+                                </button>
+                                <span style={{ color: '#debff7', fontSize: '14px', fontWeight: 'bold' }}>
+                                    Page {currentPage + 1} of {totalPages}
+                                </span>
+                                <button 
+                                    onClick={() => setCurrentPage(p => p + 1)}
+                                    disabled={!hasNextPage}
+                                    style={{
+                                        opacity: hasNextPage ? 1 : 0.3,
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#debff7',
+                                        fontSize: '20px',
+                                        cursor: hasNextPage ? 'pointer' : 'default'
+                                    }}
+                                >
+                                    Next ›
+                                </button>
+                            </div>
+                        )}
+                    </>
                 ) : (
                     <p style={{ marginTop: '20px',
                         color: '#d6c4c0f6',

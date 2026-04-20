@@ -6,8 +6,10 @@
 
 import {useState, useRef, useEffect} from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getScreenStyle } from './styles'
-import Navigation from './Navigation'
+import API_URL from './config'
+import { getScreenStyle, cornerButtonStyle } from './styles'
+import searchIcon from './search_button.png'
+import logoutIcon from './logout_button.png'
 import './index.css'
 
 function SearchScreen() {
@@ -26,11 +28,27 @@ function SearchScreen() {
         // start a new one
         controllerRef.current = new AbortController()
 
-        fetch(`http://localhost:5000/api/songs/search?params=${encodeURIComponent(my_params)}`, {
-            signal: controllerRef.current.signal,
-            credentials: "include" 
+        const accessToken = sessionStorage.getItem('accesstoken')
+        
+        fetch(`${API_URL}/api/songs/search?params=${encodeURIComponent(my_params)}`, {
+            signal: controllerRef.current.signal,  // attach the abort signal
+            headers: {
+                'Authorization': 'Bearer ' + accessToken,
+                'Accept': 'application/json',
+            }
         })
-            .then(res => res.json())
+            .then(res => {
+                if (res.status === 401 || res.status === 422) {
+                    window.location.replace(
+                        API_URL + '/auth/login?originalurl=' + window.location.pathname
+                    )
+                    return Promise.reject(new Error('Unauthorized'))
+                }
+                if (!res.ok) {
+                    return Promise.reject(new Error(`HTTP ${res.status}`))
+                }
+                return res.json()
+            })
             .then(data => {
                 if (Array.isArray(data)) {
                     setResults(data)
@@ -45,56 +63,56 @@ function SearchScreen() {
             })
     }
 
-    // obtain the credentials from cookie
-    // src: https://dev.to/velcruza/how-to-display-different-components-based-on-user-authentication-8o5
+    // get user from sessionStorage (set by JWT auth flow)
     useEffect(() => {
-        fetch("/auth/user", { credentials: "include" })
-            .then(res => res.json())
-            .then(data => {
-                setUser(data)
-                console.log(data) 
-            })
+        const username = sessionStorage.getItem('username')
+        if (username) {
+            setUser({ username })
+        }
     }, [])
     
     return (
         <div style = {{...getScreenStyle(
-            'rgba(125, 123, 255, 0.4)',
-            'hsla(229, 100%, 81%, 0.50)',
-            'rgba(173, 151, 225, 0.4)',
-            'rgba(94, 169, 255, 0.45)'),
+            'rgba(158, 123, 255, 0.4)',
+            'rgba(217, 184, 227, 0.25)',
+            'rgba(186, 151, 225, 0.4)',
+            'rgba(219, 185, 210, 0.3)'),
             color: '#debff7'}}>
 
-            <Navigation />
-            
-            <div className="search-card">
-            <div className="welcome-user-message"> 
-                {user && ( 
-                    <div 
-                        onClick={() => navigate(`/profile/${user.username}`)}>
-                        Welcome, {user.username}!
-                    </div> 
-                )}
-            </div>
+            <div className="card">
 
-            <div className='search-header-style'>
-                Search
+            <div className='card-header'>
+            <button style={cornerButtonStyle('left', 'top')} onClick={() => navigate('/liked')} title="Liked Songs">♥</button>
+            <button style={{...cornerButtonStyle('left', 'top'), left: '71px'}} onClick={() => navigate('/search')} title="Search">
+                <img src={searchIcon} alt="Search" style={{ width: '24px', height: '24px' }} />
+            </button>
+            <button style={{...cornerButtonStyle('left', 'top'), left: '126px'}} onClick={() => navigate('/profile/' + user?.username)} title="Profile">👤</button>
+            <button style={{...cornerButtonStyle('left', 'top'), left: '181px'}} onClick={() => window.location.href = `${API_URL}/logoutapp`} title="Logout">
+                <img src={logoutIcon} alt="Logout" style={{ width: '24px', height: '24px' }} />
+            </button>
+            <button style={{...cornerButtonStyle('left', 'top'), left: '236px'}} onClick={() => navigate('/swipe')} title="Swipe">↔</button>
+            
+            <div style={{ flex: 1 }} />
+            <h2>Search</h2>
             </div>
+            
 
             {/* search bar */}
             <input
                 type="text"
                 value={query}
+                // this detects changes in search and does the search function...
                 onChange={(e) => {
                     setQuery(e.target.value)
                     searchSong(e.target.value)
                 }}
                 placeholder="Search songs..."
-                className='search-bar'
+                className = 'input-box-2'
             />
 
             {/* results */}
             {results.length > 0 ? (
-                <div className="search-results-list">
+                <div className="results-list">
                     {results.map(song => (
                         <div key={song.song_id} className="search-song-box" onClick={() => navigate('/swipe', {state: {song}})}>
                             <img src={song.song_image_url} alt={song.song_name} className="song-img-box"/>
@@ -107,7 +125,7 @@ function SearchScreen() {
                     <p>No results found!</p>
                 </div>
             )}
-        </div>
+            </div>
         </div>
     )
 }

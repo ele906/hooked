@@ -1,23 +1,24 @@
 // -----------------------------------------------------------------------
 // Profile.jsx
 // Profile interface for Hooked (in progress)
-// Authors: Eleanor Liu, Lucille Rizo Patron
+// Authors: Eleanor Liu
+// Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
 import {useEffect, useState} from 'react'
-import {useParams, useNavigate, useLocation } from 'react-router-dom'
+import {useParams, useNavigate } from 'react-router-dom'
 import './index.css'
-import { getScreenStyle } from './styles'
+import { getScreenStyle, cornerButtonStyle } from './styles'
+import searchIcon from './search_button.png'
+import logoutIcon from './logout_button.png'
 import API_URL from './config'
-import Navigate from './Navigation'
 
 function Profile(){
 
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
-    const location = useLocation();
-    const { username } = useParams() // whoever's profile we're viewing
-    const isOwnProfile = location.state?.isOwnProfile || user?.username === username
+    const { username } = useParams()       // whoever's profile we're viewing
+    const isOwnProfile = user?.username === username
 
     // --- stats ---
     const [likedSongs, setLikedSongs] = useState([]);
@@ -30,22 +31,33 @@ function Profile(){
 
     // get whoever's profile we're viewing
     useEffect(() => {
-        fetch(`http://localhost:5000/api/users/get/${username}`, { credentials: "include" })
+        const accessToken = sessionStorage.getItem('accesstoken')
+        if (!accessToken) return
+        
+        fetch(`${API_URL}/api/users/get/${username}`, { 
+            headers: {
+                'Authorization': 'Bearer ' + accessToken,
+                'Accept': 'application/json',
+            }
+        })
             .then(res => res.json())
             .then(data => setProfileData(data))
     }, [username])
 
 
     function handleBackButton() {
-        console.log("back button clicked, go back to sw9pe page")
+        console.log("back button clicked, go back to swipe page")
         navigate(-1)
     }
 
     function handleAddFriend() {
-        fetch("http://localhost:5000/api/friends/add", {
+        const accessToken = sessionStorage.getItem('accesstoken')
+        fetch(`${API_URL}/api/friends/add`, {
             method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                'Authorization': 'Bearer ' + accessToken,
+            },
             body: JSON.stringify({ friend_username: profileData.username })
         })
             .then(res => res.json())
@@ -59,56 +71,62 @@ function Profile(){
             .catch(err => console.error("Add friend failed", err))
     }
 
-    // obtain the credentials from cookie
-    // src: https://dev.to/velcruza/how-to-display-different-components-based-on-user-authentication-8o5
+    // Get current user from sessionStorage (set by JWT auth flow)
+    // Fetch profile data and liked songs
     useEffect(() => {
-        let isMounted = true; // 1. Prevent state updates on unmounted component
+        let isMounted = true;
         const controller = new AbortController();
+        const accessToken = sessionStorage.getItem('accesstoken')
+        const currentUsername = sessionStorage.getItem('username')
 
-        fetch("/auth/user", { credentials: "include", signal: controller.signal })
-            .then(res => {
-            if (!res.ok) throw new Error("User auth failed");
-            return res.json();
-            })
-            .then(data => {
-            if (!isMounted) return;
-            setUser(data);
+        // Set current user from sessionStorage
+        if (isMounted && currentUsername) {
+            setUser({ username: currentUsername });
+        }
 
-            // 2. Safely check for data.user_id before fetching again
-            if (data && data.user_id) {
-                console.log(data.user_id);
-                console.log(data.username);
-                console.log(data.email);
-                console.log(data.picture);
-                
-                fetch(`/api/users/${username}/liked`, { 
-                    credentials: "include",
-                    signal: controller.signal 
-                });
-            }
+        // Fetch liked songs for the profile being viewed
+        if (accessToken && username) {
+            fetch(`${API_URL}/api/users/${username}/liked`, { 
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken,
+                },
+                signal: controller.signal 
             })
-            .then(res => res?.json())
+            .then(res => res.json())
             .then(data => {
-            if (isMounted && data) {
-                // 3. Ensure data exists before slicing
-                setLikedSongs(Array.isArray(data) ? data.slice(0, 3) : []);
-            }
+                if (isMounted && data) {
+                    setLikedSongs(Array.isArray(data) ? data : []);
+                }
             })
             .catch(err => {
-            if (err.name === 'AbortError') return;
-            console.error("Fetch error:", err); // 4. Add error handling [7]
+                if (err.name === 'AbortError') return;
+                console.error("Fetch liked songs error:", err);
             });
+
+            // Fetch friends for the profile being viewed
+            fetch(`${API_URL}/api/users/${username}/friends`, { 
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken,
+                },
+                signal: controller.signal 
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (isMounted && Array.isArray(data)) {
+                    setFriends(data);
+                }
+            })
+            .catch(err => {
+                if (err.name === 'AbortError') return;
+                console.error("Fetch friends error:", err);
+            });
+        }
 
         return () => {
             isMounted = false;
-            controller.abort(); // 5. Cleanup to prevent memory leaks
+            controller.abort();
         };
-        }, []);
-
-    console.log("user:", user)
-    console.log("username from url:", username)
-    console.log("isOwnProfile:", isOwnProfile)
-    console.log("profileData:", profileData)
+    }, [username]);
 
     if (!user) return null
     if (!profileData && !isOwnProfile) return null  
@@ -116,23 +134,31 @@ function Profile(){
 
     return (
         <div style = {{...getScreenStyle(
-            'rgba(255, 163, 224, 0.57)',
-            'rgba(214, 163, 226, 0.25)',
-            'rgba(255, 75, 225, 0.4)',
-            'rgba(163, 126, 194, 0.31)'),
-            fontSize: '16px',
-            fontWeight: 'bold',
+            'rgba(202, 190, 235, 0.4)',
+            'rgba(140, 183, 190, 0.25)',
+            'rgba(209, 154, 184, 0.4)',
+            'rgba(161, 174, 230, 0.3)'),
             color: '#debff7'}}>
-        
-        <Navigate />
 
-        <div className='profile-card'>
-            <div className='profile-header-style'>
+        <div className='card'>
+            <div className='card-header'>
+                <button style={cornerButtonStyle('left', 'top')} onClick={() => navigate('/liked')} title="Liked Songs">♥</button>
+                <button style={{...cornerButtonStyle('left', 'top'), left: '71px'}} onClick={() => navigate('/search')} title="Search">
+                    <img src={searchIcon} alt="Search" style={{ width: '24px', height: '24px' }} />
+                </button>
+                <button style={{...cornerButtonStyle('left', 'top'), left: '126px'}} onClick={() => navigate('/friends')} title="Friends">👥</button>
+                <button style={{...cornerButtonStyle('left', 'top'), left: '181px'}} onClick={() => window.location.href = `${API_URL}/logoutapp`} title="Logout">
+                    <img src={logoutIcon} alt="Logout" style={{ width: '24px', height: '24px' }} />
+                </button>
+                <button style={{...cornerButtonStyle('left', 'top'), left: '236px'}} onClick={() => navigate('/swipe')} title="Swipe">↔</button>
+                
+                <div style={{ flex: 1 }} />
                 {isOwnProfile ? (
-                    <>My Profile</>
+                    <h2>My Profile</h2>
                 ) : (
-                    <>View Profile</>
+                    <h2>View Profile</h2>
                 )}
+
             </div>
 
             
@@ -158,7 +184,7 @@ function Profile(){
                 </div>
 
                 <div style={{ color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    <p><span style={{ color: '#debff7' }}>username:</span> {user.username}</p>
+                    <p><span style={{ color: '#debff7' }}>username:</span> {profileData?.username}</p>
                     {isOwnProfile && <p><span style={{ color: '#debff7' }}>email:</span> {user?.email}</p>}
                     {!isOwnProfile &&
                         <button onClick={handleAddFriend} disabled={isFriend} style={{
@@ -218,45 +244,56 @@ function Profile(){
                 <button className='add-btn' onClick={() => navigate('/friends')}>+</button>
             </div>
 
-            {/* 3x2 friends grid */}
+            {/* friends grid */}
             {(() => {
                 const pageFriends = friends.slice(friendPage * FRIENDS_PER_PAGE, (friendPage + 1) * FRIENDS_PER_PAGE);
-                const slots = [...pageFriends, ...Array(6 - pageFriends.length).fill(null)];
                 const hasNext = (friendPage + 1) * FRIENDS_PER_PAGE < friends.length;
                 const hasPrev = friendPage > 0;
 
+                if (friends.length === 0) {
+                    return <p style={{ color: '#e0e0e08e', fontSize: 13, padding: '12px', textAlign: 'center' }}>No friends yet!</p>;
+                }
+
                 return (
                     <>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', padding: '12px' }}>
-                            {slots.map((friend, i) => (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '16px', padding: '12px' }}>
+                            {pageFriends.map((friend, i) => (
                                 <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                                     <div style={{
                                         width: 50, height: 50, borderRadius: '50%',
                                         background: '#1d1133',
-                                        border: `2px solid ${friend ? '#debff7' : '#444'}`,
+                                        border: '2px solid #debff7',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: 24
-                                    }}>
+                                        fontSize: 24,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                    onClick={() => navigate(`/profile/${friend.username}`)}
+                                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.borderColor = '#cdbfea'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = '#debff7'; }}
+                                    >
                                         {friend?.picture
                                             ? <img src={friend.picture} referrerPolicy="no-referrer"
-                                                style={{ width: 50, height: 50, borderRadius: '50%' }} alt={friend.username} />
-                                            : <span style={{ color: friend ? '#debff7' : '#444' }}>👤</span>
+                                                style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} alt={friend.username} />
+                                            : <span style={{ color: '#debff7' }}>👤</span>
                                         }
                                     </div>
-                                    <p style={{ color: friend ? 'white' : '#444', fontSize: 11, margin: 0 }}>
-                                        {friend?.username ?? ''}
+                                    <p style={{ color: 'white', fontSize: 11, margin: 0, maxWidth: '60px', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {friend?.username}
                                     </p>
                                 </div>
                             ))}
                         </div>
 
-                        {/* prev/next pagination */}
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', paddingBottom: '8px' }}>
-                            <button onClick={() => setFriendPage(p => p - 1)} disabled={!hasPrev}
-                                style={{ opacity: hasPrev ? 1 : 0.3, background: 'none', border: 'none', color: '#debff7', fontSize: 20, cursor: hasPrev ? 'pointer' : 'default' }}>‹</button>
-                            <button onClick={() => setFriendPage(p => p + 1)} disabled={!hasNext}
-                                style={{ opacity: hasNext ? 1 : 0.3, background: 'none', border: 'none', color: '#debff7', fontSize: 20, cursor: hasNext ? 'pointer' : 'default' }}>›</button>
-                        </div>
+                        {/* pagination only if more than 6 friends */}
+                        {friends.length > FRIENDS_PER_PAGE && (
+                            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', paddingBottom: '8px' }}>
+                                <button onClick={() => setFriendPage(p => p - 1)} disabled={!hasPrev}
+                                    style={{ opacity: hasPrev ? 1 : 0.3, background: 'none', border: 'none', color: '#debff7', fontSize: 20, cursor: hasPrev ? 'pointer' : 'default' }}>‹</button>
+                                <button onClick={() => setFriendPage(p => p + 1)} disabled={!hasNext}
+                                    style={{ opacity: hasNext ? 1 : 0.3, background: 'none', border: 'none', color: '#debff7', fontSize: 20, cursor: hasNext ? 'pointer' : 'default' }}>›</button>
+                            </div>
+                        )}
                     </>
                 );
             })()}
