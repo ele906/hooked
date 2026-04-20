@@ -104,6 +104,7 @@ function Login(){
             sessionStorage.setItem('username', data.username)
             sessionStorage.setItem('accesstoken', data.accesstoken)
             sessionStorage.setItem('refreshtoken', data.refreshtoken)
+            await fetchUser()
             if (!data.email_verified) {
                 alert("Heads up: your email isn't verified yet. Check your inbox or use 'Resend verification email'.")
             }
