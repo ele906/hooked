@@ -361,7 +361,25 @@ def next_song():
     try:
         user_id = current_user_id()
         if not user_id:
+            app.logger.error(f"next_song: user_id is None from JWT identity")
             return jsonify({"error": "user not found"}), 401
+
+        # Check if user has any songs in liked/disliked
+        excluded_songs = sql_cmd("""
+            SELECT COUNT(*) FROM (
+                SELECT song_id FROM liked WHERE user_id = %s
+                UNION
+                SELECT song_id FROM disliked WHERE user_id = %s
+            ) t
+        """, (user_id, user_id), fetch=True)
+        
+        # Check total songs with feature_vector
+        total_songs = sql_cmd(
+            "SELECT COUNT(*) FROM songs WHERE feature_vector IS NOT NULL",
+            (), fetch=True
+        )
+        
+        app.logger.info(f"next_song for user {user_id}: total_songs={total_songs[0][0] if total_songs else 0}, excluded={excluded_songs[0][0] if excluded_songs else 0}")
 
         profile_rows = sql_cmd(
             "SELECT weight_vector::text FROM user_profiles WHERE user_id = %s",
@@ -404,6 +422,7 @@ def next_song():
             """, (user_id, user_id), fetch=True)
 
         if not rows:
+            app.logger.warning(f"next_song for user {user_id}: no available songs")
             return jsonify({"message": "no more songs"}), 404
 
         best = rows[0]
@@ -415,7 +434,7 @@ def next_song():
             "artist_name":    best[4]
         })
     except Exception as e:
-        app.logger.error(f"Error in next_song: {str(e)}")
+        app.logger.error(f"Error in next_song: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 # For deleting a liked song from liked songs
