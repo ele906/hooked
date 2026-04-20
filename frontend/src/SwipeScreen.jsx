@@ -1,18 +1,18 @@
 // -----------------------------------------------------------------------
 // SwipeScreen.jsx
 // Swipe Interface for Hooked
-// Author: Lucille Rizo Patron, 
-// Contributors: Eleanor Liu, Derek Geng
+// Authors: Lucille Rizo Patron, Eleanor Liu
 // -----------------------------------------------------------------------
 
 import React from 'react'
 import {useState, useRef, useEffect} from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import API_URL from './config'
 import { getScreenStyle, cornerButtonStyle, actionButtonStyle } from './styles'
 import searchIcon from './search_button.png'
 import logoutIcon from './logout_button.png'
 import { useAuth } from "./AuthContext"
+import Navigation from "./Navigation"
 
 // Renders the swipe screen interface where users can like or skip songs 
 // via swiping, buttons, or keyboard keys. Displays 30-second audio 
@@ -20,9 +20,6 @@ import { useAuth } from "./AuthContext"
 function SwipeScreen() {
 
     // ------------- Screen Flow -----------------------------------------
-
-    // enables flow from one screen to another
-    const navigate = useNavigate()
 
     // catch data passed from search screen
     const location = useLocation()
@@ -286,12 +283,6 @@ function SwipeScreen() {
         return () => window.removeEventListener('keydown', handleKeyPress)
     }, [currentSong])
 
-    // ------------------- Logout Handler --------------------------------
-
-    const handleLogout = () => {
-        window.location.href = `${API_URL}/auth/logout`
-    }
-
     // --------------------- Swipe Screen Rendering ----------------------
 
     // main swipe UI
@@ -303,42 +294,7 @@ function SwipeScreen() {
             'rgba(0, 128, 128, 0.3)'
         )}> 
 
-            {/* logout button in top left */}
-            <button 
-                style={cornerButtonStyle('left', 'top')} 
-                onClick={handleLogout}
-                title="Logout"
-            >
-                <img 
-                    src={logoutIcon} 
-                    style={{ width: '30px', height: '30px' }} 
-                />
-            </button>
-
-            {/* undo action button */}
-            <button 
-                style={cornerButtonStyle('right', 'top')}
-                onClick={handleUndo}>
-                ⟲
-            </button>
-
-            {/* search button to go to search page */}
-            <button 
-                style={cornerButtonStyle('right', 'bottom')} 
-                onClick={() => navigate('/search') }
-            >
-                <img 
-                    src={searchIcon} 
-                    style={{ width: '30px', height: '30px' }} 
-                />
-            </button>
-
-            {/* button to go to liked songs page */}
-            <button 
-                style={cornerButtonStyle('left', 'bottom')}
-                onClick={() => navigate('/liked')}>
-                ♥
-            </button>
+            <Navigation />
 
             {/* if no song loaded, show final message or loading screen */}
             {!currentSong ? (
@@ -371,6 +327,15 @@ function SwipeScreen() {
                         }}
                         onMouseDown={dragStart}
                     >   
+
+                        {/* undo action button */}
+                        <button 
+                            style={{...cornerButtonStyle('right', 'top'),
+                                backgroundColor: '#18171d00'
+                            }}
+                            onClick={handleUndo}>
+                            ⟲
+                        </button>
 
                         {/* album art */}
                         {/* display song image or a default music icon */}

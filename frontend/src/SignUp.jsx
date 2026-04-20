@@ -7,7 +7,7 @@
 import React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import { useNavigate} from 'react-router-dom'
-import { getScreenStyle } from './styles'
+import { getScreenStyle, cornerButtonStyle } from './styles'
 import './index.css'
 import { useAuth } from './AuthContext'
 
@@ -97,16 +97,15 @@ function SignUp(){
     return(
         <div style = {{...getScreenStyle(
             'rgba(170, 109, 217, 0.4)',
-            'rgba(153, 195, 230, 0.562)',
+            'rgba(230, 167, 255, 0.64)',
             'rgba(186, 151, 225, 0.4)',
-            'rgba(164, 189, 218, 0.688)'),
+            'rgba(154, 177, 255, 0.69)'),
             color: '#debff7'}}>
 
-        <div className = 'card'> 
+        <div className = 'welcome-card-style'> 
 
-            <div className = 'small-header'> 
-            <h1> Create an Account </h1>
-            
+            <div className = 'login-header-style'> 
+                Create an Account
             </div>
 
             <input
@@ -114,7 +113,7 @@ function SignUp(){
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
-                className = 'input-box-4'
+                className = 'input-login'
             />
 
             <input
@@ -122,7 +121,7 @@ function SignUp(){
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Username"
-                className = 'input-box-4'
+                className = 'input-login'
             />
 
             <input
@@ -130,7 +129,7 @@ function SignUp(){
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                className = 'input-box-4'
+                className = 'input-login'
             />
             
             <div>
@@ -147,7 +146,7 @@ function SignUp(){
                         cursor: 'pointer',
                         color: '#debff7',
                         marginTop: '12px',
-                        marginBottom: '12px',
+                        marginBottom: '30px',
                         maxWidth: '200px',
                     }}
                 >
@@ -158,14 +157,14 @@ function SignUp(){
                 </div>
             </div>
             
-            <button className = 'btn-2' onClick = { () => {
+            <button style={{...cornerButtonStyle('top', 'left')}} onClick = { () => {
                 console.log("back button clicked! lets migrate to welcome page")
                 navigate('/')
             }}> 
                 ⬅ 
             </button>
 
-            <button className='btn-2' onClick={handleSignUp}>
+            <button className='login-button' onClick={handleSignUp}>
                 Create!
             </button>
             </div>

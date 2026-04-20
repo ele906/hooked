@@ -18,7 +18,24 @@ code {
     monospace; 
 }
 
-/* -------- CARDS -------- */
+/* -------- CARDS & SCREENS -------- */
+
+.modal-screen-style {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #18171d00;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    position:fixed;
+    backdrop-filter: blur(15px);
+    z-index: 1000;
+}
 
 /* swipe card for swipe screen*/
 .swipe-card-style {
@@ -33,13 +50,44 @@ code {
     user-select: none;
 }
 
-.card {
+.profile-card {
+    position: relative;
+    width: 350px;
+    padding: 100px 40px;
+    background-color: #7a779636;
+    border-radius: 25px;
+    text-align: center;
+    color: white;
+    user-select: none;
+}
+
+.welcome-card-style {
+    width: 450px;
+    height: 500px;
+    padding: 110px 40px;
+    background-color: #524f6b00;
+    border-radius: 25px;
+    text-align: center;
+    background-image:
+        radial-gradient(circle at 20% 30%, rgba(123, 218, 255, 0.4), transparent 30%),
+        radial-gradient(circle at 80% 20%, rgba(251, 123, 255, 0.4), transparent 30%),
+        radial-gradient(circle at 85% 85%, rgba(123, 255, 222, 0.4), transparent 30%),
+        radial-gradient(circle at 15% 90%, rgba(158, 123, 255, 0.4), transparent 30%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    position: relative;
+}
+
+.search-card {
   position: relative;
   overflow-y: auto;
-  width: 50vh;
+  width: 100vw;
   height: 95vh;
   padding: 0;
-  background-color: #d2c5df50;
+  background-color: #9990a300;
   border-radius: 25px;
   text-align: center;
   color: white;
@@ -94,6 +142,61 @@ code {
     text-align: center;
 }
 
+.hooked-header-style {
+    color: #d1c0ff;
+    font-size: 60px;
+    font-weight: bold;
+    font-family: 'Outfit', sans-serif;
+    height: 25px;
+    margin-top: 40px;
+    margin-bottom: 40px;
+    text-align: center;
+}
+
+.login-header-style {
+    color: #debff7;
+    font-size: 45px;
+    font-weight: bold;
+    font-family: 'Outfit', sans-serif;
+    height: 25px;
+    margin-top: 40px;
+    margin-bottom: 100px;
+    text-align: center;
+}
+
+.search-header-style {
+    color: #bfc3f7;
+    font-size: 60px;
+    font-weight: bold;
+    font-family: 'Outfit', sans-serif;
+    height: 25px;
+    margin-top: 40px;
+    margin-bottom: 80px;
+    text-align: center;
+}
+
+.profile-header-style {
+    color: #debff7cb;
+    font-size: 60px;
+    font-weight: bold;
+    font-family: 'Outfit', sans-serif;
+    height: 25px;
+    margin-top: 10px;
+    margin-bottom: 80px;
+    text-align: center;
+}
+
+.welcome-user-message {
+    color: #b0a2ff8c;
+    font-size: 25px;
+    font-weight: bold;
+    font-family: 'Outfit', sans-serif;
+    height: 25px;
+    margin-top: 40px;
+    margin-bottom: 100px;
+    text-align: center;
+    cursor: pointer;
+}
 /* style for status messages on swipe screen */
 .swipe-message-style {
     color: #50fff6;
@@ -126,22 +229,36 @@ code {
     cursor: pointer;
 }
 
-.btn-2{
-  padding: 10px 10px;
+.nav-button {
+    padding: 15px 35px;
+    font-size: 16px;
+    width: 200px;
+    background-color: #debff7;
+    color: #1d1133;
+    font-weight: bold;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+}
+
+.login-button{
+  padding: 13px 10px;
     font-size: 14px;
-    background-color: #6e32a0;
+    width: 150px;
+    border-radius: 22px;
+    background-color: #b186e9;
     color: #e2d7f5;
     font-weight: bold;
     border: none;
-    border-radius: 5px;
     cursor: pointer;
     margin: 4px;
 }
 
-.btn-3 {
+.welcome-button {
     padding: 15px 35px;
+    width: 300px;
     font-size: 16px;
-    background-color: #debff7;
+    background-color: #cdbbff;
     color: #1d1133;
     font-weight: bold;
     border: none;
@@ -196,17 +313,50 @@ code {
     margin-bottom: 40px;
     width: 94%;
 }
-.likedSearchBar::placeholder {
+.liked-search-bar::placeholder {
     color: #d6c4c0a4;
+}
+
+/* search bar for search songs page */
+.search-bar {
+    padding: 10px;
+    position: relative;
+    border-radius: 20px;
+    font-size: 16px;
+    background-color: #9fbdff46;
+    border: none;
+    cursor: text;
+    margin: 4px;
+    margin-bottom: 60px;
+    width: 60%;
+}
+.search-bar::placeholder {
+    color: #c0cad6a4;
+}
+
+.profile-search-bar {
+    padding: 10px;
+    position: relative;
+    border-radius: 20px;
+    font-size: 16px;
+    background-color: #f6c5ff28;
+    border: none;
+    cursor: text;
+    margin: 4px;
+    margin-bottom: 60px;
+    width: 90%;
+}
+.profile-search-bar::placeholder {
+    color: #d3c0d6a4;
 }
 
 
 .search-song-box {
   margin: 0 auto;
-  width: 300px;
-  border-radius: 10px;
-  background-color: #ddd4f027;
-  color: #d0e6f2;
+  width: 600px;
+  border-radius: 15px;
+  background-color: #d4d4f017;
+  color: #d0e6f2da;
   gap: 10px;
   padding: 8px;
   display: flex;
@@ -220,18 +370,39 @@ code {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
+.friend-box {
+  margin-bottom: 10px;
+  width: 330px;
+  border-radius: 15px;
+  background-color: #d4d4f017;
+  color: #d0e6f2da;
+  gap: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.friend-box:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
 /* -------- INPUT BOXES -------- */
 
-.input-box-1{
-  padding: 5px;
-  border-radius: 3px;
-  width: 300px;
+.input-login {
+  padding: 15px 10px;
+  border-radius: 25px;
+  width: 320px;
   font-size: 16px;
-  background-color: #d9bfea;
-  color: #1d1133;
+  margin-bottom: 15px;
+  background-color: #d4a6ff31;
+  color: #debff7;
   border: none;
-  cursor: pointer;
-  margin: 4px;
+  cursor: text;
+}
+.input-login::placeholder {
+    color: #debff78c;
 }
 
 .input-box-2{
@@ -289,7 +460,7 @@ code {
     padding-right: 10px;
 }
 
-.results-list {
+.search-results-list {
     display: flex;
     flex-direction: column;
     gap: 10px;

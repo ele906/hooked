@@ -10,6 +10,7 @@ import Friends from './Friends'
 import Profile from './Profile'
 import { AuthProvider } from './AuthContext'      // ADD
 import ProtectedRoute from './ProtectedRoute'     // ADD
+import Navigation from './Navigation'
 
 function App() {
     return (
@@ -28,6 +29,7 @@ function App() {
                     <Route path="/seedprefs" element={<ProtectedRoute><SeedPreferences /></ProtectedRoute>} />
                     <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
                     <Route path="/profile/:username" element={<Profile />} />
+                    <Route path="/navigation" element={<Navigation />} />
                 </Routes>
             </AuthProvider>
         </BrowserRouter>

@@ -7,6 +7,7 @@
 import {useState, useRef, useEffect} from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getScreenStyle } from './styles'
+import Navigation from './Navigation'
 import './index.css'
 
 function SearchScreen() {
@@ -57,25 +58,26 @@ function SearchScreen() {
     
     return (
         <div style = {{...getScreenStyle(
-            'rgba(158, 123, 255, 0.4)',
-            'rgba(217, 184, 227, 0.25)',
-            'rgba(186, 151, 225, 0.4)',
-            'rgba(219, 185, 210, 0.3)'),
+            'rgba(125, 123, 255, 0.4)',
+            'hsla(229, 100%, 81%, 0.50)',
+            'rgba(173, 151, 225, 0.4)',
+            'rgba(94, 169, 255, 0.45)'),
             color: '#debff7'}}>
 
-            <div className="card">
-            <div className='card-header-2' style={{ paddingBottom: 0 }}> 
-                {user && <p style={{ color: '#debff7', fontWeight: 'bold', cursor: 'pointer' }} 
-                    onClick={() => navigate(`/profile/${user.username}`)}>Welcome, {user.username}!</p>}
+            <Navigation />
+            
+            <div className="search-card">
+            <div className="welcome-user-message"> 
+                {user && ( 
+                    <div 
+                        onClick={() => navigate(`/profile/${user.username}`)}>
+                        Welcome, {user.username}!
+                    </div> 
+                )}
             </div>
 
-            <div className='small-header' style={{ marginTop: 0 }}>
-                <h1>Search</h1>
-                <div style={{ flex: 1 }} />
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className='back-btn' onClick={() => navigate("/swipe")}>Home</button>
-                    <button className='back-btn' onClick={() => navigate(-1)}>Back</button>
-                </div>
+            <div className='search-header-style'>
+                Search
             </div>
 
             {/* search bar */}
@@ -87,12 +89,12 @@ function SearchScreen() {
                     searchSong(e.target.value)
                 }}
                 placeholder="Search songs..."
-                className='input-box-2'
+                className='search-bar'
             />
 
             {/* results */}
             {results.length > 0 ? (
-                <div className="results-list">
+                <div className="search-results-list">
                     {results.map(song => (
                         <div key={song.song_id} className="search-song-box" onClick={() => navigate('/swipe', {state: {song}})}>
                             <img src={song.song_image_url} alt={song.song_name} className="song-img-box"/>

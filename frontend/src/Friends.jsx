@@ -1,12 +1,13 @@
 // -----------------------------------------------------------------------
 // Friends.jsx
 // friends interface for Hooked (in progress)
-// Authors: Eleanor Liu
+// Authors: Eleanor Liu, Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
 import {useRef, useEffect, useState} from 'react'
 import { getScreenStyle } from './styles'
 import { useNavigate } from 'react-router-dom'
+import Navigation from './Navigation'
 import './index.css'
 
 function Friends(){
@@ -64,26 +65,24 @@ function Friends(){
 
     return (
         <div style = {{...getScreenStyle(
-            'rgba(178, 201, 221, 0.4)',
+            'rgba(255, 163, 224, 0.57)',
             'rgba(214, 163, 226, 0.25)',
-            'rgba(167, 202, 224, 0.4)',
-            'rgba(190, 126, 194, 0.3)'),
+            'rgba(255, 75, 225, 0.4)',
+            'rgba(163, 126, 194, 0.31)'),
             fontSize: '16px',
             fontWeight: 'bold',
             color: '#debff7'}}>
-        
-            <div className='card'>
-            <div className='card-header-2' style={{ paddingBottom: 0 }}> 
-                {user && <p style={{ color: '#debff7', fontWeight: 'bold', cursor: 'pointer' }} 
+            
+            <Navigation />
+
+            <div className='profile-card'>
+            <div className='welcome-user-message' style={{ color: '#eabff7', marginBottom: '20px'}}> 
+                {user && <p style={{ cursor: 'pointer' }} 
                 onClick={() => navigate(`/profile/${user.username}`)}>Welcome, {user.username}!</p>}
             </div>
-            <div className='small-header' style={{ marginTop: 0 }}>
-                <h1>Friends</h1>
+            <div className='profile-header-style'>
+                Friends
                 <div style={{ flex: 1 }} />
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className='back-btn' onClick={() => navigate("/swipe")}>Home</button>
-                    <button className='back-btn' onClick={() => navigate(-1)}>Back</button>
-                </div>
             </div>
 
             <input
@@ -94,14 +93,14 @@ function Friends(){
                     searchFriend(e.target.value)
                 }}
                 placeholder="Search Username"
-                className = 'input-box-3'
+                className = 'profile-search-bar'
             />
 
             {/* results */}
             {results.length > 0 ? (
                 <div className="results-list">
                     {results.map(usr => (
-                        <div key={usr.user_id} className="search-song-box" onClick={() => navigate(`/profile/${usr.username}`, {state: {usr}})}>
+                        <div key={usr.user_id} className="friend-box" onClick={() => navigate(`/profile/${usr.username}`, {state: {usr}})}>
                             <img src={usr.user_image_url} alt='👤' className="song-img-box"/>
                             <span>{usr.username} </span>
                         </div>

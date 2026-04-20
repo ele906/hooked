@@ -1,22 +1,23 @@
 // -----------------------------------------------------------------------
 // Profile.jsx
 // Profile interface for Hooked (in progress)
-// Authors: Eleanor Liu
-// Lucille Rizo Patron
+// Authors: Eleanor Liu, Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
 import {useEffect, useState} from 'react'
-import {useParams, useNavigate } from 'react-router-dom'
+import {useParams, useNavigate, useLocation } from 'react-router-dom'
 import './index.css'
 import { getScreenStyle } from './styles'
 import API_URL from './config'
+import Navigate from './Navigation'
 
 function Profile(){
 
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
-    const { username } = useParams()       // whoever's profile we're viewing
-    const isOwnProfile = user?.username === username
+    const location = useLocation();
+    const { username } = useParams() // whoever's profile we're viewing
+    const isOwnProfile = location.state?.isOwnProfile || user?.username === username
 
     // --- stats ---
     const [likedSongs, setLikedSongs] = useState([]);
@@ -56,12 +57,6 @@ function Profile(){
                 }
             })
             .catch(err => console.error("Add friend failed", err))
-    }
-
-    // ------------------- Logout Handler --------------------------------
-
-    const handleLogout = () => {
-        window.location.href = `${API_URL}/auth/logout`
     }
 
     // obtain the credentials from cookie
@@ -121,29 +116,23 @@ function Profile(){
 
     return (
         <div style = {{...getScreenStyle(
-            'rgba(202, 190, 235, 0.4)',
-            'rgba(140, 183, 190, 0.25)',
-            'rgba(209, 154, 184, 0.4)',
-            'rgba(161, 174, 230, 0.3)'),
+            'rgba(255, 163, 224, 0.57)',
+            'rgba(214, 163, 226, 0.25)',
+            'rgba(255, 75, 225, 0.4)',
+            'rgba(163, 126, 194, 0.31)'),
+            fontSize: '16px',
+            fontWeight: 'bold',
             color: '#debff7'}}>
+        
+        <Navigate />
 
-        <div className='card'>
-            <div className='card-header'>
+        <div className='profile-card'>
+            <div className='profile-header-style'>
                 {isOwnProfile ? (
-                    <h2>My Profile</h2>
+                    <>My Profile</>
                 ) : (
-                    <h2>View Profile</h2>
+                    <>View Profile</>
                 )}
-                
-                <div style={{ flex: 1 }} />
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className='back-btn' onClick={() => navigate("/swipe")}>Home</button>
-                    <button className='back-btn' onClick={() => navigate(-1)}>Back</button>
-                    <button onClick={() => window.location.href = `${API_URL}/auth/logout`}>
-                        Logout
-                    </button>
-                </div>
-
             </div>
 
             
@@ -169,7 +158,7 @@ function Profile(){
                 </div>
 
                 <div style={{ color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    <p><span style={{ color: '#debff7' }}>username:</span> {profileData?.username}</p>
+                    <p><span style={{ color: '#debff7' }}>username:</span> {user.username}</p>
                     {isOwnProfile && <p><span style={{ color: '#debff7' }}>email:</span> {user?.email}</p>}
                     {!isOwnProfile &&
                         <button onClick={handleAddFriend} disabled={isFriend} style={{

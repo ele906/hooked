@@ -3,8 +3,6 @@ Sources used for swipe screen
 Authors: Lucille Rizo Patron
 -----------------------------------------------------------------------
 
-// Swipe Screen
-
 Updating objects in state (used for moving swipe card with mouse movement)
 https://react.dev/learn/updating-objects-in-state#treat-state-as-read-only
 
@@ -120,17 +118,3 @@ https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/filter-functio
 
 Fetch API (for fetch next song and handling user actions):
 https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
-
-// Liked Screen
-
-Scrollbar (for when liked songs list too long):
-https://www.w3schools.com/css/css_overflow.asp
-
-JavaScript map() function (for rendering list of songs):
-https://legacy.reactjs.org/docs/lists-and-keys.html
-
-//filter
-
-//::placeholder
-
-not finished...

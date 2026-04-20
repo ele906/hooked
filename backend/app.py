@@ -454,7 +454,7 @@ def delete_song_action(song_id):
         return jsonify({"error": str(e)}), 500
 
 # this is for the search bar function...
-@app.route("/api/songs/search", methods=["POST"])
+@app.route("/api/songs/search", methods=["GET"])
 def search_songs():
     user = session.get("user")
     if not user:
@@ -463,7 +463,7 @@ def search_songs():
     query = request.args.get("params", "")
 
     if not query:
-        return jsonify({"error": "params parameter is required"}), 400
+        return jsonify([])
 
     rows = sql_cmd("""
         SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
@@ -474,9 +474,6 @@ def search_songs():
         WHERE s.song_name ILIKE %s OR a.artist_name ILIKE %s
         LIMIT 8;
     """, (f"%{query}%", f"%{query}%",), fetch=True)
-
-    if not rows:
-        return jsonify({"message": "no songs found"}), 200
 
     results = []
     for r in rows:

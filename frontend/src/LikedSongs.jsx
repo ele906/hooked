@@ -1,7 +1,7 @@
 // -----------------------------------------------------------------------
 // LikedSongs.jsx
 // Liked Songs Interface for Hooked
-// Author: Lucille Rizo Patron, Eleanor Liu
+// Authors: Lucille Rizo Patron, Eleanor Liu
 // -----------------------------------------------------------------------
 
 import React, { use } from 'react'
@@ -9,8 +9,9 @@ import {useState, useRef, useEffect} from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { getScreenStyle, cornerButtonStyle } from './styles'
 import API_URL from './config'
+import { useAuth } from './AuthContext'
 import searchIcon from './search_button.png'
-
+import Navigation from './Navigation'
 
 // Renders the liked songs screen where users can view and manage their 
 // liked songs list.
@@ -23,12 +24,19 @@ function LikedSongs() {
     const [likedSongs, setLikedSongs] = useState([])
 
     // store user id
+    const { user } = useAuth() 
     const [userId, setUserId] = useState(null)
 
     // search query to filter liked songs
     const [query, setQuery] = useState("")
 
     // ------------------ Liked Song Fetching ----------------------------
+
+    // check if user in authenticated before rendering the liked screen
+    // and get user id
+    useEffect(() => {
+        if (user) setUserId(user.user_id)
+    }, [user])
 
     // fetch liked songs
     useEffect(() => {
@@ -119,23 +127,7 @@ function LikedSongs() {
             'rgba(137, 59, 173, 0.4)',
             'rgba(255, 102, 0, 0.49)')}>
 
-            {/* search button to go to search page */}
-            <button 
-                style={cornerButtonStyle('left', 'top')} 
-                onClick={() => navigate('/search') }
-            >    
-                <img 
-                    src={searchIcon} 
-                    style={{ width: '30px', height: '30px' }} 
-                />
-            </button>
-
-            {/* search button to go to search page */}
-            <button 
-                style={cornerButtonStyle('right', 'top')} 
-                onClick={() => navigate('/swipe') }>
-                ↔
-            </button>
+            <Navigation />
 
             {/* title of page */}
             <h2 className="liked-songs-header-style">Your Liked Tracks</h2>

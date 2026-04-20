@@ -8,7 +8,7 @@ import {useCallback, useEffect, useState} from 'react'
 import { useNavigate } from 'react-router-dom'
 
 // styles
-import { getScreenStyle } from './styles'
+import { getScreenStyle, cornerButtonStyle } from './styles'
 import './index.css'
 
 //circles
@@ -72,20 +72,20 @@ function Login(){
     return (
         <div style = {{...getScreenStyle(
             'rgba(170, 109, 217, 0.4)',
-            'rgba(153, 195, 230, 0.562)',
+            'rgba(230, 167, 255, 0.64)',
             'rgba(186, 151, 225, 0.4)',
-            'rgba(164, 189, 218, 0.688)'),
+            'rgba(154, 177, 255, 0.69)'),
             color: '#debff7'}}>
 
-        <div className = 'card'> 
+        <div className = 'welcome-card-style'> 
 
-            <div className = 'small-header'> 
-                <h1>Login to Account</h1>
-
-                <button className = 'back-btn' onClick={handleBackButton}>
-                    ⬅
-                </button>
+            <div className = 'login-header-style'> 
+                Account Login
             </div>
+
+            <button style = {{...cornerButtonStyle('top', 'left')}} onClick={handleBackButton}>
+                ⬅
+            </button>
 
         <div> 
         <input
@@ -93,7 +93,7 @@ function Login(){
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
-            className = 'input-box-1'
+            className = 'input-login'
         />
 
         <input
@@ -101,16 +101,17 @@ function Login(){
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
-            className = 'input-box-1'
+            className = 'input-login'
         />
 
         </div>
 
-        <button className = 'btn-2' onClick={() => handleDone(username, password)}>
+        <button className = 'login-button' onClick={() => handleDone(username, password)}>
             Done
         </button>
 
-        <button className = 'btn-2' onClick={() => handleDone(username, password)}>
+        <button className = 'login-button' onClick={() => handleDone(username, password)}
+            style={{backgroundColor: '#debff700'}}>
             Forgot Password
         </button>
 
