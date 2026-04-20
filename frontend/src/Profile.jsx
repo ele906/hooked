@@ -78,9 +78,21 @@ function Profile(){
         const accessToken = sessionStorage.getItem('accesstoken')
         const currentUsername = sessionStorage.getItem('username')
 
-        // Set current user from sessionStorage
+        // Set current user from sessionStorage, then fetch email from API
         if (isMounted && currentUsername) {
             setUser({ username: currentUsername });
+        }
+        if (accessToken) {
+            fetch(`${API_URL}/api/getuserinfo`, {
+                headers: { 'Authorization': 'Bearer ' + accessToken }
+            })
+                .then(res => res.ok ? res.json() : null)
+                .then(data => {
+                    if (isMounted && data) {
+                        setUser(prev => ({ ...prev, email: data.email }))
+                    }
+                })
+                .catch(() => {})
         }
 
         // Fetch liked songs for the profile being viewed
@@ -176,7 +188,9 @@ function Profile(){
 
                 <div style={{ color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                     <p><span style={{ color: '#debff7' }}>username:</span> {profileData?.username}</p>
-                    {isOwnProfile && <p><span style={{ color: '#debff7' }}>email:</span> {user?.email}</p>}
+                    {isOwnProfile && user?.email && (
+                        <p><span style={{ color: '#debff7' }}>email:</span> {user.email}</p>
+                    )}
                     {!isOwnProfile &&
                         <button onClick={handleAddFriend} disabled={isFriend} style={{
                             marginTop: '8px',

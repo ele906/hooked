@@ -116,11 +116,13 @@ def auth_callback():
     user_info = userinfo_response.json()
     email = user_info.get('email', '')
     name = user_info.get('name', '')
+    # Derive a clean username from email local-part (before @), only for new users
+    email_local = email.split('@')[0]
     sql_cmd(
         """INSERT INTO users (email, username, email_verified) 
         VALUES (%s, %s, TRUE) 
         ON CONFLICT (email) DO UPDATE SET email_verified = TRUE;""",
-        (email, email)
+        (email, email_local)
     )
     rows = sql_cmd(
         "SELECT user_id FROM users WHERE email = %s",
@@ -134,11 +136,15 @@ def auth_callback():
         fetch=True
     )
     is_new_user = len(user_profile_rows) == 0
-    
+
+    # Fetch the actual username (may differ from email for Google users)
+    username_rows = sql_cmd("SELECT username FROM users WHERE user_id = %s", (user_id,), fetch=True)
+    stored_username = username_rows[0][0] if username_rows else email
+
     nonce = os.urandom(20).hex()
     sql_cmd(
         "INSERT INTO nonces (nonce, username) VALUES (%s, %s)",
-        (nonce, email)
+        (nonce, stored_username)
     )
     path = "/seedprefs" if is_new_user else original_url
     return redirect(f"{FRONTEND_URL}{path}?nonce={nonce}")
