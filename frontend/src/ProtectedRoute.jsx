@@ -10,15 +10,19 @@ import { useAuth } from "./AuthContext";
 import {useEffect} from 'react'
 
 export default function ProtectedRoute({ children }) {
-  const { user } = useAuth();
+  const { user, fetchUser } = useAuth();
 
   useEffect(() => {
-    if (user === null) {
-      alert("You are not logged in!");
+    // Re-sync context from sessionStorage in case login just set tokens
+    if (user === null || user === undefined) {
+      fetchUser();
     }
-  }, [user]);
+  }, [user, fetchUser]);
 
-  if (user === undefined) return (
+  // Check sessionStorage directly to avoid race condition after login
+  const hasTokens = sessionStorage.getItem('accesstoken') && sessionStorage.getItem('username');
+
+  if (user === undefined && !hasTokens) return (
     <div style={{ 
       backgroundColor: "#18171d", 
       height: "100vh", 
@@ -31,6 +35,6 @@ export default function ProtectedRoute({ children }) {
     </div>
   );
 
-  if (!user) return <Navigate to="/" />;
+  if (!user && !hasTokens) return <Navigate to="/" />;
   return children;                                 
 }

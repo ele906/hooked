@@ -108,7 +108,7 @@ function Login(){
             if (!data.email_verified) {
                 alert("Heads up: your email isn't verified yet. Check your inbox or use 'Resend verification email'.")
             }
-            navigate('/swipe')
+            navigate(data.has_preferences ? '/swipe' : '/seedprefs')
         } else {
             alert(data.error || 'Wrong username or password!')
         }

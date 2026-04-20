@@ -750,12 +750,21 @@ def check_password():
             }), 403
         access = flask_jwt_extended.create_access_token(identity=email)
         refresh = flask_jwt_extended.create_refresh_token(identity=email)
+
+        # Check if user has completed seed preferences
+        profile_rows = sql_cmd(
+            "SELECT 1 FROM user_profiles WHERE user_id = %s AND weight_vector IS NOT NULL",
+            (user_id,), fetch=True
+        )
+        has_preferences = len(profile_rows) > 0
+
         return jsonify({
             'logged_in': True,
             'username': username,
             'accesstoken': access,
             'refreshtoken': refresh,
             'email_verified': bool(email_verified),
+            'has_preferences': has_preferences,
         })
 
 
