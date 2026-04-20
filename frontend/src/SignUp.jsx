@@ -8,7 +8,7 @@ import React from 'react'
 import {useCallback, useEffect, useState} from 'react'
 import { useNavigate} from 'react-router-dom'
 import API_URL from './config'
-import { getScreenStyle } from './styles'
+import { getScreenStyle, cornerButtonStyle} from './styles'
 import './index.css'
 import { useAuth } from './AuthContext'
 
@@ -75,7 +75,6 @@ function SignUp(){
         }
     }
 
-
     function handleDrop(e) {
         e.preventDefault()
         const file = e.dataTransfer.files[0]
@@ -109,24 +108,23 @@ function SignUp(){
     return(
         <div style = {{...getScreenStyle(
             'rgba(170, 109, 217, 0.4)',
-            'rgba(153, 195, 230, 0.562)',
+            'rgba(230, 167, 255, 0.64)',
             'rgba(186, 151, 225, 0.4)',
-            'rgba(164, 189, 218, 0.688)'),
-            color: '#debff7',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '100vh'
-        }}>
+            'rgba(154, 177, 255, 0.69)'),
+            color: '#debff7'}}>
 
-        <div className = 'card' style={{ width: 'min(90vw, 420px)', height: 'auto', maxHeight: '90vh', overflowY: 'auto' }}> 
+        <div className = 'welcome-card-style'> 
 
-            <div className = 'card-header'> 
-                <button className='back-btn' onClick={handleBackButton} style={{ position: 'absolute', left: '12px' }}>
-                    ⬅
-                </button>
-                <h2 style={{ flex: 1, textAlign: 'center' }}>Create Account</h2>
+            <div className = 'login-header-style'> 
+                Create an Account
             </div>
+
+            <button style={{...cornerButtonStyle('top', 'left')}} onClick = { () => {
+                console.log("back button clicked! lets migrate to welcome page")
+                navigate('/')
+            }}> 
+                ⬅ 
+            </button>
 
             <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
                 <input
@@ -134,7 +132,7 @@ function SignUp(){
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Email"
-                    className='input-box-4'
+                    className='input-login'
                     style={{ width: '100%', maxWidth: '300px' }}
                 />
 
@@ -143,7 +141,7 @@ function SignUp(){
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Username"
-                    className='input-box-4'
+                    className='input-login'
                     style={{ width: '100%', maxWidth: '300px' }}
                 />
 
@@ -152,7 +150,7 @@ function SignUp(){
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Password"
-                    className='input-box-4'
+                    className='input-login'
                     style={{ width: '100%', maxWidth: '300px' }}
                 />
 
@@ -161,7 +159,7 @@ function SignUp(){
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Confirm Password"
-                    className='input-box-4'
+                    className='input-login'
                     style={{ width: '100%', maxWidth: '300px' }}
                 />
 
@@ -195,21 +193,7 @@ function SignUp(){
                 {error && <p style={{ color: '#ff6b6b', fontSize: '13px', margin: 0, textAlign: 'center' }}>{error}</p>}
 
                 <button
-                    style={{
-                        backgroundColor: '#debff7',
-                        color: '#1d1133',
-                        padding: '12px 32px',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        marginTop: '12px',
-                        fontSize: '16px',
-                        fontFamily: 'Outfit, sans-serif',
-                        fontWeight: 'bold',
-                        width: '100%',
-                        maxWidth: '300px',
-                        transition: 'all 0.3s ease'
-                    }}
+                    className = "login-button"
                     onClick={handleSignUp}
                     onMouseEnter={(e) => { e.target.style.backgroundColor = '#cdbfea' }}
                     onMouseLeave={(e) => { e.target.style.backgroundColor = '#debff7' }}

@@ -14,6 +14,7 @@ import { getScreenStyle, cornerButtonStyle, actionButtonStyle } from './styles'
 import searchIcon from './search_button.png'
 import logoutIcon from './logout_button.png'
 import { useAuth } from "./AuthContext"
+import Navigation from "./Navigation"
 
 // Renders the swipe screen interface where users can like or skip songs 
 // via swiping, buttons, or keyboard keys. Displays 30-second audio 
@@ -388,17 +389,7 @@ function SwipeScreen() {
             'rgba(0, 128, 128, 0.3)'
         )}> 
 
-            {/* top left action buttons */}
-            <button style={cornerButtonStyle('left', 'top')} onClick={() => navigate('/liked')} title="Liked Songs">♥</button>
-            <button style={{...cornerButtonStyle('left', 'top'), left: '71px'}} onClick={() => navigate('/search')} title="Search">
-                <img src={searchIcon} alt="Search" style={{ width: '24px', height: '24px' }} />
-            </button>
-            <button style={{...cornerButtonStyle('left', 'top'), left: '126px'}} onClick={() => navigate('/profile/' + sessionStorage.getItem('username'))} title="Profile">👤</button>
-            <button style={{...cornerButtonStyle('left', 'top'), left: '181px'}} onClick={() => navigate('/swipe')} title="Swipe">↔</button>
-            
-            <button style={{...cornerButtonStyle('right', 'top'), right: '12px'}} onClick={() => window.location.href = `${API_URL}/logoutapp`} title="Logout">
-                <img src={logoutIcon} alt="Logout" style={{ width: '24px', height: '24px' }} />
-            </button>
+            <Navigation />
 
             {/* if no song loaded, show final message or loading screen */}
             {!currentSong ? (
@@ -432,27 +423,14 @@ function SwipeScreen() {
                         }}
                         onMouseDown={dragStart}
                     >
-                        {/* undo button on card */}
+                        {/* undo action button */}
                         <button 
-                            style={{
-                                position: 'absolute',
-                                top: '10px',
-                                right: '10px',
-                                width: '40px',
-                                height: '40px',
-                                backgroundColor: '#a995dd4f',
-                                color: '#180d2b',
-                                fontSize: '24px',
-                                fontWeight: 'bold',
-                                border: 'none',
-                                borderRadius: '12px',
-                                cursor: 'pointer',
-                                zIndex: 10
+                            style={{...cornerButtonStyle('right', 'top'),
+                                backgroundColor: '#18171d00'
                             }}
-                            onClick={handleUndo}
-                            title="Undo">
+                            onClick={handleUndo}>
                             ⟲
-                        </button>   
+                        </button> 
 
                         {/* album art */}
                         {/* display song image or a default music icon */}

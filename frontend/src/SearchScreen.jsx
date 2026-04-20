@@ -8,8 +8,7 @@ import {useState, useRef, useEffect} from 'react'
 import { useNavigate } from 'react-router-dom'
 import API_URL from './config'
 import { getScreenStyle, cornerButtonStyle } from './styles'
-import searchIcon from './search_button.png'
-import logoutIcon from './logout_button.png'
+import Navigation from "./Navigation"
 import './index.css'
 
 function SearchScreen() {
@@ -73,28 +72,26 @@ function SearchScreen() {
     
     return (
         <div style = {{...getScreenStyle(
-            'rgba(158, 123, 255, 0.4)',
-            'rgba(217, 184, 227, 0.25)',
-            'rgba(186, 151, 225, 0.4)',
-            'rgba(219, 185, 210, 0.3)'),
+            'rgba(125, 123, 255, 0.4)',
+            'hsla(229, 100%, 81%, 0.50)',
+            'rgba(173, 151, 225, 0.4)',
+            'rgba(94, 169, 255, 0.45)'),
             color: '#debff7'}}>
-
-            <div className="card">
-
-            <div className='card-header'>
-            <button style={cornerButtonStyle('left', 'top')} onClick={() => navigate('/liked')} title="Liked Songs">♥</button>
-            <button style={{...cornerButtonStyle('left', 'top'), left: '71px'}} onClick={() => navigate('/search')} title="Search">
-                <img src={searchIcon} alt="Search" style={{ width: '24px', height: '24px' }} />
-            </button>
-            <button style={{...cornerButtonStyle('left', 'top'), left: '126px'}} onClick={() => navigate('/profile/' + user?.username)} title="Profile">👤</button>
-            <button style={{...cornerButtonStyle('left', 'top'), left: '181px'}} onClick={() => navigate('/swipe')} title="Swipe">↔</button>
             
-            <button style={{...cornerButtonStyle('right', 'top'), right: '12px'}} onClick={() => window.location.href = `${API_URL}/logoutapp`} title="Logout">
-                <img src={logoutIcon} alt="Logout" style={{ width: '24px', height: '24px' }} />
-            </button>
-            
-            <div style={{ flex: 1 }} />
-            <h2>Search</h2>
+            <Navigation />
+
+            <div className="search-card">
+            <div className="welcome-user-message"> 
+                {user && ( 
+                    <div 
+                        onClick={() => navigate(`/profile/${user.username}`)}>
+                        Welcome, {user.username}!
+                    </div> 
+                )}
+            </div>
+
+            <div className='search-header-style'>
+                Search
             </div>
             
 
@@ -108,7 +105,7 @@ function SearchScreen() {
                     searchSong(e.target.value)
                 }}
                 placeholder="Search songs..."
-                className = 'input-box-2'
+                className = 'search-bar'
             />
 
             {/* results */}

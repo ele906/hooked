@@ -28,22 +28,20 @@ function Navigation() {
 
     // ------------------ Set Up Navigation ----------------------------
 
-    // check if user in authenticated before rendering the modal
-    // and get user id
-    useEffect(() => {
-        if (user) setUserId(user.user_id)
-    }, [user])
-
     const menu = [
         {name: 'Swipe', path: '/swipe', protected: true},
         {name: 'Liked Songs', path: '/liked', protected: true},
         {name: 'Song Search', path: '/search', protected: true},
         {name: 'Friends', path: '/friends', protected: true},
-        {name: 'Profile', path: '/profile/:username', protected: true},
+        { 
+            name: 'Profile', 
+            path: `/profile/${user.username}`, 
+            protected: true 
+        },
     ]
 
     const handleLogout = () => {
-        window.location.href = `${API_URL}/auth/logout`
+        window.location.href = `${API_URL}/logoutapp`
     }
 
     // -------------------- Render Page Navigation Modal --------------

@@ -12,6 +12,7 @@ import { getScreenStyle, cornerButtonStyle } from './styles'
 import searchIcon from './search_button.png'
 import logoutIcon from './logout_button.png'
 import API_URL from './config'
+import Navigation from "./Navigation"
 
 
 // Renders the liked songs screen where users can view and manage their 
@@ -107,17 +108,7 @@ function LikedSongs() {
             'rgba(137, 59, 173, 0.4)',
             'rgba(255, 102, 0, 0.49)')}>
 
-            {/* top left buttons */}
-            <button style={cornerButtonStyle('left', 'top')} onClick={() => navigate('/liked')} title="Liked Songs">♥</button>
-            <button style={{...cornerButtonStyle('left', 'top'), left: '71px'}} onClick={() => navigate('/search')} title="Search">
-                <img src={searchIcon} alt="Search" style={{ width: '24px', height: '24px' }} />
-            </button>
-            <button style={{...cornerButtonStyle('left', 'top'), left: '126px'}} onClick={() => navigate('/profile/' + sessionStorage.getItem('username'))} title="Profile">👤</button>
-            <button style={{...cornerButtonStyle('left', 'top'), left: '181px'}} onClick={() => navigate('/swipe')} title="Swipe">↔</button>
-            
-            <button style={{...cornerButtonStyle('right', 'top'), right: '12px'}} onClick={() => window.location.href = `${API_URL}/logoutapp`} title="Logout">
-                <img src={logoutIcon} alt="Logout" style={{ width: '24px', height: '24px' }} />
-            </button>
+            <Navigation />
 
             {/* title of page */}
             <h2 className="liked-songs-header-style">Your Liked Tracks</h2>

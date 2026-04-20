@@ -6,11 +6,10 @@
 
 import {useRef, useEffect, useState} from 'react'
 import { getScreenStyle, cornerButtonStyle } from './styles'
-import searchIcon from './search_button.png'
-import logoutIcon from './logout_button.png'
 import { useNavigate } from 'react-router-dom'
 import API_URL from './config'
 import './index.css'
+import Navigation from "./Navigation"
 
 function Friends(){
 
@@ -71,29 +70,26 @@ function Friends(){
 
     return (
         <div style = {{...getScreenStyle(
-            'rgba(178, 201, 221, 0.4)',
+            'rgba(255, 163, 224, 0.57)',
             'rgba(214, 163, 226, 0.25)',
-            'rgba(167, 202, 224, 0.4)',
-            'rgba(190, 126, 194, 0.3)'),
+            'rgba(255, 75, 225, 0.4)',
+            'rgba(163, 126, 194, 0.31)'),
             fontSize: '16px',
             fontWeight: 'bold',
             color: '#debff7'}}>
         
-            <div className='card'>
-            <div className='card-header'>
-                <button style={cornerButtonStyle('left', 'top')} onClick={() => navigate('/liked')} title="Liked Songs">♥</button>
-                <button style={{...cornerButtonStyle('left', 'top'), left: '71px'}} onClick={() => navigate('/search')} title="Search">
-                    <img src={searchIcon} alt="Search" style={{ width: '24px', height: '24px' }} />
-                </button>
-                <button style={{...cornerButtonStyle('left', 'top'), left: '126px'}} onClick={() => navigate('/profile/' + user?.username)} title="Profile">👤</button>
-                <button style={{...cornerButtonStyle('left', 'top'), left: '181px'}} onClick={() => navigate('/swipe')} title="Swipe">↔</button>
+            <Navigation />
+
+            <div className='welcome-user-message' style={{ color: '#eabff7', marginBottom: '20px'}}> 
+                {user && <p style={{ cursor: 'pointer' }} 
+                onClick={() => navigate(`/profile/${user.username}`)}>Welcome, {user.username}!</p>}
+                        </div>   
+
+            <div className='profile-card'>
                 
-                <button style={{...cornerButtonStyle('right', 'top'), right: '12px'}} onClick={() => window.location.href = `${API_URL}/logoutapp`} title="Logout">
-                    <img src={logoutIcon} alt="Logout" style={{ width: '24px', height: '24px' }} />
-                </button>
-                
+            <div className='profile-header-style'>
+                Friends
                 <div style={{ flex: 1 }} />
-                <h2>Friends</h2>
             </div>
 
             <input
@@ -104,14 +100,14 @@ function Friends(){
                     searchFriend(e.target.value)
                 }}
                 placeholder="Search Username"
-                className = 'input-box-3'
+                className = 'profile-search-bar'
             />
 
             {/* results */}
             {results.length > 0 ? (
                 <div className="results-list">
                     {results.map(usr => (
-                        <div key={usr.user_id} className="search-song-box" onClick={() => navigate(`/profile/${usr.username}`, {state: {usr}})}>
+                        <div key={usr.user_id} className="friend-box" onClick={() => navigate(`/profile/${usr.username}`, {state: {usr}})}>
                             <img src={usr.user_image_url} alt='👤' className="song-img-box"/>
                             <span>{usr.username} </span>
                         </div>
