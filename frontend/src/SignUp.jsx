@@ -10,7 +10,6 @@ import { useNavigate} from 'react-router-dom'
 import API_URL from './config'
 import { getScreenStyle, cornerButtonStyle} from './styles'
 import './index.css'
-import { useAuth } from './AuthContext'
 
 //circles
 import Circle from "./AnimatedCircle.jsx"
@@ -20,28 +19,11 @@ import musicNote2 from './musical-note-2.png'
 function SignUp(){
 
     const navigate = useNavigate() // this makes it go from one screen to another
-    const { fetchUser } = useAuth() // fetch user
     const [email, setEmail] = useState("")
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
     const [error, setError] = useState("")
-    const [showPassword, setShowPassword] = useState(false)
-    const [imageFile, setImageFile] = useState(null)
-    const [profileImg, setProfileImg] = useState(null)
-
-    async function uploadToCloudinary(file) {
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('upload_preset', 'a3grzjto')
-
-        const res = await fetch('https://api.cloudinary.com/v1_1/dutrsvhz4/image/upload', {
-            method: 'POST',
-            body: formData
-        })
-        const data = await res.json()
-        return data.secure_url
-    }
 
     async function handleSignUp() {
         if (password.length < 8) {
@@ -53,8 +35,6 @@ function SignUp(){
             return
         }
 
-        const imageUrl = imageFile ? await uploadToCloudinary(imageFile) : ''
-
         const res = await fetch(`${API_URL}/auth/signup`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -62,7 +42,7 @@ function SignUp(){
                 email, 
                 username, 
                 password,
-                user_image_url: imageUrl
+                user_image_url: ''
             })
         })
         const data = await res.json()
@@ -72,15 +52,6 @@ function SignUp(){
             navigate('/login')
         } else {
             setError(data.error || 'Signup failed')
-        }
-    }
-
-    function handleDrop(e) {
-        e.preventDefault()
-        const file = e.dataTransfer.files[0]
-        if (file && file.type.startsWith('image/')) {
-            setImageFile(file)                               // save File
-            setProfileImg(URL.createObjectURL(file))         // just for preview
         }
     }
 
@@ -95,15 +66,6 @@ function SignUp(){
         window.addEventListener('keydown', handleKeyPress)
         return () => window.removeEventListener('keydown', handleKeyPress)
     }, [handleKeyPress])
-
-    function handleBackButton() {
-        console.log("back button clicked, go back to welcome page")
-        navigate(-1)
-    }
-
-    function handleDragOver(e) {
-        e.preventDefault() // required, otherwise drop won't fire
-    }
 
     return(
         <div style = {{...getScreenStyle(
