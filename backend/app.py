@@ -288,33 +288,43 @@ def store_interaction():
             (user_id, song_id)
         )
 
-    # Update user weight vector based on this swipe
-    song_rows = sql_cmd(
-        "SELECT feature_vector FROM songs WHERE song_id = %s",
-        (song_id,), fetch=True
+    # Fetch song feature vector and user profile in one query
+    # Cast to text so psycopg returns strings we can parse
+    rows = sql_cmd(
+        """SELECT s.feature_vector::text, up.weight_vector::text
+           FROM songs s
+           LEFT JOIN user_profiles up ON up.user_id = %s
+           WHERE s.song_id = %s""",
+        (user_id, song_id), fetch=True
     )
 
-    # if the song has a feature vector, update the user's weight vector accordingly
-    if song_rows and song_rows[0][0] is not None:
-        song_vec = song_rows[0][0]
+    if not rows:
+        return jsonify({"status": "ok"}), 201
 
-        profile_rows = sql_cmd(
-            "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
-            (user_id,), fetch=True
-        )
+    song_vec_str = rows[0][0]
+    prof_vec_str = rows[0][1]
 
-        if profile_rows and profile_rows[0][0] is not None:
-            new_vec = update_weight_vector(profile_rows[0][0], song_vec, action)
-        else:
-            new_vec = l2_normalize(song_vec[:])
+    # Parse vectors if they exist
+    if song_vec_str:
+        song_vec = json.loads(song_vec_str) if isinstance(song_vec_str, str) else song_vec_str
+    else:
+        return jsonify({"status": "ok"}), 201
 
-        sql_cmd(
-            """INSERT INTO user_profiles (user_id, weight_vector, updated_at)
-               VALUES (%s, %s, NOW())
-               ON CONFLICT (user_id) DO UPDATE
-               SET weight_vector = EXCLUDED.weight_vector, updated_at = NOW()""",
-            (user_id, json.dumps(new_vec))
-        )
+    if prof_vec_str:
+        prof_vec = json.loads(prof_vec_str) if isinstance(prof_vec_str, str) else prof_vec_str
+    else:
+        prof_vec = []
+
+    # Update weight vector
+    new_vec = update_weight_vector(prof_vec, song_vec, action)
+
+    sql_cmd(
+        """INSERT INTO user_profiles (user_id, weight_vector, updated_at)
+           VALUES (%s, %s, NOW())
+           ON CONFLICT (user_id) DO UPDATE
+           SET weight_vector = EXCLUDED.weight_vector, updated_at = NOW()""",
+        (user_id, json.dumps(new_vec))
+    )
 
     return jsonify({"status": "ok"}), 201
 
@@ -344,14 +354,23 @@ def get_liked_songs():
             "liked_at":       r[5].isoformat() if r[5] else None
         } for r in rows])
 
-# API route to get the next song recommendation for a user, using cosine similarity ranking with epsilon-greedy exploration
+# API route to get the next song recommendation for a user, using pgvector similarity ranking with epsilon-greedy exploration
 @app.route("/api/songs/next", methods=["GET"])
 @flask_jwt_extended.jwt_required()
 def next_song():
     user_id = current_user_id()
-    rows = sql_cmd("""
-            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
-                a.artist_name, s.feature_vector
+
+    profile_rows = sql_cmd(
+        "SELECT weight_vector::text FROM user_profiles WHERE user_id = %s",
+        (user_id,), fetch=True
+    )
+
+    has_profile = profile_rows and profile_rows[0][0] is not None
+
+    if has_profile and random.random() > EPSILON:
+        # Similarity-ranked: let pgvector find the closest unseen song in one query
+        rows = sql_cmd("""
+            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
             FROM songs s
             JOIN song_artists sa ON s.song_id = sa.song_id
             JOIN artists a ON sa.artist_id = a.artist_id
@@ -360,24 +379,31 @@ def next_song():
                 UNION
                 SELECT song_id FROM disliked WHERE user_id = %s
             )
-            AND s.feature_vector IS NOT NULL;
+            AND s.feature_vector IS NOT NULL
+            ORDER BY s.feature_vector <=> %s::vector
+            LIMIT 1
+        """, (user_id, user_id, profile_rows[0][0]), fetch=True)
+    else:
+        # Random exploration or no profile yet
+        rows = sql_cmd("""
+            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
+            FROM songs s
+            JOIN song_artists sa ON s.song_id = sa.song_id
+            JOIN artists a ON sa.artist_id = a.artist_id
+            WHERE s.song_id NOT IN (
+                SELECT song_id FROM liked WHERE user_id = %s
+                UNION
+                SELECT song_id FROM disliked WHERE user_id = %s
+            )
+            AND s.feature_vector IS NOT NULL
+            ORDER BY RANDOM()
+            LIMIT 1
         """, (user_id, user_id), fetch=True)
 
     if not rows:
         return jsonify({"message": "no more songs"}), 404
 
-    # Use cosine similarity ranking unless exploring randomly
-    profile_rows = sql_cmd(
-        "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
-        (user_id,), fetch=True
-    )
- 
-    if profile_rows and profile_rows[0][0] is not None and random.random() > EPSILON:
-        weight_vec = profile_rows[0][0]
-        best = max(rows, key=lambda r: cosine_similarity(weight_vec, r[5]))
-    else:
-        best = random.choice(rows)
-
+    best = rows[0]
     return jsonify({
         "song_id":        best[0],
         "song_name":      best[1],
