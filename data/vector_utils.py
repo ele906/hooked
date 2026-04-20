@@ -18,6 +18,8 @@ GENRE_TYPES = [
 ]
 
 N_GENRES = len(GENRE_TYPES)  # 12
+LYRIC_DIMS = 384             # sentence-transformers all-MiniLM-L6-v2
+TOTAL_DIMS = N_GENRES + 2 + LYRIC_DIMS  # 398 (12 genres + 2 metadata + 384 lyric embeddings)
 
 # Normalization bounds for year and duration
 _MIN_YEAR = 1960
@@ -29,16 +31,17 @@ _MAX_MS   = 600_000  # 10 min
 # returns the L2-normalized form of a vector
 
 def init_weight_vector_from_prefs(prefs_frontend):
-    # build a vector for each selected genre
+    # build a vector for each selected genre (12-dim + 2 metadata = 14-dim total)
     vectors = [build_feature_vector(genre, None, None) for genre in prefs_frontend]
     
     if not vectors:
-        return l2_normalize([1.0] * 14)  # default if nothing selected
+        base = [1.0] * N_GENRES + [0.5, 0.5]  # default if nothing selected (12 genres + 2 metadata)
+    else:
+        # average genres and metadata across all selected genres
+        base = [sum(v[i] for v in vectors) / len(vectors) for i in range(N_GENRES + 2)]
     
-    # average them together
-    avg = [sum(v[i] for v in vectors) / len(vectors) for i in range(14)]
-    
-    return l2_normalize(avg)
+    # pad with zeros for lyric embedding dimensions
+    return l2_normalize(base + [0.0] * LYRIC_DIMS)
 
 # encodes a genre string into N_GENRES types
 # If the genre matches multiple types, weight is split evenly across matches
@@ -111,10 +114,24 @@ def cosine_similarity(v1, v2):
 # update a user's weight vector based on a swipe action
 # for a like, we move the weight vector slightly towards the song vector (scaled by alpha)
 # for a dislike, we move the weight vector slightly away from the song vector (scaled by beta)
-# after the update, we L2-normalize the weight vector again
+# after the update, we L2-normalize the vector again
 def update_weight_vector(current_vec, song_vec, action, alpha=0.1, beta=0.1):
+    # Handle initialization: if current_vec is empty, initialize with the song vector
+    if len(current_vec) == 0:
+        if action == "like":
+            return l2_normalize(song_vec[:])
+        elif action == "dislike":
+            return l2_normalize([-x for x in song_vec])
+        else:
+            return l2_normalize(song_vec[:])
+    
+    # Handle dimension mismatch by padding shorter vector with zeros to match longer
     if len(current_vec) != len(song_vec):
-        raise ValueError(f"Vector length mismatch: {len(current_vec)} vs {len(song_vec)}")
+        max_len = max(len(current_vec), len(song_vec))
+        if len(current_vec) < max_len:
+            current_vec = current_vec + [0.0] * (max_len - len(current_vec))
+        if len(song_vec) < max_len:
+            song_vec = song_vec + [0.0] * (max_len - len(song_vec))
 
     if action == "like":
         updated = [c + alpha * s for c, s in zip(current_vec, song_vec)]
