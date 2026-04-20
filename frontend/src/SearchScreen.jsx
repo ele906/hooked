@@ -4,41 +4,51 @@
 // Authors: Eleanor Liu
 // Contributors: Lucille Rizo Patron
 // -----------------------------------------------------------------------
+/* eslint-disable react-hooks/rules-of-hooks */
 import React from 'react'
 import {useState, useRef} from 'react'
 import { useNavigate } from 'react-router-dom'
 import API_URL from './config'
 
 function SearchScreen() {
+    if (!sessionStorage.getItem('username')) {
+        window.location.replace(
+            API_URL + '/auth/login?originalurl=' + window.location.pathname
+        )
+        return null
+    }
+
     const navigate = useNavigate()
     const [results, setResults] = useState([])
     const [query, setQuery] = useState("")
     const controllerRef = useRef(null)
 
     function searchSong(my_params) {
-        // abort previous request if one is running
-        if (controllerRef.current !== null) {
-            controllerRef.current.abort()
-        }
-
-        // start a new one
+        if (controllerRef.current !== null) controllerRef.current.abort()
         controllerRef.current = new AbortController()
 
         fetch(`${API_URL}/api/songs/search?params=${encodeURIComponent(my_params)}`, {
-            signal: controllerRef.current.signal  // attach the abort signal
+            signal: controllerRef.current.signal,
+            headers: {
+                'Authorization': 'Bearer ' + sessionStorage.getItem('accesstoken'),
+                'Accept': 'application/json',
+            }
         })
-            .then(res => res.json())
-            .then(data => {
-                if (Array.isArray(data)) {
-                    setResults(data)
-                } else {
-                    setResults([])  // if not an array, just set empty
+            .then(res => {
+                if (res.status === 401 || res.status === 422) {
+                    window.location.replace(
+                        API_URL + '/auth/login?originalurl=' + window.location.pathname
+                    )
+                    return null
                 }
+                return res.json()
+            })
+            .then(data => {
+                if (Array.isArray(data)) setResults(data)
+                else setResults([])
             })
             .catch(err => {
-                if (err.name !== 'AbortError') {
-                    console.error("Search failed", err)
-                }
+                if (err.name !== 'AbortError') console.error("Search failed", err)
             })
     }
     

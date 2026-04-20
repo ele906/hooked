@@ -12,7 +12,6 @@ function ForgotPassword() {
         const res = await fetch(`${API_URL}/auth/forgot-password`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            credentials: "include",
             body: JSON.stringify({ email }),
         })
         if (res.ok) {

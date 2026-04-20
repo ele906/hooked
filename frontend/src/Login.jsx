@@ -22,7 +22,6 @@ function Login(){
         if (!email) return
         const res = await fetch(`${API_URL}/auth/resend-verification`, {
             method: "POST",
-            credentials: "include",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email }),
         })
@@ -48,13 +47,15 @@ function Login(){
     async function handleDone(myUsername, myPassword){
         const result = await fetch(`${API_URL}/api/checkpw`, {
             method: 'POST',
-            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: myUsername, password: myPassword })
         })
         const data = await result.json()
 
         if (data.logged_in) {
+            sessionStorage.setItem('username', data.username)
+            sessionStorage.setItem('accesstoken', data.accesstoken)
+            sessionStorage.setItem('refreshtoken', data.refreshtoken)
             if (!data.email_verified) {
                 alert("Heads up: your email isn't verified yet. Check your inbox or use 'Resend verification email'.")
             }

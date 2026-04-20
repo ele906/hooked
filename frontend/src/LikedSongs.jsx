@@ -4,6 +4,7 @@
 // Author: Lucille Rizo Patron, 
 // Contributors: Eleanor Liu, Derek Geng
 // -----------------------------------------------------------------------
+/* eslint-disable react-hooks/rules-of-hooks */
 
 import React from 'react'
 import {useState, useRef, useEffect} from 'react'
@@ -15,6 +16,13 @@ import searchIcon from './search_button.png'
 // Renders the liked songs screen where users can view and manage their 
 // liked songs list.
 function LikedSongs() {
+
+    if (!sessionStorage.getItem('username')) {
+        window.location.replace(
+            API_URL + '/auth/login?originalurl=' + window.location.pathname
+        )
+        return null
+    }
 
     // enables flow from one screen to another
     const navigate = useNavigate()
@@ -30,73 +38,42 @@ function LikedSongs() {
     // fetch liked songs
     useEffect(() => {
         async function fetchLikedSongs() {
-            try {
-                console.log("[LikedSongs] Fetching user authentication")
-                
-                // check for user authentication before fetching liked songs
-                const authResponse = await fetch(`${API_URL}/auth/user`, { 
-                    credentials: "include" 
-                })
-
-                if (!authResponse.ok) {
-                    throw new Error(`Auth failed with status ${authResponse.status}`)
-                }
-
-                const authData = await authResponse.json()
-
-                if (!authData || !authData.user_id) {
-                    throw new Error("No user_id in auth response")
-                }
-
-                // set userId
-                setUserId(authData.user_id)
-                console.log("[LikedSongs] Fetching liked songs for userId:", authData.user_id)
-
-                const songsResponse = await fetch(`${API_URL}/api/songs/liked?user_id=${authData.user_id}`, 
-                    { credentials: "include" }
-                )
-                
-                const songs = await songsResponse.json()
-
-                // update liked songs list after fetching
-                if (Array.isArray(songs)) {
-                    console.log("[LikedSongs] Setting liked songs, count:", songs.length)
-                    setLikedSongs(songs)
-                } else {
-                    console.error("[LikedSongs] Expected array of songs but got:", songs)
-                    setLikedSongs([])
-                }
-
-            } catch (error) {
-                console.error("[LikedSongs] Error fetching liked songs:", error.message)
-                setLikedSongs([])
+            const authHeader = {
+                'Authorization': 'Bearer ' + sessionStorage.getItem('accesstoken'),
+                'Accept': 'application/json',
             }
+            const songsResponse = await fetch(`${API_URL}/api/songs/liked`, { headers: authHeader })
+            if (songsResponse.status === 401 || songsResponse.status === 422) {
+                window.location.replace(
+                    API_URL + '/auth/login?originalurl=' + window.location.pathname
+                )
+                return
+            }
+            const songs = await songsResponse.json()
+            if (Array.isArray(songs)) setLikedSongs(songs)
+            else setLikedSongs([])
         }
-
         fetchLikedSongs()
     }, [])
 
     // delete a liked song, takes an integer song id and removes it from the 
     // user's liked songs list
     async function deleteSong(songId) {
-        try {
-            console.log("[LikedSongs] Deleting song with id:", songId)
-            
-            const response = await fetch(`${API_URL}/api/songs/liked/${songId}`, {
-                method: 'DELETE',
-                credentials: 'include'
-            })
-
-            if (response.ok) {
-                console.log("[LikedSongs] Successfully deleted song, updating UI")
-                // update UI by filtering out deleted song
-                setLikedSongs(prev => prev.filter(song => song.song_id !== songId))
-            } else {
-                throw new Error(`Delete failed with status: ${response.status}`)
+        const response = await fetch(`${API_URL}/api/songs/liked/${songId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': 'Bearer ' + sessionStorage.getItem('accesstoken'),
+                'Accept': 'application/json',
             }
-
-        } catch (error) {
-            console.error("[LikedSongs] Error deleting song:", error.message)
+        })
+        if (response.status === 401 || response.status === 422) {
+            window.location.replace(
+                API_URL + '/auth/login?originalurl=' + window.location.pathname
+            )
+            return
+        }
+        if (response.ok) {
+            setLikedSongs(prev => prev.filter(song => song.song_id !== songId))
         }
     }
 
