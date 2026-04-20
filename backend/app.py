@@ -358,59 +358,65 @@ def get_liked_songs():
 @app.route("/api/songs/next", methods=["GET"])
 @flask_jwt_extended.jwt_required()
 def next_song():
-    user_id = current_user_id()
+    try:
+        user_id = current_user_id()
+        if not user_id:
+            return jsonify({"error": "user not found"}), 401
 
-    profile_rows = sql_cmd(
-        "SELECT weight_vector::text FROM user_profiles WHERE user_id = %s",
-        (user_id,), fetch=True
-    )
+        profile_rows = sql_cmd(
+            "SELECT weight_vector::text FROM user_profiles WHERE user_id = %s",
+            (user_id,), fetch=True
+        )
 
-    has_profile = profile_rows and profile_rows[0][0] is not None
+        has_profile = profile_rows and profile_rows[0][0] is not None
 
-    if has_profile and random.random() > EPSILON:
-        # Similarity-ranked: let pgvector find the closest unseen song in one query
-        rows = sql_cmd("""
-            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
-            FROM songs s
-            JOIN song_artists sa ON s.song_id = sa.song_id
-            JOIN artists a ON sa.artist_id = a.artist_id
-            WHERE s.song_id NOT IN (
-                SELECT song_id FROM liked WHERE user_id = %s
-                UNION
-                SELECT song_id FROM disliked WHERE user_id = %s
-            )
-            AND s.feature_vector IS NOT NULL
-            ORDER BY s.feature_vector <=> %s::vector
-            LIMIT 1
-        """, (user_id, user_id, profile_rows[0][0]), fetch=True)
-    else:
-        # Random exploration or no profile yet
-        rows = sql_cmd("""
-            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
-            FROM songs s
-            JOIN song_artists sa ON s.song_id = sa.song_id
-            JOIN artists a ON sa.artist_id = a.artist_id
-            WHERE s.song_id NOT IN (
-                SELECT song_id FROM liked WHERE user_id = %s
-                UNION
-                SELECT song_id FROM disliked WHERE user_id = %s
-            )
-            AND s.feature_vector IS NOT NULL
-            ORDER BY RANDOM()
-            LIMIT 1
-        """, (user_id, user_id), fetch=True)
+        if has_profile and random.random() > EPSILON:
+            # Similarity-ranked: let pgvector find the closest unseen song in one query
+            rows = sql_cmd("""
+                SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
+                FROM songs s
+                JOIN song_artists sa ON s.song_id = sa.song_id
+                JOIN artists a ON sa.artist_id = a.artist_id
+                WHERE s.song_id NOT IN (
+                    SELECT song_id FROM liked WHERE user_id = %s
+                    UNION
+                    SELECT song_id FROM disliked WHERE user_id = %s
+                )
+                AND s.feature_vector IS NOT NULL
+                ORDER BY s.feature_vector <=> %s::vector
+                LIMIT 1
+            """, (user_id, user_id, profile_rows[0][0]), fetch=True)
+        else:
+            # Random exploration or no profile yet
+            rows = sql_cmd("""
+                SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
+                FROM songs s
+                JOIN song_artists sa ON s.song_id = sa.song_id
+                JOIN artists a ON sa.artist_id = a.artist_id
+                WHERE s.song_id NOT IN (
+                    SELECT song_id FROM liked WHERE user_id = %s
+                    UNION
+                    SELECT song_id FROM disliked WHERE user_id = %s
+                )
+                AND s.feature_vector IS NOT NULL
+                ORDER BY RANDOM()
+                LIMIT 1
+            """, (user_id, user_id), fetch=True)
 
-    if not rows:
-        return jsonify({"message": "no more songs"}), 404
+        if not rows:
+            return jsonify({"message": "no more songs"}), 404
 
-    best = rows[0]
-    return jsonify({
-        "song_id":        best[0],
-        "song_name":      best[1],
-        "song_image_url": best[2],
-        "preview_mp3_url": best[3],
-        "artist_name":    best[4]
-    })
+        best = rows[0]
+        return jsonify({
+            "song_id":        best[0],
+            "song_name":      best[1],
+            "song_image_url": best[2],
+            "preview_mp3_url": best[3],
+            "artist_name":    best[4]
+        })
+    except Exception as e:
+        app.logger.error(f"Error in next_song: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 # For deleting a liked song from liked songs
 @app.route("/api/songs/liked/<int:song_id>", methods=["DELETE"])
