@@ -9,9 +9,8 @@ import {useEffect, useState} from 'react'
 import {useParams, useNavigate } from 'react-router-dom'
 import './index.css'
 import { getScreenStyle, cornerButtonStyle } from './styles'
-import searchIcon from './search_button.png'
-import logoutIcon from './logout_button.png'
 import API_URL from './config'
+import Navigate from "./Navigation"
 
 function Profile(){
 
@@ -134,32 +133,23 @@ function Profile(){
 
     return (
         <div style = {{...getScreenStyle(
-            'rgba(202, 190, 235, 0.4)',
-            'rgba(140, 183, 190, 0.25)',
-            'rgba(209, 154, 184, 0.4)',
-            'rgba(161, 174, 230, 0.3)'),
+            'rgba(255, 163, 224, 0.57)',
+            'rgba(214, 163, 226, 0.25)',
+            'rgba(255, 75, 225, 0.4)',
+            'rgba(163, 126, 194, 0.31)'),
+            fontSize: '16px',
+            fontWeight: 'bold',
             color: '#debff7'}}>
 
-        <div className='card'>
-            <div className='card-header'>
-                <button style={cornerButtonStyle('left', 'top')} onClick={() => navigate('/liked')} title="Liked Songs">♥</button>
-                <button style={{...cornerButtonStyle('left', 'top'), left: '71px'}} onClick={() => navigate('/search')} title="Search">
-                    <img src={searchIcon} alt="Search" style={{ width: '24px', height: '24px' }} />
-                </button>
-                <button style={{...cornerButtonStyle('left', 'top'), left: '126px'}} onClick={() => navigate('/profile/' + sessionStorage.getItem('username'))} title="Profile">👤</button>
-                <button style={{...cornerButtonStyle('left', 'top'), left: '181px'}} onClick={() => navigate('/swipe')} title="Swipe">↔</button>
-                
-                <button style={{...cornerButtonStyle('right', 'top'), right: '12px'}} onClick={() => window.location.href = `${API_URL}/logoutapp`} title="Logout">
-                    <img src={logoutIcon} alt="Logout" style={{ width: '24px', height: '24px' }} />
-                </button>
-                
-                <div style={{ flex: 1 }} />
-                {isOwnProfile ? (
-                    <h2>My Profile</h2>
-                ) : (
-                    <h2>View Profile</h2>
-                )}
+        <Navigate />
 
+        <div className='profile-card'>
+            <div className='profile-header-style'>
+                {isOwnProfile ? (
+                    <>My Profile</>
+                ) : (
+                    <>View Profile</>
+                )}
             </div>
 
             
@@ -222,7 +212,7 @@ function Profile(){
                             onMouseLeave={e => e.currentTarget.querySelector('.hover-overlay').style.opacity = 0}
                         >
                             <div className='hover-overlay' style={{
-                                position: 'absolute', inset: '-6px -8px',  // ← extends beyond the div
+                                position: 'absolute', inset: '-6px -8px',
                                 backgroundColor: 'rgba(255,255,255,0.2)',
                                 borderRadius: '12px',
                                 opacity: 0,

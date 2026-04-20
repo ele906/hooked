@@ -7,57 +7,18 @@
 import {useCallback, useEffect, useState} from 'react'
 import { useNavigate } from 'react-router-dom'
 import API_URL from './config'
-import { getScreenStyle } from './styles'
+import { getScreenStyle, cornerButtonStyle } from './styles'
 import './index.css'
 import Circle from "./AnimatedCircle.jsx"
 import musicNote1 from './musical-note-1.png'
 import musicNote2 from './musical-note-2.png'
 import { useAuth } from './AuthContext'
 
-const secondaryButtonStyle = {
-    backgroundColor: 'transparent',
-    color: '#debff7',
-    padding: '8px 16px',
-    border: '1px solid #debff7',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    marginTop: '12px',
-    marginBottom: '8px',
-    fontSize: '14px',
-    fontFamily: 'Outfit, sans-serif',
-    fontWeight: 'bold',
-    transition: 'all 0.3s ease',
-    width: '100%',
-    maxWidth: '300px',
-    display: 'block',
-    marginLeft: 'auto',
-    marginRight: 'auto'
-}
-
-const primaryButtonStyle = {
-    backgroundColor: '#debff7',
-    color: '#1d1133',
-    padding: '12px 32px',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    marginTop: '16px',
-    marginBottom: '8px',
-    fontSize: '16px',
-    fontFamily: 'Outfit, sans-serif',
-    fontWeight: 'bold',
-    width: '100%',
-    maxWidth: '300px',
-    display: 'block',
-    marginLeft: 'auto',
-    marginRight: 'auto',
-    transition: 'all 0.3s ease'
-}
-
 function Login(){
 
     // this makes it go from one screen to another
     const navigate = useNavigate()
+    
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
     const [resendMsg, setResendMsg] = useState("")
@@ -78,8 +39,6 @@ function Login(){
             setResendMsg("If that email exists, a verification link was sent.")
         }
     }
-
-
 
     const { fetchUser } = useAuth()
 
@@ -113,7 +72,6 @@ function Login(){
         }
     }
 
-
     const handleKeyPress = useCallback((e) => {
         if (e.key === ' ' || e.code === "Space") {
             console.log('Space pressed')
@@ -129,24 +87,20 @@ function Login(){
     return (
         <div style = {{...getScreenStyle(
             'rgba(170, 109, 217, 0.4)',
-            'rgba(153, 195, 230, 0.562)',
+            'rgba(230, 167, 255, 0.64)',
             'rgba(186, 151, 225, 0.4)',
-            'rgba(164, 189, 218, 0.688)'),
-            color: '#debff7',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '100vh'
-        }}>
+            'rgba(154, 177, 255, 0.69)'),
+            color: '#debff7'}}>
 
-        <div className = 'card' style={{ width: 'min(90vw, 420px)', height: 'auto' }}> 
+            <div className = 'welcome-card-style'> 
 
-            <div className = 'card-header'> 
-                <button className='back-btn' onClick={handleBackButton} style={{ position: 'absolute', left: '12px' }}>
-                    ⬅
-                </button>
-                <h2 style={{ flex: 1, textAlign: 'center' }}>Login</h2>
+            <div className = 'login-header-style'> 
+                Account Login
             </div>
+
+            <button style = {{...cornerButtonStyle('top', 'left')}} onClick={handleBackButton}>
+                ⬅
+            </button>
 
             <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                 <input
@@ -154,7 +108,7 @@ function Login(){
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Username"
-                    className='input-box-1'
+                    className='input-login'
                     style={{ width: '100%', maxWidth: '300px' }}
                 />
 
@@ -163,12 +117,12 @@ function Login(){
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Password"
-                    className='input-box-1'
+                    className='input-login'
                     style={{ width: '100%', maxWidth: '300px' }}
                 />
 
                 <button 
-                    style={{...secondaryButtonStyle}}
+                    className = "secondary-login-button"
                     onClick={() => setShowPassword(!showPassword)}
                     onMouseEnter={(e) => { e.target.style.backgroundColor = 'rgba(222, 191, 247, 0.2)' }}
                     onMouseLeave={(e) => { e.target.style.backgroundColor = 'transparent' }}
@@ -177,7 +131,7 @@ function Login(){
                 </button>
 
                 <button 
-                    style={{...primaryButtonStyle}}
+                    className = "login-button"
                     onClick={() => handleDone(username, password)}
                     onMouseEnter={(e) => { e.target.style.backgroundColor = '#cdbfea' }}
                     onMouseLeave={(e) => { e.target.style.backgroundColor = '#debff7' }}
@@ -188,7 +142,7 @@ function Login(){
                 <div style={{ borderTop: '1px solid #debff730', width: '100%', margin: '12px 0' }} />
 
                 <button 
-                    style={{...secondaryButtonStyle}}
+                    className = "secondary-login-button"
                     onClick={() => navigate('/forgot-password')}
                     onMouseEnter={(e) => { e.target.style.backgroundColor = 'rgba(222, 191, 247, 0.2)' }}
                     onMouseLeave={(e) => { e.target.style.backgroundColor = 'transparent' }}
@@ -197,7 +151,7 @@ function Login(){
                 </button>
 
                 <button 
-                    style={{...secondaryButtonStyle}}
+                    className = "secondary-login-button"
                     onClick={() => navigate('/forgot-username')}
                     onMouseEnter={(e) => { e.target.style.backgroundColor = 'rgba(222, 191, 247, 0.2)' }}
                     onMouseLeave={(e) => { e.target.style.backgroundColor = 'transparent' }}
@@ -206,7 +160,7 @@ function Login(){
                 </button>
 
                 <button 
-                    style={{...secondaryButtonStyle}}
+                    className = "secondary-login-button"
                     onClick={handleResend}
                     onMouseEnter={(e) => { e.target.style.backgroundColor = 'rgba(222, 191, 247, 0.2)' }}
                     onMouseLeave={(e) => { e.target.style.backgroundColor = 'transparent' }}

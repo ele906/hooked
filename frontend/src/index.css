@@ -54,7 +54,12 @@ code {
     position: relative;
     width: 350px;
     padding: 100px 40px;
-    background-color: #7a779636;
+    background-color: #9e86a50c;
+    background-image:
+        radial-gradient(circle at 20% 30%, rgba(255, 81, 81, 0.4), transparent 30%),
+        radial-gradient(circle at 80% 20%, rgba(251, 123, 255, 0.4), transparent 30%),
+        radial-gradient(circle at 85% 85%, rgba(255, 123, 123, 0.4), transparent 30%),
+        radial-gradient(circle at 15% 90%, rgba(158, 123, 255, 0.4), transparent 30%);
     border-radius: 25px;
     text-align: center;
     color: white;
@@ -121,7 +126,7 @@ code {
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    border-radius: 2px 2px 0 0;
+    border-radius: 5px;
     background-color: #9f7abe63;
     padding: 10px 10px;
     box-sizing: border-box;
@@ -159,8 +164,8 @@ code {
     font-weight: bold;
     font-family: 'Outfit', sans-serif;
     height: 25px;
-    margin-top: 40px;
-    margin-bottom: 100px;
+    margin-top: 50px;
+    margin-bottom: 30px;
     text-align: center;
 }
 
@@ -177,7 +182,7 @@ code {
 
 .profile-header-style {
     color: #debff7cb;
-    font-size: 60px;
+    font-size: 50px;
     font-weight: bold;
     font-family: 'Outfit', sans-serif;
     height: 25px;
@@ -192,7 +197,7 @@ code {
     font-weight: bold;
     font-family: 'Outfit', sans-serif;
     height: 25px;
-    margin-top: 40px;
+    margin-top: 30px;
     margin-bottom: 100px;
     text-align: center;
     cursor: pointer;
@@ -241,17 +246,52 @@ code {
     cursor: pointer;
 }
 
-.login-button{
-  padding: 13px 10px;
-    font-size: 14px;
-    width: 150px;
-    border-radius: 22px;
-    background-color: #b186e9;
-    color: #e2d7f5;
-    font-weight: bold;
+.login-button {
+    background-color: #debff7;
+    color: #1d1133;
+    padding: 12px 32px;
     border: none;
+    border-radius: 8px;
     cursor: pointer;
-    margin: 4px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: bold;
+    width: 100%;
+    max-width: 300px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    transition: all 0.3s ease;
+}
+.login-button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.secondary-login-button {
+    background-color: transparent;
+    color: #debff7;
+    padding: 8px 16px;
+    border: 1px solid #debff7;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 12px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: bold;
+    width: 100%;
+    max-width: 300px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    transition: all 0.3s ease;
+}
+.secondary-login-button:hover {
+    background-color: rgba(222, 191, 247, 0.1);
+    transform: translateY(-1px);
 }
 
 .welcome-button {
@@ -350,48 +390,30 @@ code {
     color: #d3c0d6a4;
 }
 
-
 .search-song-box {
-  margin: 0 auto;
-  width: 600px;
-  border-radius: 15px;
-  background-color: #d4d4f017;
-  color: #d0e6f2da;
-  gap: 10px;
-  padding: 8px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  text-align: left;
-  justify-content: flex-start;
+    margin: 0 auto;
+    margin-bottom: 10px;
+    width: 600px;
+    border-radius: 15px;
+    background-color: #d4d4f017;
+    color: #d0e6f2da;
+    gap: 10px;
+    padding: 8px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+    justify-content: flex-start;
 }
 
 .search-song-box:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
-.friend-box {
-  margin-bottom: 10px;
-  width: 330px;
-  border-radius: 15px;
-  background-color: #d4d4f017;
-  color: #d0e6f2da;
-  gap: 10px;
-  padding: 8px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  text-align: left;
-  justify-content: flex-start;
-}
-
-.friend-box:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-}
 /* -------- INPUT BOXES -------- */
 
 .input-login {
-  padding: 15px 10px;
+  padding: 10px 15px;
   border-radius: 25px;
   width: 320px;
   font-size: 16px;
