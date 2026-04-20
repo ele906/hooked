@@ -1,28 +1,49 @@
 // -----------------------------------------------------------------------
 // WelcomePage.jsx
 // Swipe interface for Hooked (in progress)
-// Authors: Eleanor Liu
-// Contributors:  Lucille Rizo Patron
+// Authors: Eleanor Liu, Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
-import React, { useState } from 'react'
-import {useCallback, useEffect} from 'react'
+import React from 'react'
+import {useCallback, useEffect, useState} from 'react'
 import { useNavigate} from 'react-router-dom'
 import API_URL from './config'
+import { getScreenStyle } from './styles'
+import './index.css'
+import { useAuth } from './AuthContext'
+
+//circles
+import Circle from "./AnimatedCircle.jsx"
+import musicNote1 from './musical-note-1.png'
+import musicNote2 from './musical-note-2.png'
 
 function SignUp(){
 
-    // this makes it go from one screen to another
-    const navigate = useNavigate()
+    const navigate = useNavigate() // this makes it go from one screen to another
+    const { fetchUser } = useAuth() // fetch user
     const [email, setEmail] = useState("")
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
     const [error, setError] = useState("")
     const [showPassword, setShowPassword] = useState(false)
+    const [imageFile, setImageFile] = useState(null)
+    const [profileImg, setProfileImg] = useState(null)
 
-    const handleSignup = async () => {
-        setError("")
+    async function uploadToCloudinary(file) {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('upload_preset', 'a3grzjto')
+
+        const res = await fetch('https://api.cloudinary.com/v1_1/dutrsvhz4/image/upload', {
+            method: 'POST',
+            body: formData
+        })
+        const data = await res.json()
+        return data.secure_url
+    }
+
+    async function handleSignUp() {
         if (password.length < 8) {
             setError("Password must be at least 8 characters")
             return
@@ -32,17 +53,35 @@ function SignUp(){
             return
         }
 
+        const imageUrl = imageFile ? await uploadToCloudinary(imageFile) : ''
+
         const res = await fetch(`${API_URL}/auth/signup`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, username, password })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                email, 
+                username, 
+                password,
+                user_image_url: imageUrl
+            })
         })
         const data = await res.json()
+
         if (res.ok) {
             alert("Account created! Please check your email to verify before logging in.")
             navigate('/login')
         } else {
-            setError(data.error || "Signup failed")
+            setError(data.error || 'Signup failed')
+        }
+    }
+
+
+    function handleDrop(e) {
+        e.preventDefault()
+        const file = e.dataTransfer.files[0]
+        if (file && file.type.startsWith('image/')) {
+            setImageFile(file)                               // save File
+            setProfileImg(URL.createObjectURL(file))         // just for preview
         }
     }
 
@@ -58,67 +97,139 @@ function SignUp(){
         return () => window.removeEventListener('keydown', handleKeyPress)
     }, [handleKeyPress])
 
+    function handleBackButton() {
+        console.log("back button clicked, go back to welcome page")
+        navigate(-1)
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault() // required, otherwise drop won't fire
+    }
+
     return(
-        <div style = {screenStyle}> 
-            Create an Account <br />
-            {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+        <div style = {{...getScreenStyle(
+            'rgba(170, 109, 217, 0.4)',
+            'rgba(153, 195, 230, 0.562)',
+            'rgba(186, 151, 225, 0.4)',
+            'rgba(164, 189, 218, 0.688)'),
+            color: '#debff7',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100vh'
+        }}>
 
-            <input style={backButtonStyle} type="email" placeholder="Email"
-                value={email} onChange={(e) => setEmail(e.target.value)} />
-            <input style={backButtonStyle} type="text" placeholder="Username"
-                value={username} onChange={(e) => setUsername(e.target.value)} />
-            <input style={backButtonStyle} type={showPassword ? "text" : "password"} placeholder="Password"
-                value={password} onChange={(e) => setPassword(e.target.value)} />
-            <input style={backButtonStyle} type={showPassword ? "text" : "password"} placeholder="Confirm Password"
-                value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-            <button style={backButtonStyle} onClick={() => setShowPassword(!showPassword)}>
-                {showPassword ? "Hide Password" : "Show Password"}
-            </button>
-            
-            <button style={backButtonStyle} onClick = { () => {
-                console.log("back button clicked! lets migrate to welcome page")
-                navigate('/')
-            }}> 
-                Back 
-            </button>
+        <div className = 'card' style={{ width: 'min(90vw, 420px)', height: 'auto', maxHeight: '90vh', overflowY: 'auto' }}> 
 
-            <button style={backButtonStyle} onClick={handleSignup}>
-                Sign Up
-            </button>
+            <div className = 'card-header'> 
+                <button className='back-btn' onClick={handleBackButton} style={{ position: 'absolute', left: '12px' }}>
+                    ⬅
+                </button>
+                <h2 style={{ flex: 1, textAlign: 'center' }}>Create Account</h2>
+            </div>
 
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Email"
+                    className='input-box-4'
+                    style={{ width: '100%', maxWidth: '300px' }}
+                />
+
+                <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Username"
+                    className='input-box-4'
+                    style={{ width: '100%', maxWidth: '300px' }}
+                />
+
+                <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    className='input-box-4'
+                    style={{ width: '100%', maxWidth: '300px' }}
+                />
+
+                <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm Password"
+                    className='input-box-4'
+                    style={{ width: '100%', maxWidth: '300px' }}
+                />
+
+                <div
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    style={{
+                        border: '2px dashed #debff7',
+                        borderRadius: '12px',
+                        padding: '24px',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        color: '#debff7',
+                        width: '100%',
+                        maxWidth: '280px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.3s ease',
+                        backgroundColor: 'rgba(222, 191, 247, 0.05)'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(222, 191, 247, 0.15)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(222, 191, 247, 0.05)' }}
+                >
+                    {profileImg
+                        ? <img src={profileImg} alt="profile" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover' }} />
+                        : <p style={{ margin: 0, fontSize: '14px' }}>Drag & drop profile photo</p>
+                    }
+                </div>
+
+                {error && <p style={{ color: '#ff6b6b', fontSize: '13px', margin: 0, textAlign: 'center' }}>{error}</p>}
+
+                <button
+                    style={{
+                        backgroundColor: '#debff7',
+                        color: '#1d1133',
+                        padding: '12px 32px',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        marginTop: '12px',
+                        fontSize: '16px',
+                        fontFamily: 'Outfit, sans-serif',
+                        fontWeight: 'bold',
+                        width: '100%',
+                        maxWidth: '300px',
+                        transition: 'all 0.3s ease'
+                    }}
+                    onClick={handleSignUp}
+                    onMouseEnter={(e) => { e.target.style.backgroundColor = '#cdbfea' }}
+                    onMouseLeave={(e) => { e.target.style.backgroundColor = '#debff7' }}
+                >
+                    Create Account
+                </button>
+            </div>
+        </div>
+
+        <Circle image={musicNote1} alpha={0.008}/>            
+        <Circle image={musicNote1} alpha={0.008}/>    
+        <Circle image={musicNote1} alpha={0.008}/>    
+        <Circle image={musicNote2} alpha={0.008}/>    
+        <Circle image={musicNote2} alpha={0.008}/>    
+        <Circle image={musicNote2} alpha={0.008}/>
         </div>
     )
 }
 
 
-// --------------------------------- Styles --------------------------------
-const screenStyle = {
-    minHeight: '100vh',
-    backgroundColor: '#18171d',
-    backgroundImage: `
-        radial-gradient(circle at 20% 30%, rgba(213, 127, 217, 0.4) 0%, transparent 30%),
-        radial-gradient(circle at 80% 20%, rgba(109, 166, 215, 0.25) 0%, transparent 30%),
-        radial-gradient(circle at 85% 85%, rgba(148, 123, 176, 0.4) 0%, transparent 30%),
-        radial-gradient(circle at 15% 90%, rgba(108, 148, 201, 0.3) 0%, transparent 30%)
-    `,
-    color: '#debff7',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '20px',
-    position: 'relative',
-}
-
-const backButtonStyle = {
-    padding: '15px 35px',
-    fontSize: '16px',
-    backgroundColor: '#debff7',
-    color: '#1d1133',
-    fontWeight: 'bold',
-    border: 'none',
-    borderRadius: '50px',
-    cursor: 'pointer',
-}
+// --------------------------------- EXPORT --------------------------------
 
 export default SignUp

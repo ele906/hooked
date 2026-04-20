@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------
 // config.js
-// API configuration for frontend
+// Handles API configuration
 // -----------------------------------------------------------------------
 
 // API URL - reads from .env (REACT_APP_API_URL), defaults to localhost

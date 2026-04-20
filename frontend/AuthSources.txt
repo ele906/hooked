@@ -1,0 +1,23 @@
+res fetch
+https://stackoverflow.com/questions/46579533/what-does-thenres-res-json-in-react-native-fetch-mean
+
+credentials include
+https://stackoverflow.com/questions/63351799/react-fetch-credentials-include-breaks-my-entire-request-and-i-get-an-error
+
+.thenres
+https://stackoverflow.com/questions/46000360/use-of-then-in-reactjs
+
+how to build user auth
+https://dev.to/velcruza/how-to-display-different-components-based-on-user-authentication-8o5
+
+pfp.. no auth sometmes doesnt work because HTMLIFrameElement
+https://developer.mozilla.org/en-US/docs/Web/API/HTMLIFrameElement/referrerPolicy
+
+auth
+https://stackoverflow.com/questions/69864165/error-privateroute-is-not-a-route-component-all-component-children-of-rou
+
+protected route
+https://www.geeksforgeeks.org/reactjs/what-are-protected-routes-in-react-js/
+
+hooks for authentication
+https://stackoverflow.com/questions/62366578/how-to-use-context-with-hooks-for-authentication

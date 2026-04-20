@@ -129,4 +129,8 @@ https://www.w3schools.com/css/css_overflow.asp
 JavaScript map() function (for rendering list of songs):
 https://legacy.reactjs.org/docs/lists-and-keys.html
 
+//filter
+
+//::placeholder
+
 not finished...

@@ -41,3 +41,7 @@ https://stackoverflow.com/questions/55187563/determine-which-dependency-array-va
 
 use callback
 https://react.dev/reference/react/useCallback
+
+nagivate to last page = use nagivate(-1)
+https://stackoverflow.com/questions/78247827/why-might-react-router-navigate-1-go-back-two-routes-pages
+https://stackoverflow.com/questions/76292398/how-can-i-navgate-to-the-previous-page-while-passing-the-state-of-the-current-pa

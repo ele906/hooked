@@ -1,0 +1,308 @@
+// -----------------------------------------------------------------------
+// Profile.jsx
+// Profile interface for Hooked (in progress)
+// Authors: Eleanor Liu
+// Lucille Rizo Patron
+// -----------------------------------------------------------------------
+
+import {useEffect, useState} from 'react'
+import {useParams, useNavigate } from 'react-router-dom'
+import './index.css'
+import { getScreenStyle, cornerButtonStyle } from './styles'
+import searchIcon from './search_button.png'
+import logoutIcon from './logout_button.png'
+import API_URL from './config'
+
+function Profile(){
+
+    const navigate = useNavigate();
+    const [user, setUser] = useState(null);
+    const { username } = useParams()       // whoever's profile we're viewing
+    const isOwnProfile = user?.username === username
+
+    // --- stats ---
+    const [likedSongs, setLikedSongs] = useState([]);
+    const [friends, setFriends] = useState([]);
+    const [friendPage, setFriendPage] = useState(0);
+    const [isFriend, setIsFriend] = useState(false)
+    const FRIENDS_PER_PAGE = 6;
+
+    const [profileData, setProfileData] = useState(null)
+
+    // get whoever's profile we're viewing
+    useEffect(() => {
+        const accessToken = sessionStorage.getItem('accesstoken')
+        if (!accessToken) return
+        
+        fetch(`${API_URL}/api/users/get/${username}`, { 
+            headers: {
+                'Authorization': 'Bearer ' + accessToken,
+                'Accept': 'application/json',
+            }
+        })
+            .then(res => res.json())
+            .then(data => setProfileData(data))
+    }, [username])
+
+
+    function handleBackButton() {
+        console.log("back button clicked, go back to swipe page")
+        navigate(-1)
+    }
+
+    function handleAddFriend() {
+        const accessToken = sessionStorage.getItem('accesstoken')
+        fetch(`${API_URL}/api/friends/add`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                'Authorization': 'Bearer ' + accessToken,
+            },
+            body: JSON.stringify({ friend_username: profileData.username })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.added) {
+                    setIsFriend(true)  // ← add this
+                } else {
+                    alert(data.error || "Something went wrong")
+                }
+            })
+            .catch(err => console.error("Add friend failed", err))
+    }
+
+    // Get current user from sessionStorage (set by JWT auth flow)
+    // Fetch profile data and liked songs
+    useEffect(() => {
+        let isMounted = true;
+        const controller = new AbortController();
+        const accessToken = sessionStorage.getItem('accesstoken')
+        const currentUsername = sessionStorage.getItem('username')
+
+        // Set current user from sessionStorage
+        if (isMounted && currentUsername) {
+            setUser({ username: currentUsername });
+        }
+
+        // Fetch liked songs for the profile being viewed
+        if (accessToken && username) {
+            fetch(`${API_URL}/api/users/${username}/liked`, { 
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken,
+                },
+                signal: controller.signal 
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (isMounted && data) {
+                    setLikedSongs(Array.isArray(data) ? data : []);
+                }
+            })
+            .catch(err => {
+                if (err.name === 'AbortError') return;
+                console.error("Fetch liked songs error:", err);
+            });
+
+            // Fetch friends for the profile being viewed
+            fetch(`${API_URL}/api/users/${username}/friends`, { 
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken,
+                },
+                signal: controller.signal 
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (isMounted && Array.isArray(data)) {
+                    setFriends(data);
+                }
+            })
+            .catch(err => {
+                if (err.name === 'AbortError') return;
+                console.error("Fetch friends error:", err);
+            });
+        }
+
+        return () => {
+            isMounted = false;
+            controller.abort();
+        };
+    }, [username]);
+
+    if (!user) return null
+    if (!profileData && !isOwnProfile) return null  
+
+
+    return (
+        <div style = {{...getScreenStyle(
+            'rgba(202, 190, 235, 0.4)',
+            'rgba(140, 183, 190, 0.25)',
+            'rgba(209, 154, 184, 0.4)',
+            'rgba(161, 174, 230, 0.3)'),
+            color: '#debff7'}}>
+
+        <div className='card'>
+            <div className='card-header'>
+                <button style={cornerButtonStyle('left', 'top')} onClick={() => navigate('/liked')} title="Liked Songs">♥</button>
+                <button style={{...cornerButtonStyle('left', 'top'), left: '71px'}} onClick={() => navigate('/search')} title="Search">
+                    <img src={searchIcon} alt="Search" style={{ width: '24px', height: '24px' }} />
+                </button>
+                <button style={{...cornerButtonStyle('left', 'top'), left: '126px'}} onClick={() => navigate('/friends')} title="Friends">👥</button>
+                <button style={{...cornerButtonStyle('left', 'top'), left: '181px'}} onClick={() => window.location.href = `${API_URL}/logoutapp`} title="Logout">
+                    <img src={logoutIcon} alt="Logout" style={{ width: '24px', height: '24px' }} />
+                </button>
+                <button style={{...cornerButtonStyle('left', 'top'), left: '236px'}} onClick={() => navigate('/swipe')} title="Swipe">↔</button>
+                
+                <div style={{ flex: 1 }} />
+                {isOwnProfile ? (
+                    <h2>My Profile</h2>
+                ) : (
+                    <h2>View Profile</h2>
+                )}
+
+            </div>
+
+            
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px', margin: '16px 0' }}>
+                <div>
+                    {isOwnProfile ? (
+                        (user?.picture || profileData?.user_image_url)
+                            ? <div className='pfp-border'>
+                                <img src={user.picture} alt="Profile" referrerPolicy="no-referrer"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                            </div>
+                            : <div className='pfp-border'>👤</div>
+                    ) : (
+                        profileData?.user_image_url
+                            ? <div className='pfp-border'>
+                                <img src={profileData.user_image_url} alt="Profile" referrerPolicy="no-referrer"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                            </div>
+                            : <div className='pfp-border'>👤</div>
+                    )}
+                </div>
+
+                <div style={{ color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <p><span style={{ color: '#debff7' }}>username:</span> {profileData?.username}</p>
+                    {isOwnProfile && <p><span style={{ color: '#debff7' }}>email:</span> {user?.email}</p>}
+                    {!isOwnProfile &&
+                        <button onClick={handleAddFriend} disabled={isFriend} style={{
+                            marginTop: '8px',
+                            padding: '5px 12px',
+                            borderRadius: '5px',
+                            border: '2px solid #debff7',
+                            background: isFriend ? '#debff7' : '#1d1133',
+                            color: isFriend ? '#1d1133' : '#debff7',
+                            fontSize: '16px',
+                            fontWeight: 'bold',
+                            cursor: isFriend ? 'default' : 'pointer',
+                            width: 'fit-content',
+                        }}>
+                            {isFriend ? 'Friended!' : '+ Add Friend'}
+                        </button>
+                    }
+                </div>
+            </div>
+                        
+            <div className='small-header'>
+                <h3 style={{ textAlign: 'left' , padding: '5px'}}>Recently Liked Songs</h3>
+                <button className='add-btn' onClick={() => navigate('/liked')}>♡</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 12px 12px' }}>
+                {likedSongs.length === 0
+                    ? <p style={{ color: '#e0e0e08e', fontSize: 13 }}>No liked songs yet!</p>
+                    : likedSongs.map(song => (
+                        <div key={song.song_id}
+                            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', position: 'relative' }}
+                            onClick={() => new Audio(song.preview_mp3_url).play()}
+                            onMouseEnter={e => e.currentTarget.querySelector('.hover-overlay').style.opacity = 1}
+                            onMouseLeave={e => e.currentTarget.querySelector('.hover-overlay').style.opacity = 0}
+                        >
+                            <div className='hover-overlay' style={{
+                                position: 'absolute', inset: '-6px -8px',  // ← extends beyond the div
+                                backgroundColor: 'rgba(255,255,255,0.2)',
+                                borderRadius: '12px',
+                                opacity: 0,
+                                transition: 'opacity 0.2s',
+                                pointerEvents: 'none'
+                            }}/>
+                            <img src={song.song_image_url} alt={song.song_name}
+                                style={{ width: 45, height: 45, borderRadius: '8px' }} />
+                            <div>
+                                <p style={{ color: 'white', margin: 0, fontSize: 13, textAlign: 'left' }}>{song.song_name}</p>
+                                <p style={{ color: '#debff7', margin: 0, fontSize: 11, textAlign: 'left' }}>{song.artist_name}</p>
+                            </div>
+                        </div>
+                    ))
+                }
+            </div>
+
+            <div className='small-header'>
+                <h3 style={{ textAlign: 'left', padding: '5px' }}>Friends</h3>
+                <button className='add-btn' onClick={() => navigate('/friends')}>+</button>
+            </div>
+
+            {/* friends grid */}
+            {(() => {
+                const pageFriends = friends.slice(friendPage * FRIENDS_PER_PAGE, (friendPage + 1) * FRIENDS_PER_PAGE);
+                const hasNext = (friendPage + 1) * FRIENDS_PER_PAGE < friends.length;
+                const hasPrev = friendPage > 0;
+
+                if (friends.length === 0) {
+                    return <p style={{ color: '#e0e0e08e', fontSize: 13, padding: '12px', textAlign: 'center' }}>No friends yet!</p>;
+                }
+
+                return (
+                    <>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '16px', padding: '12px' }}>
+                            {pageFriends.map((friend, i) => (
+                                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                    <div style={{
+                                        width: 50, height: 50, borderRadius: '50%',
+                                        background: '#1d1133',
+                                        border: '2px solid #debff7',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: 24,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                    onClick={() => navigate(`/profile/${friend.username}`)}
+                                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.borderColor = '#cdbfea'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = '#debff7'; }}
+                                    >
+                                        {friend?.picture
+                                            ? <img src={friend.picture} referrerPolicy="no-referrer"
+                                                style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} alt={friend.username} />
+                                            : <span style={{ color: '#debff7' }}>👤</span>
+                                        }
+                                    </div>
+                                    <p style={{ color: 'white', fontSize: 11, margin: 0, maxWidth: '60px', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {friend?.username}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* pagination only if more than 6 friends */}
+                        {friends.length > FRIENDS_PER_PAGE && (
+                            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', paddingBottom: '8px' }}>
+                                <button onClick={() => setFriendPage(p => p - 1)} disabled={!hasPrev}
+                                    style={{ opacity: hasPrev ? 1 : 0.3, background: 'none', border: 'none', color: '#debff7', fontSize: 20, cursor: hasPrev ? 'pointer' : 'default' }}>‹</button>
+                                <button onClick={() => setFriendPage(p => p + 1)} disabled={!hasNext}
+                                    style={{ opacity: hasNext ? 1 : 0.3, background: 'none', border: 'none', color: '#debff7', fontSize: 20, cursor: hasNext ? 'pointer' : 'default' }}>›</button>
+                            </div>
+                        )}
+                    </>
+                );
+            })()}
+        </div>
+
+
+        </div>
+    );
+}
+
+// -------------------- EXPORT --------------------
+export default Profile

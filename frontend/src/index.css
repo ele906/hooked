@@ -1,4 +1,10 @@
-body {
+/*
+index.css
+style page
+authors: lucille & eleanor
+*/
+
+* {
   margin: 0;
   font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -10,4 +16,384 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace; 
+}
+
+/* -------- CARDS -------- */
+
+/* swipe card for swipe screen*/
+.swipe-card-style {
+    position: relative;
+    width: 350px;
+    padding: 100px 40px;
+    background-color: #7a779636;
+    border-radius: 25px;
+    text-align: center;
+    color: white;
+    cursor: grab;
+    user-select: none;
+}
+
+.card {
+  position: relative;
+  overflow-y: auto;
+  width: 50vh;
+  height: 95vh;
+  padding: 0;
+  background-color: #d2c5df50;
+  border-radius: 25px;
+  text-align: center;
+  color: white;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    border-radius: 25px 25px 0 0;
+    background-color: #48008741;
+    padding: 12px 20px;
+    box-sizing: border-box;
+    margin-bottom: 16px;
+}
+
+.card-header-2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    border-radius: 25px 25px 0 0;
+    background-color: #48008741;
+    padding: 12px 20px 10px 10px;
+    box-sizing: border-box;
+}
+
+.small-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    border-radius: 2px 2px 0 0;
+    background-color: #9f7abe63;
+    padding: 10px 10px;
+    box-sizing: border-box;
+    margin-bottom: 16px;
+}
+
+/* ---------- TEXT STYLES ----------- */
+
+/* style for the liked screen header */
+.liked-songs-header-style {
+    color: #d6c4c0f6;
+    font-size: 40px;
+    font-weight: bold;
+    font-family: 'Outfit', sans-serif;
+    height: 25px;
+    margin-top: 150px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+/* style for status messages on swipe screen */
+.swipe-message-style {
+    color: #50fff6;
+    font-size: 18px;
+    font-weight: bold;
+    font-family: 'Outfit', sans-serif;
+    height: 25px;
+}
+
+/* -------- BUTTONS -------- */
+
+/* style for delete button on liked songs page */
+.delete-liked-button-style {
+    background: transparent;
+    border: none;
+    color: #ff8e4d;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 10px;
+}
+
+.btn-1 {
+    padding: 15px 35px;
+    font-size: 16px;
+    background-color: #debff7;
+    color: #1d1133;
+    font-weight: bold;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+}
+
+.btn-2{
+  padding: 10px 10px;
+    font-size: 14px;
+    background-color: #6e32a0;
+    color: #e2d7f5;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 4px;
+}
+
+.btn-3 {
+    padding: 15px 35px;
+    font-size: 16px;
+    background-color: #debff7;
+    color: #1d1133;
+    font-weight: bold;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.pref-button {
+    padding: 15px 35px;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.add-btn {
+    padding: 5px 10px;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    background-color:#cdbfea;
+    color:#1d1133;
+}
+
+.back-btn {
+    padding: 5px 5px;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    background-color:#cdbfea;
+    color:#1d1133;
+}
+
+/* -------- SEARCH BARS -------- */
+
+/* search bar for liked songs page */
+.liked-search-bar {
+    padding: 10px;
+    position: relative;
+    border-radius: 20px;
+    font-size: 16px;
+    background-color: #d6c4c046;
+    border: none;
+    cursor: text;
+    margin: 4px;
+    margin-bottom: 40px;
+    width: 94%;
+}
+.likedSearchBar::placeholder {
+    color: #d6c4c0a4;
+}
+
+
+.search-song-box {
+  margin: 0 auto;
+  width: 300px;
+  border-radius: 10px;
+  background-color: #ddd4f027;
+  color: #d0e6f2;
+  gap: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.search-song-box:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* -------- INPUT BOXES -------- */
+
+.input-box-1{
+  padding: 5px;
+  border-radius: 3px;
+  width: 300px;
+  font-size: 16px;
+  background-color: #d9bfea;
+  color: #1d1133;
+  border: none;
+  cursor: pointer;
+  margin: 4px;
+}
+
+.input-box-2{
+  padding: 5px;
+  border-radius: 3px;
+  width: 300px;
+  font-size: 16px;
+  background-color: #cdbfea;
+  color: #1d1133;
+  border: none;
+  cursor: pointer;
+  margin: 4px;
+}
+
+.input-box-3{
+  padding: 5px;
+  border-radius: 3px;
+  width: 300px;
+  font-size: 16px;
+  background-color: #ebf7fe;
+  color: #1d1133;
+  border: none;
+  cursor: pointer;
+  margin: 4px;
+}
+
+.input-box-4{
+  padding: 5px;
+  border-radius: 3px;
+  width: 300px;
+  font-size: 16px;
+  background-color: #f5ebfeae;
+  color: #1d1133;
+  border: none;
+  cursor: pointer;
+  margin: 4px;
+}
+
+/* -------- TABLES -------- */
+
+.genre-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+/* -------- RESULTS LIST -------- */
+
+/* style for scrollable list of liked songs */
+.liked-list-style {
+    width: 100%;
+    max-width: 500px;
+    overflow-y: auto;
+    flex: 1;
+    padding-right: 10px;
+}
+
+.results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+}
+
+.no-results{
+  font-size: 16px;
+  color:#a9bacb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.pfp-border img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.pfp-border {
+    width: 80px;
+    height: 80px;
+    border-radius: 5%;
+    background: #1d1133;
+    border: 2px solid #debff7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #debff7;
+    font-size: 32px;
+    overflow: hidden;
+}
+
+/* ------- SONG BOXES -------- */
+
+.song-img-box{
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+}
+
+/* style for boxes containing each liked song */
+.liked-song-box-style {
+    display: flex;
+    align-items: center;
+    background-color: #7a779636;
+    border-radius: 12px;
+    padding: 10px;
+    margin-bottom: 12px;
+    position: relative;
+}
+
+/* style for liked song info container */
+.liked-song-info-style {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* style for liked song name text */
+.liked-song-name-style {
+    color: #d6c4c0f6;
+    font-weight: bold;
+    font-size: 17px;
+    font-family: 'Outfit', sans-serif;
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+/* style for liked artist name text */
+.liked-artist-name-style {
+    font-size: 13px;
+    font-family: 'Outfit', sans-serif;
+    color: #bda1ffd0;
+    margin-top: 4px;
+}
+
+/* style for liked song album art */
+.liked-album-art-style {
+    width: 58px;
+    height: 58px;
+    border-radius: 7px;
+    object-fit: cover;
+    margin-right: 15px;
+    pointer-events: none;
+}
+
+/* style for the large album art on the swipe card */
+.swipe-album-art-style {
+    width: 220px;
+    height: 220px;
+    margin: 0 0 25px 0;
+    border-radius: 12px;
+    object-fit: cover;
+    pointer-events: none;
+}
+
+/* -------- WELCOME PAGE ANIMATED SPINNING NOTES -------- */
+
+@keyframes spinNote {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
 }

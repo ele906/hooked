@@ -1,12 +1,58 @@
 // -----------------------------------------------------------------------
-// WelcomePage.jsx
-// Swipe interface for Hooked (in progress)
-// Authors: Eleanor Liu
+// Login.jsx
+// Login interface for Hooked (in progress)
+// Authors: Eleanor Liu, Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
 import {useCallback, useEffect, useState} from 'react'
 import { useNavigate } from 'react-router-dom'
 import API_URL from './config'
+import { getScreenStyle } from './styles'
+import './index.css'
+import Circle from "./AnimatedCircle.jsx"
+import musicNote1 from './musical-note-1.png'
+import musicNote2 from './musical-note-2.png'
+import { useAuth } from './AuthContext'
+
+const secondaryButtonStyle = {
+    backgroundColor: 'transparent',
+    color: '#debff7',
+    padding: '8px 16px',
+    border: '1px solid #debff7',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    marginTop: '12px',
+    marginBottom: '8px',
+    fontSize: '14px',
+    fontFamily: 'Outfit, sans-serif',
+    fontWeight: 'bold',
+    transition: 'all 0.3s ease',
+    width: '100%',
+    maxWidth: '300px',
+    display: 'block',
+    marginLeft: 'auto',
+    marginRight: 'auto'
+}
+
+const primaryButtonStyle = {
+    backgroundColor: '#debff7',
+    color: '#1d1133',
+    padding: '12px 32px',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    marginTop: '16px',
+    marginBottom: '8px',
+    fontSize: '16px',
+    fontFamily: 'Outfit, sans-serif',
+    fontWeight: 'bold',
+    width: '100%',
+    maxWidth: '300px',
+    display: 'block',
+    marginLeft: 'auto',
+    marginRight: 'auto',
+    transition: 'all 0.3s ease'
+}
 
 function Login(){
 
@@ -35,12 +81,9 @@ function Login(){
 
 
 
-    function handleLogin() {
-        window.location.href = `${API_URL}/auth/login`;
-    }
+    const { fetchUser } = useAuth()
 
-    function handleBackButton() {
-        console.log("back button clicked, go back to welcome page")
+    const handleBackButton = () => {
         navigate('/')
     }
 
@@ -50,8 +93,13 @@ function Login(){
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: myUsername, password: myPassword })
         })
+        console.log("status:", result.status) 
         const data = await result.json()
+        console.log("data:", data)  
 
+        if (!data){
+            alert('Wrong username or password!')
+        }
         if (data.logged_in) {
             sessionStorage.setItem('username', data.username)
             sessionStorage.setItem('accesstoken', data.accesstoken)
@@ -79,98 +127,106 @@ function Login(){
     }, [handleKeyPress])
 
     return (
-        <div style={screenStyle}>
-        <h1>Login to Account</h1>
+        <div style = {{...getScreenStyle(
+            'rgba(170, 109, 217, 0.4)',
+            'rgba(153, 195, 230, 0.562)',
+            'rgba(186, 151, 225, 0.4)',
+            'rgba(164, 189, 218, 0.688)'),
+            color: '#debff7',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100vh'
+        }}>
 
-        <button style={buttonStyle} onClick={handleBackButton}>
-            Back
-        </button>
+        <div className = 'card' style={{ width: 'min(90vw, 420px)', height: 'auto' }}> 
 
-        <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username"
-            style={loginStyle}
-        />
+            <div className = 'card-header'> 
+                <button className='back-btn' onClick={handleBackButton} style={{ position: 'absolute', left: '12px' }}>
+                    ⬅
+                </button>
+                <h2 style={{ flex: 1, textAlign: 'center' }}>Login</h2>
+            </div>
 
-        <input
-            type={showPassword ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            style={loginStyle}
-        />
-        <button style={buttonStyle} onClick={() => setShowPassword(!showPassword)}>
-            {showPassword ? "Hide Password" : "Show Password"}
-        </button>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Username"
+                    className='input-box-1'
+                    style={{ width: '100%', maxWidth: '300px' }}
+                />
 
-        <button style={buttonStyle} onClick={() => handleDone(username, password)}>
-            Done
-        </button>
-        <button style={buttonStyle} onClick={() => navigate('/forgot-password')}>
-            Forgot password?
-        </button>
-        <button style={buttonStyle} onClick={() => navigate('/forgot-username')}>
-    Forgot username?
-</button>
+                <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    className='input-box-1'
+                    style={{ width: '100%', maxWidth: '300px' }}
+                />
 
-        <button style={buttonStyle} onClick={handleResend}>
-            Resend verification email
-        </button>
-        {resendMsg && <p>{resendMsg}</p>}
+                <button 
+                    style={{...secondaryButtonStyle}}
+                    onClick={() => setShowPassword(!showPassword)}
+                    onMouseEnter={(e) => { e.target.style.backgroundColor = 'rgba(222, 191, 247, 0.2)' }}
+                    onMouseLeave={(e) => { e.target.style.backgroundColor = 'transparent' }}
+                >
+                    {showPassword ? "Hide Password" : "Show Password"}
+                </button>
 
+                <button 
+                    style={{...primaryButtonStyle}}
+                    onClick={() => handleDone(username, password)}
+                    onMouseEnter={(e) => { e.target.style.backgroundColor = '#cdbfea' }}
+                    onMouseLeave={(e) => { e.target.style.backgroundColor = '#debff7' }}
+                >
+                    Login
+                </button>
 
+                <div style={{ borderTop: '1px solid #debff730', width: '100%', margin: '12px 0' }} />
 
-        <h2> Devs: Press space bar to bypass and go to swipe screen... </h2>
+                <button 
+                    style={{...secondaryButtonStyle}}
+                    onClick={() => navigate('/forgot-password')}
+                    onMouseEnter={(e) => { e.target.style.backgroundColor = 'rgba(222, 191, 247, 0.2)' }}
+                    onMouseLeave={(e) => { e.target.style.backgroundColor = 'transparent' }}
+                >
+                    Forgot Password?
+                </button>
 
+                <button 
+                    style={{...secondaryButtonStyle}}
+                    onClick={() => navigate('/forgot-username')}
+                    onMouseEnter={(e) => { e.target.style.backgroundColor = 'rgba(222, 191, 247, 0.2)' }}
+                    onMouseLeave={(e) => { e.target.style.backgroundColor = 'transparent' }}
+                >
+                    Forgot Username?
+                </button>
+
+                <button 
+                    style={{...secondaryButtonStyle}}
+                    onClick={handleResend}
+                    onMouseEnter={(e) => { e.target.style.backgroundColor = 'rgba(222, 191, 247, 0.2)' }}
+                    onMouseLeave={(e) => { e.target.style.backgroundColor = 'transparent' }}
+                >
+                    Resend Verification Email
+                </button>
+
+                {resendMsg && <p style={{ color: '#a9d5ff', fontSize: '13px', marginTop: '8px' }}>{resendMsg}</p>}
+
+            </div>
+        </div>
+            <Circle image={musicNote1} alpha={0.008}/>            
+            <Circle image={musicNote1} alpha={0.008}/>    
+            <Circle image={musicNote1} alpha={0.008}/>    
+            <Circle image={musicNote2} alpha={0.008}/>    
+            <Circle image={musicNote2} alpha={0.008}/>    
+            <Circle image={musicNote2} alpha={0.008}/>
         </div>
     );
 }
 
-// --------------------------------- Styles --------------------------------
-const screenStyle = {
-    minHeight: '100vh',
-    backgroundColor: '#18171d',
-    backgroundImage: `
-        radial-gradient(circle at 20% 30%, rgba(178, 201, 221, 0.4) 0%, transparent 30%),
-        radial-gradient(circle at 80% 20%, rgba(214, 163, 226, 0.25) 0%, transparent 30%),
-        radial-gradient(circle at 85% 85%, rgba(167, 202, 224, 0.4) 0%, transparent 30%),
-        radial-gradient(circle at 15% 90%, rgba(190, 126, 194, 0.3) 0%, transparent 30%)
-    `,
-    fontSize: '16px',
-    fontWeight: 'bold',
-    color: '#debff7',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '20px',
-    position: 'relative',
-}
-
-const buttonStyle = {
-    padding: '15px 35px',
-    fontSize: '16px',
-    backgroundColor: '#debff7',
-    color: '#1d1133',
-    fontWeight: 'bold',
-    border: 'none',
-    borderRadius: '50px',
-    cursor: 'pointer',
-}
-
-const loginStyle = {
-    padding: '5px', 
-    borderRadius: '3px',
-    width: '300px',
-    fontSize: '16px',
-    backgroundColor: '#d9bfea',
-    color: '#1d1133',
-    fontWeight: 'bold',
-    border: 'none',
-    cursor: 'pointer',
-}
-
-
+// -------------------- EXPORT --------------------
 export default Login

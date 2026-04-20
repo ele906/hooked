@@ -1,9 +1,16 @@
+// -----------------------------------------------------------------------
+// Profile.jsx
+// Profile interface for Hooked (in progress)
+// Authors: Eleanor Liu
+// Contributors: Lucille
+// -----------------------------------------------------------------------
+
 import React, { Component } from 'react';
 
 export default class Circle extends Component {
 
-    constructor() {
-        super();
+    constructor(props) {
+        super(props);
 
         //  CONSTANTS
         const _width = window.innerWidth;
@@ -20,7 +27,7 @@ export default class Circle extends Component {
             y: Math.random() * _height,
         };
 
-        this.r = 0.01 * (_width - _height);
+        this.r = (props.alpha ?? 0.007) * (_width + _height);
     }
     
     move() {
@@ -67,19 +74,39 @@ export default class Circle extends Component {
     // React re-renders all components every time setState is called
     // https://stackoverflow.com/questions/24718709/reactjs-does-render-get-called-any-time-setstate-is-called
     render() {
-        const { x, y } = this.state;
-            return (
-                <div style={{
-                    position: 'fixed',
-                    left: x - this.r,
-                    top: y - this.r,
-                    width: this.r * 2,
-                    height: this.r * 2,
-                    borderRadius: '50%',
-                    backgroundImage: 'radial-gradient(circle at 20% 30%, rgba(217, 230, 194, 0.4) 0%, transparent 30%)',
-                    backgroundColor:  'rgba(233, 237, 209, 0.66)',
-                    pointerEvents: 'none',
-            }} />
+    const { x, y } = this.state;
+    const size = this.r * 2;
+    return (
+        <div style={{
+            position: 'fixed',
+            left: x - this.r,
+            top: y - this.r,
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            backgroundImage: `
+            radial-gradient(circle at 20% 30%, rgba(204, 244, 250, 0.64) 0%, transparent 60%),
+            radial-gradient(circle at 80% 70%, rgba(196, 164, 222, 0.5) 0%, transparent 40%)
+            `,
+            backgroundColor: 'rgba(255, 255, 234, 0.42)',
+            pointerEvents: 'none',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+        }}>
+            <img
+                src={this.props.image}
+                alt=""
+                style={{
+                    width: '75%',
+                    height: '75%',
+                    objectFit: 'contain',
+                    animation: 'spinNote 3s linear infinite',
+                    opacity: 1.0,
+                }}
+            />
+            </div>
         );
     }
 }
