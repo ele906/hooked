@@ -5,3 +5,4 @@ __pycache__/
 *.db 
 .env 
 .DS_Store 
+postgresql-16.1-1-osx.dmg

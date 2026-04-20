@@ -4,6 +4,7 @@ CREATE TABLE users (
     email TEXT UNIQUE NOT NULL,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT,
+    email_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     user_image_url TEXT,
@@ -104,6 +105,13 @@ CREATE TABLE disliked (
     song_id INTEGER REFERENCES songs(song_id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, song_id)
+);
+
+--- temporary nonces for OAuth flows ---
+CREATE TABLE nonces (
+    nonce TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 --- indexes for hot query paths ---

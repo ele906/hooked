@@ -25,15 +25,32 @@ function Login(){
     const navigate = useNavigate()
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
+    const [resendMsg, setResendMsg] = useState("")
+    const [showPassword, setShowPassword] = useState(false)
+
+    const handleResend = async () => {
+        const email = window.prompt("Enter the email you signed up with:")
+        if (!email) return
+        const res = await fetch(`${API_URL}/auth/resend-verification`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (data.status === "already_verified") {
+            setResendMsg("Your email has already been verified.")
+        } else {
+            setResendMsg("If that email exists, a verification link was sent.")
+        }
+    }
+
+
 
     const { fetchUser } = useAuth() 
 
     async function handleDone(myUsername, myPassword){
-        console.log("validate password")
-
-        const result = await fetch('/api/checkpw', {
+        const result = await fetch(`${API_URL}/api/checkpw`, {
             method: 'POST',
-            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: myUsername, password: myPassword })
         })
@@ -45,17 +62,18 @@ function Login(){
             alert('Wrong username or password!')
         }
         if (data.logged_in) {
-            await fetchUser()
+            sessionStorage.setItem('username', data.username)
+            sessionStorage.setItem('accesstoken', data.accesstoken)
+            sessionStorage.setItem('refreshtoken', data.refreshtoken)
+            if (!data.email_verified) {
+                alert("Heads up: your email isn't verified yet. Check your inbox or use 'Resend verification email'.")
+            }
             navigate('/swipe')
         } else {
-            alert('Wrong username or password!')
+            alert(data.error || 'Wrong username or password!')
         }
     }
 
-    function handleBackButton() {
-        console.log("back button clicked, go back to sw9pe page")
-        navigate(-1)
-    }
 
     const handleKeyPress = useCallback((e) => {
         if (e.key === ' ' || e.code === "Space") {
@@ -97,18 +115,34 @@ function Login(){
         />
 
         <input
-            type="password"
+            type={showPassword ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             className = 'input-box-1'
         />
+        <button style={buttonStyle} onClick={() => setShowPassword(!showPassword)}>
+            {showPassword ? "Hide Password" : "Show Password"}
+        </button>
 
         </div>
 
         <button className = 'btn-2' onClick={() => handleDone(username, password)}>
             Done
         </button>
+        <button style={buttonStyle} onClick={() => navigate('/forgot-password')}>
+            Forgot password?
+        </button>
+        <button style={buttonStyle} onClick={() => navigate('/forgot-username')}>
+    Forgot username?
+</button>
+
+        <button style={buttonStyle} onClick={handleResend}>
+            Resend verification email
+        </button>
+        {resendMsg && <p>{resendMsg}</p>}
+
+
 
         <button className = 'btn-2' onClick={() => handleDone(username, password)}>
             Forgot Password

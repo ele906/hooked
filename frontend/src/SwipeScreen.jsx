@@ -4,6 +4,7 @@
 // Author: Lucille Rizo Patron, 
 // Contributors: Eleanor Liu, Derek Geng
 // -----------------------------------------------------------------------
+/* eslint-disable react-hooks/rules-of-hooks */
 
 import React from 'react'
 import {useState, useRef, useEffect} from 'react'
@@ -18,6 +19,14 @@ import { useAuth } from "./AuthContext"
 // via swiping, buttons, or keyboard keys. Displays 30-second audio 
 // previews and song info to help users curate a list of liked songs.
 function SwipeScreen() {
+
+    // redirect to login if not authenticated
+    if (!sessionStorage.getItem('username')) {
+        window.location.replace(
+            API_URL + '/auth/login?originalurl=' + window.location.pathname
+        )
+        return null
+    }
 
     // ------------- Screen Flow -----------------------------------------
 
@@ -59,11 +68,28 @@ function SwipeScreen() {
 
     // ------------------ Song Fetching ----------------------------------
 
-    // check if user in authenticated before rendering the swipe screen
-    // and get user id
+    // fetch user id from JWT-protected endpoint
     useEffect(() => {
-        if (user) setUserId(user.user_id)
-    }, [user])
+        async function fetchUserAuth() {
+            const response = await fetch(`${API_URL}/api/getuserinfo`, {
+                headers: {
+                    'Authorization': 'Bearer ' + sessionStorage.getItem('accesstoken'),
+                    'Accept': 'application/json',
+                }
+            })
+            if (response.status === 401 || response.status === 422) {
+                window.location.replace(
+                    API_URL + '/auth/login?originalurl=' + window.location.pathname
+                )
+                return
+            }
+            if (response.ok) {
+                const data = await response.json()
+                if (data && data.user_id) setUserId(data.user_id)
+            }
+        }
+        fetchUserAuth()
+    }, [])
 
     // send user like/dislike action to database, then fetch next song
     // takes a string action, 'like' or 'dislike', as a parameter
@@ -74,23 +100,25 @@ function SwipeScreen() {
         try {
             const response = await fetch(`${API_URL}/api/songs/action`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: 'include',
-                // tracks user interaction with song
-                body: JSON.stringify({ 
-                    user_id: userId, 
-                    song_id: currentSong.song_id, 
-                    action 
+                headers: {
+                    'Authorization': 'Bearer ' + sessionStorage.getItem('accesstoken'),
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    song_id: currentSong.song_id,
+                    action
                 })
             })
-
+            if (response.status === 401 || response.status === 422) {
+                window.location.replace(
+                    API_URL + '/auth/login?originalurl=' + window.location.pathname
+                )
+                return
+            }
             if (!response.ok) {
                 throw new Error(`Response status: ${response.status}`)
             }
-
-            // after recording action, get the next song
             await fetchNextSong()
-
         } catch (error) {
             console.error("Action error:", error.message)
             setMessage("Action failed, please try again.")
@@ -119,10 +147,18 @@ function SwipeScreen() {
     // fetch next song from backend & reset visual state for new song card
     async function fetchNextSong() {
         try {
-            const response = await fetch(`${API_URL}/api/songs/next?user_id=${userId}`,
-                {credentials: 'include'}
-            )
-
+            const response = await fetch(`${API_URL}/api/songs/next`, {
+                headers: {
+                    'Authorization': 'Bearer ' + sessionStorage.getItem('accesstoken'),
+                    'Accept': 'application/json',
+                }
+            })
+            if (response.status === 401 || response.status === 422) {
+                window.location.replace(
+                    API_URL + '/auth/login?originalurl=' + window.location.pathname
+                )
+                return
+            }
             if (!response.ok) {
                 throw new Error(`Response status: ${response.status}`)
             }
@@ -289,7 +325,7 @@ function SwipeScreen() {
     // ------------------- Logout Handler --------------------------------
 
     const handleLogout = () => {
-        window.location.href = `${API_URL}/auth/logout`
+        window.location.href = `${API_URL}/logoutapp`
     }
 
     // --------------------- Swipe Screen Rendering ----------------------
@@ -309,9 +345,10 @@ function SwipeScreen() {
                 onClick={handleLogout}
                 title="Logout"
             >
-                <img 
-                    src={logoutIcon} 
-                    style={{ width: '30px', height: '30px' }} 
+                <img
+                    src={logoutIcon}
+                    alt=""
+                    style={{ width: '30px', height: '30px' }}
                 />
             </button>
 
@@ -327,9 +364,10 @@ function SwipeScreen() {
                 style={cornerButtonStyle('right', 'bottom')} 
                 onClick={() => navigate('/search') }
             >
-                <img 
-                    src={searchIcon} 
-                    style={{ width: '30px', height: '30px' }} 
+                <img
+                    src={searchIcon}
+                    alt=""
+                    style={{ width: '30px', height: '30px' }}
                 />
             </button>
 

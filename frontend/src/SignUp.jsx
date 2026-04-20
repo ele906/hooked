@@ -22,18 +22,25 @@ function SignUp(){
     const { fetchUser } = useAuth() // fetch user
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
-    const [email, setEmail] = useState("")
-    const [profileImg, setProfileImg] = useState(null) // blob url
-    const [imageFile, setImageFile] = useState(null) // actual File object
+    const [confirmPassword, setConfirmPassword] = useState("")
+    const [error, setError] = useState("")
+    const [showPassword, setShowPassword] = useState(false)
 
-    async function uploadToCloudinary(file) {
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('upload_preset', 'a3grzjto')
+    const handleSignup = async () => {
+        setError("")
+        if (password.length < 8) {
+            setError("Password must be at least 8 characters")
+            return
+        }
+        if (password !== confirmPassword) {
+            setError("Passwords do not match")
+            return
+        }
 
-        const res = await fetch('https://api.cloudinary.com/v1_1/dutrsvhz4/image/upload', {
-            method: 'POST',
-            body: formData
+        const res = await fetch(`${API_URL}/auth/signup`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, username, password })
         })
         const data = await res.json()
         return data.secure_url
@@ -56,8 +63,8 @@ function SignUp(){
                 const data = await res.json()
 
         if (res.ok) {
-            await fetchUser()
-            navigate('/seedprefs')
+            alert("Account created! Please check your email to verify before logging in.")
+            navigate('/login')
         } else {
             alert(data.error)
         }
