@@ -6,7 +6,7 @@
 
 import sys, os, json, random
 import flask
-from flask import Flask, jsonify, request, session, redirect, url_for, g
+from flask import Flask, jsonify, request, redirect, url_for, g
 from dotenv import load_dotenv
 import bcrypt
 import requests
@@ -16,6 +16,12 @@ import oauthlib.oauth2
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 load_dotenv()
+import datetime
+import flask_jwt_extended
+from email_utils import (
+    send_verification_email, send_reset_email,send_username_reminder_email,
+    read_token, VERIFY_SALT, RESET_SALT, VERIFY_MAX_AGE, RESET_MAX_AGE,
+)
 
 # URLs from environment variables
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
@@ -24,32 +30,24 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from data.db import get_db as _open_db
-from data.vector_utils import update_weight_vector, l2_normalize, init_weight_vector_from_prefs
+from data.vector_utils import cosine_similarity, update_weight_vector, l2_normalize, init_weight_vector_from_prefs
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+app.config['JWT_SECRET_KEY'] = os.environ.get("FLASK_SECRET_KEY")
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(hours=1)
+app.config['JWT_REFRESH_TOKEN_EXPIRES'] = datetime.timedelta(days=7)
+jwt_manager = flask_jwt_extended.JWTManager(app)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# Configure session cookies for cross-domain communication
-# For production (HTTPS/remote): SameSite=None with Secure flag (required for cross-site cookies)
-# For development (localhost): SameSite=Lax (more permissive, doesn't require Secure)
-is_production = os.environ.get("FLASK_ENV") == "production" or "localhost" not in os.environ.get("FRONTEND_URL", "")
-if is_production:
-    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
-    app.config['SESSION_COOKIE_SECURE'] = True
-    app.config['SESSION_COOKIE_HTTPONLY'] = True
-else:
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-    app.config['SESSION_COOKIE_HTTPONLY'] = True
-
-# Configure CORS to allow requests from frontend URL
-# In development, allows localhost:3000; in production, uses FRONTEND_URL env var
+# CORS scoped to API routes; JWT auth doesn't use cookies
 allowed_origins = os.environ.get("ALLOWED_ORIGINS", FRONTEND_URL).split(",")
-CORS(app, 
-     origins=allowed_origins,
-     supports_credentials=True)
+CORS(app, resources={
+    r"/api/*": {"origins": allowed_origins},
+    r"/auth/*": {"origins": allowed_origins},
+})
 
 # Google OAuth setup
 GOOGLE_DISCOVERY_URL = 'https://accounts.google.com/.well-known/openid-configuration'
@@ -59,44 +57,32 @@ GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 # Authentication routes
 @app.route("/auth/login")
 def login():
-    # Clear any existing session (allow re-login with Google)
-    session.clear()
-    
-    # Get Google's OAuth2 provider config
+    original_url = request.args.get("originalurl", "/swipe")
     google_provider_cfg = requests.get(GOOGLE_DISCOVERY_URL, timeout=10).json()
     auth_endpoint = google_provider_cfg['authorization_endpoint']
-    
-    # Create OAuth2 client
     client = oauthlib.oauth2.WebApplicationClient(GOOGLE_CLIENT_ID)
-    
-    # Build redirect URI and target page (passed as state)
-    redirectToSwipe = f"{FRONTEND_URL}/swipe"
     redirect_uri = url_for("auth_callback", _external=True)
-    
-    # Prepare request URI (redirectToSwipe will be passed back as state)
     request_uri = client.prepare_request_uri(
         auth_endpoint,
         redirect_uri=redirect_uri,
         scope=['openid', 'email', 'profile'],
-        state=redirectToSwipe
+        state=original_url
     )
     return redirect(request_uri)
+    
+def current_user_id():
+    email = flask_jwt_extended.get_jwt_identity()
+    rows = sql_cmd("SELECT user_id FROM users WHERE email = %s", (email,), fetch=True)
+    return rows[0][0] if rows else None
 
 # callback route that Google redirects to after login
 @app.route("/auth/callback")
 def auth_callback():
-    # Get authorization code from Google redirect
     authorization_code = request.args.get('code')
-    
-    # Get the original URL from state parameter
-    redirectToSwipe = request.args.get('state')
-    
-    # Get Google's OAuth2 token endpoint
+    original_url = request.args.get('state', '/swipe')
     google_provider_cfg = requests.get(GOOGLE_DISCOVERY_URL, timeout=10).json()
     token_endpoint = google_provider_cfg['token_endpoint']
     userinfo_endpoint = google_provider_cfg['userinfo_endpoint']
-    
-    # Create OAuth2 client and prepare token request
     client = oauthlib.oauth2.WebApplicationClient(GOOGLE_CLIENT_ID)
     redirect_uri = url_for("auth_callback", _external=True)
     
@@ -106,8 +92,6 @@ def auth_callback():
         redirect_url=redirect_uri,
         code=authorization_code
     )
-    
-    # Exchange code for token
     token_response = requests.post(
         token_url,
         headers=headers,
@@ -118,74 +102,92 @@ def auth_callback():
     
     if token_response.status_code != 200:
         return jsonify({"error": "Failed to get token"}), 400
-    
-    # Parse token response
     client.parse_request_body_response(json.dumps(token_response.json()))
-    
-    # Get user info
+
     uri, headers, body = client.add_token(userinfo_endpoint)
     userinfo_response = requests.get(uri, headers=headers, data=body, timeout=10)
     
     if userinfo_response.status_code != 200:
         return jsonify({"error": "Failed to get user info"}), 400
-    
-    # Verify email
-    user_info = userinfo_response.json()
-    if not user_info.get('email_verified'):
+    if not userinfo_response.json().get('email_verified'):
         return jsonify({"error": "Email not verified"}), 400
+    user_info = userinfo_response.json()
     email = user_info.get('email', '')
     name = user_info.get('name', '')
-    
-    # Insert user if not already in DB — RETURNING gives us user_id without a second query
-    inserted = sql_cmd(
-        """INSERT INTO users (email, username)
-        VALUES (%s, %s)
-        ON CONFLICT (email) DO NOTHING
-        RETURNING user_id;""",
-        (email, email),
+    sql_cmd(
+        """INSERT INTO users (email, username, email_verified) 
+        VALUES (%s, %s, TRUE) 
+        ON CONFLICT (email) DO UPDATE SET email_verified = TRUE;""",
+        (email, email)
+    )
+    rows = sql_cmd(
+        "SELECT user_id FROM users WHERE email = %s",
+        (email,),
         fetch=True
     )
-    if inserted:
-        user_id = inserted[0][0]
-    else:
-        rows = sql_cmd(
-            "SELECT user_id FROM users WHERE email = %s",
-            (email,), fetch=True
-        )
-        user_id = rows[0][0] if rows else None
-
-    # Check user_profiles — not just users — to detect incomplete onboarding
-    # (user may exist in DB but never finished seed preferences)
+    user_id = rows[0][0] if rows else None
     user_profile_rows = sql_cmd(
         "SELECT 1 FROM user_profiles WHERE user_id = %s",
-        (user_id,), fetch=True
+        (user_id,),
+        fetch=True
     )
     is_new_user = len(user_profile_rows) == 0
     
-    # Determine redirect page
-    redirect_page = f"{FRONTEND_URL}/seedprefs" if is_new_user else request.args.get('state', f"{FRONTEND_URL}/swipe")
-    
-    session["user"] = {
-        "email": email,
-        "name": name,
-        "user_id": user_id,
-    }
-    return redirect(redirect_page)
+    nonce = os.urandom(20).hex()
+    sql_cmd(
+        "INSERT INTO nonces (nonce, username) VALUES (%s, %s)",
+        (nonce, email)
+    )
+    path = "/seedprefs" if is_new_user else original_url
+    return redirect(f"{FRONTEND_URL}{path}?nonce={nonce}")
 
-# logs out by clearing the session, then redirects back to the frontend
-@app.route("/auth/logout")
-def logout():
-    session.pop("user", None)
-    return redirect(FRONTEND_URL)
+@app.route("/api/gettokens", methods=["GET"])
+def get_tokens():
+    nonce = request.args.get("nonce")
+    if not nonce:
+        return jsonify({"error": "Missing nonce"}), 400
+    rows = sql_cmd("SELECT username FROM nonces WHERE nonce = %s",
+                   (nonce,), fetch=True)
+    if not rows:
+        return jsonify({"error": "Invalid nonce"}), 401
+    username = rows[0][0]
+    sql_cmd("DELETE FROM nonces WHERE nonce = %s", (nonce,))
+    access = flask_jwt_extended.create_access_token(identity=username)
+    refresh = flask_jwt_extended.create_refresh_token(identity=username)
+    return jsonify([username, access, refresh])
+
+@app.route("/api/refreshaccesstoken", methods=["POST"])
+@flask_jwt_extended.jwt_required(refresh=True)
+def refresh_accesstoken():
+    identity = flask_jwt_extended.get_jwt_identity()
+    return jsonify(flask_jwt_extended.create_access_token(identity=identity))
+
+@app.route("/logoutapp", methods=["GET"])
+def logoutapp():
+    # Frontend clears its tokens; we just redirect
+    return redirect(f"{FRONTEND_URL}/logout")
+
+@app.route("/logoutgoogle", methods=["GET"])
+def logoutgoogle():
+    return redirect("https://www.google.com/accounts/Logout")
 
 # returns the logged-in user's info, or 401 if not logged in
-@app.route("/auth/user")
+@app.route("/api/getuserinfo")
+@flask_jwt_extended.jwt_required()
 def get_user():
-    user = session.get("user")
-    if user:
-        return jsonify(user)
-    return jsonify(None), 401
-# signup route 
+    email = flask_jwt_extended.get_jwt_identity()
+    rows = sql_cmd(
+        "SELECT user_id, email, username, email_verified FROM users WHERE email = %s",
+        (email,), fetch=True
+    )
+    if not rows:
+        return jsonify(None), 401
+    r = rows[0]
+    return jsonify({
+        "user_id": r[0], "email": r[1], "name": r[2],
+        "email_verified": bool(r[3]),
+    })
+
 @app.route("/auth/signup", methods=["POST"])
 def signup():
     data = request.get_json()
@@ -194,6 +196,8 @@ def signup():
     password = data.get("password", "")
     if not email or not username or not password:
         return jsonify({"error": "All fields are required"}), 400
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     try:
         rows = sql_cmd(
@@ -204,11 +208,10 @@ def signup():
             fetch=True
         )
         user_id = rows[0][0]
-        session["user"] = {
-            "email": email,
-            "name": username,
-            "user_id": user_id,
-        }
+        try:
+            send_verification_email(email, FRONTEND_URL)
+        except Exception as mail_err:
+            print(f"[signup] failed to send verification email: {mail_err}")
         return jsonify({"user_id": user_id}), 201
     except Exception as e:
         if "users_email_key" in str(e):
@@ -249,8 +252,10 @@ def sql_cmd(command, params=(), fetch=False):
 
 # API route to handle user interactions (like/dislike) and update their profile vector accordingly
 @app.route("/api/songs/action", methods=["POST"])
+@flask_jwt_extended.jwt_required()
 def store_interaction():
     data = request.get_json()
+    data["user_id"] = current_user_id()
 
     # Update interactions table
     sql_cmd(
@@ -270,29 +275,30 @@ def store_interaction():
             (data["user_id"], data["song_id"])
         )
 
-    # Fetch song feature vector and user profile in one query
-    # Cast to text so psycopg returns strings we can parse
-    rows = sql_cmd(
-        """SELECT s.feature_vector::text, up.weight_vector::text
-           FROM songs s
-           LEFT JOIN user_profiles up ON up.user_id = %s
-           WHERE s.song_id = %s""",
-        (data["user_id"], data["song_id"]), fetch=True
+    # Update user weight vector based on this swipe
+    song_rows = sql_cmd(
+        "SELECT feature_vector FROM songs WHERE song_id = %s",
+        (data["song_id"],), fetch=True
     )
 
-    if rows and rows[0][0] is not None:
-        song_vec = json.loads(rows[0][0])
-        current_weight = json.loads(rows[0][1]) if rows[0][1] else None
+    # if the song has a feature vector, update the user's weight vector accordingly
+    if song_rows and song_rows[0][0] is not None:
+        song_vec = song_rows[0][0]
 
-        if current_weight is not None:
-            new_vec = update_weight_vector(current_weight, song_vec, data["action"])
+        profile_rows = sql_cmd(
+            "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
+            (data["user_id"],), fetch=True
+        )
+
+        if profile_rows and profile_rows[0][0] is not None:
+            new_vec = update_weight_vector(profile_rows[0][0], song_vec, data["action"])
         else:
             # No profile yet — initialize from this song's vector
             new_vec = l2_normalize(song_vec[:])
 
         sql_cmd(
             """INSERT INTO user_profiles (user_id, weight_vector, updated_at)
-               VALUES (%s, %s::vector, NOW())
+               VALUES (%s, %s, NOW())
                ON CONFLICT (user_id) DO UPDATE
                SET weight_vector = EXCLUDED.weight_vector, updated_at = NOW()""",
             (data["user_id"], json.dumps(new_vec))
@@ -302,8 +308,9 @@ def store_interaction():
 
 # API route to get a list of songs the user has liked, along with artist info and when they liked it
 @app.route("/api/songs/liked", methods=["GET"])
+@flask_jwt_extended.jwt_required()
 def get_liked_songs():
-    user_id = request.args.get("user_id")
+    user_id = current_user_id()
 
     rows = sql_cmd("""
         SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
@@ -328,22 +335,14 @@ def get_liked_songs():
             "liked_at":         r[5].isoformat() if r[5] else None
         } for r in rows])
 
-# API route to get the next song recommendation for a user, using pgvector cosine similarity
+# API route to get the next song recommendation for a user, using cosine similarity ranking with epsilon-greedy exploration
 @app.route("/api/songs/next", methods=["GET"])
+@flask_jwt_extended.jwt_required()
 def next_song():
-    user_id = request.args.get("user_id")
-
-    profile_rows = sql_cmd(
-        "SELECT weight_vector::text FROM user_profiles WHERE user_id = %s",
-        (user_id,), fetch=True
-    )
-
-    has_profile = profile_rows and profile_rows[0][0] is not None
-
-    if has_profile and random.random() > EPSILON:
-        # Similarity-ranked: let pgvector find the closest unseen song in one query
-        rows = sql_cmd("""
-            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
+    user_id = current_user_id()
+    rows = sql_cmd("""
+            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
+                a.artist_name, s.feature_vector
             FROM songs s
             JOIN song_artists sa ON s.song_id = sa.song_id
             JOIN artists a ON sa.artist_id = a.artist_id
@@ -352,31 +351,24 @@ def next_song():
                 UNION
                 SELECT song_id FROM disliked WHERE user_id = %s
             )
-            AND s.feature_vector IS NOT NULL
-            ORDER BY s.feature_vector <=> %s::vector
-            LIMIT 1
-        """, (user_id, user_id, profile_rows[0][0]), fetch=True)
-    else:
-        # Random exploration or no profile yet
-        rows = sql_cmd("""
-            SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
-            FROM songs s
-            JOIN song_artists sa ON s.song_id = sa.song_id
-            JOIN artists a ON sa.artist_id = a.artist_id
-            WHERE s.song_id NOT IN (
-                SELECT song_id FROM liked WHERE user_id = %s
-                UNION
-                SELECT song_id FROM disliked WHERE user_id = %s
-            )
-            AND s.feature_vector IS NOT NULL
-            ORDER BY RANDOM()
-            LIMIT 1
+            AND s.feature_vector IS NOT NULL;
         """, (user_id, user_id), fetch=True)
 
     if not rows:
         return jsonify({"message": "no more songs"}), 404
 
-    best = rows[0]
+    # Use cosine similarity ranking unless exploring randomly
+    profile_rows = sql_cmd(
+        "SELECT weight_vector FROM user_profiles WHERE user_id = %s",
+        (user_id,), fetch=True
+    )
+ 
+    if profile_rows and profile_rows[0][0] is not None and random.random() > EPSILON:
+        weight_vec = profile_rows[0][0]
+        best = max(rows, key=lambda r: cosine_similarity(weight_vec, r[5]))
+    else:
+        best = random.choice(rows)
+
     return jsonify({
         "song_id":          best[0],
         "song_name":        best[1],
@@ -387,18 +379,16 @@ def next_song():
 
 # For deleting a liked song from liked songs
 @app.route("/api/songs/liked/<int:song_id>", methods=["DELETE"])
+@flask_jwt_extended.jwt_required()
 def delete_liked_song(song_id):
-    user = session.get("user")
-    user_id = user["user_id"]
-    
+    user_id = current_user_id()
     sql_cmd("DELETE FROM liked WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
-    
     sql_cmd("DELETE FROM interactions WHERE user_id = %s AND song_id = %s;", (user_id, song_id))
-    
     return jsonify({"status": "deleted"}), 200
 
 # this is for the search bar function...
 @app.route("/api/songs/search", methods=["GET"])
+@flask_jwt_extended.jwt_required()
 def search_songs():
     query = request.args.get("params", "")
 
@@ -432,28 +422,30 @@ def search_songs():
 
 # seed preference
 @app.route('/api/preferences', methods=['POST'])
+@flask_jwt_extended.jwt_required()
 def save_preferences():
     data = flask.request.get_json()
     genres = data.get('prefs', [])
     vec = init_weight_vector_from_prefs(genres)
-    
-    # Get user_id from session
-    user_id = flask.session.get('user', {}).get('user_id')
-    if not user_id:
-        return flask.jsonify({'error': 'Not authenticated'}), 401
+    user_id = current_user_id()
 
-    # Upsert weight vector into user_profiles
+    # Update weight vector in users table
     sql_cmd(
-        """INSERT INTO user_profiles (user_id, weight_vector)
-           VALUES (%s, %s::vector)
-           ON CONFLICT (user_id) DO UPDATE
+        "UPDATE users SET weight_vector = %s WHERE user_id = %s",
+        (json.dumps(vec), user_id)
+    )
+    
+    # Create user_profile entry (marks preferences as completed)
+    sql_cmd(
+        """INSERT INTO user_profiles (user_id, weight_vector) 
+           VALUES (%s, %s)
+           ON CONFLICT (user_id) DO UPDATE 
            SET weight_vector = EXCLUDED.weight_vector""",
         (user_id, json.dumps(vec))
     )
 
     return flask.jsonify({'added weight vec to DB': True})
 
-# check if password is right 
 @app.route('/api/checkpw', methods=['POST'])
 def check_password():
     data = flask.request.get_json()
@@ -461,25 +453,117 @@ def check_password():
     password = data.get('password', "")
 
     result = sql_cmd(
-        "SELECT user_id, email, password_hash FROM users WHERE username = %s",
+        "SELECT user_id, email, password_hash, email_verified FROM users WHERE username = %s",
         (username,),
         fetch=True
     )
 
+
     if not result:
         return flask.jsonify({'logged_in': False, 'error': 'User not found'}), 401
 
-    user_id, email, stored_hash = result[0]
+    user_id, email, stored_hash, email_verified = result[0]
 
+
+    import bcrypt
     if bcrypt.checkpw(password.encode(), stored_hash.encode()):
-        session["user"] = {
-            "email": email,
-            "name": username,
-            "user_id": user_id,
-        }
-        return flask.jsonify({'logged_in': True, 'user_id': user_id})
+        if not email_verified:
+            return flask.jsonify({
+                'logged_in': False,
+                'error': 'Please verify your email before logging in. Check your inbox.'
+            }), 403
+        access = flask_jwt_extended.create_access_token(identity=email)
+        refresh = flask_jwt_extended.create_refresh_token(identity=email)
+        return jsonify({
+            'logged_in': True,
+            'username': email,
+            'accesstoken': access,
+            'refreshtoken': refresh,
+            'email_verified': bool(email_verified),
+        })
+
+
 
     return flask.jsonify({'logged_in': False, 'error': 'Wrong password'}), 401
+
+@app.route("/auth/verify-email/<token>", methods=["GET"])
+def verify_email(token):
+    email = read_token(token, VERIFY_SALT, VERIFY_MAX_AGE)
+    if not email:
+        return jsonify({"verified": False, "error": "Invalid or expired link"}), 400
+    sql_cmd("UPDATE users SET email_verified = TRUE WHERE email = %s", (email,))
+    return jsonify({"verified": True, "email": email})
+
+
+@app.route("/auth/resend-verification", methods=["POST"])
+def resend_verification():
+    data = request.get_json() or {}
+    email = data.get("email", "").strip()
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    rows = sql_cmd("SELECT email_verified FROM users WHERE email = %s",
+                   (email,), fetch=True)
+    if rows and rows[0][0]:
+        return jsonify({"status": "already_verified"})
+    if rows and not rows[0][0]:
+        try:
+            send_verification_email(email, FRONTEND_URL)
+        except Exception as e:
+            print(f"[resend_verification] {e}")
+    # "sent" is returned even when no user exists, so we don't leak registration
+    return jsonify({"status": "sent"})
+
+@app.route("/auth/forgot-password", methods=["POST"])
+def forgot_password():
+    data = request.get_json() or {}
+    email = data.get("email", "").strip()
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    rows = sql_cmd("SELECT 1 FROM users WHERE email = %s", (email,), fetch=True)
+    if rows:
+        try:
+            send_reset_email(email, FRONTEND_URL)
+        except Exception as e:
+            print(f"[forgot_password] {e}")
+    # Always return ok so we don't reveal which emails are registered
+    return jsonify({"sent": True})
+
+
+@app.route("/auth/reset-password", methods=["POST"])
+def reset_password():
+    data = request.get_json() or {}
+    token = data.get("token", "")
+    new_password = data.get("password", "")
+    if not token or not new_password:
+        return jsonify({"error": "Token and password required"}), 400
+    if len(new_password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+
+    email = read_token(token, RESET_SALT, RESET_MAX_AGE)
+    if not email:
+        return jsonify({"error": "Invalid or expired link"}), 400
+
+    hashed = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    sql_cmd("UPDATE users SET password_hash = %s WHERE email = %s",
+            (hashed, email))
+    return jsonify({"reset": True})
+
+@app.route("/auth/forgot-username", methods=["POST"])
+def forgot_username():
+    data = request.get_json() or {}
+    email = data.get("email", "").strip()
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    rows = sql_cmd("SELECT username FROM users WHERE email = %s",
+                   (email,), fetch=True)
+    if rows:
+        try:
+            send_username_reminder_email(email, rows[0][0])
+        except Exception as e:
+            print(f"[forgot_username] {e}")
+    # Always return ok — don't reveal whether email is registered
+    return jsonify({"sent": True})
+
 
 if __name__ == "__main__":
     # Get port from environment (Render sets this), default to 5000 for local dev

@@ -17,19 +17,30 @@ function SignUp(){
     const [email, setEmail] = useState("")
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
+    const [confirmPassword, setConfirmPassword] = useState("")
     const [error, setError] = useState("")
+    const [showPassword, setShowPassword] = useState(false)
 
     const handleSignup = async () => {
         setError("")
+        if (password.length < 8) {
+            setError("Password must be at least 8 characters")
+            return
+        }
+        if (password !== confirmPassword) {
+            setError("Passwords do not match")
+            return
+        }
+
         const res = await fetch(`${API_URL}/auth/signup`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            credentials: "include",
             body: JSON.stringify({ email, username, password })
         })
         const data = await res.json()
         if (res.ok) {
-            navigate('/seedprefs')
+            alert("Account created! Please check your email to verify before logging in.")
+            navigate('/login')
         } else {
             setError(data.error || "Signup failed")
         }
@@ -56,8 +67,13 @@ function SignUp(){
                 value={email} onChange={(e) => setEmail(e.target.value)} />
             <input style={backButtonStyle} type="text" placeholder="Username"
                 value={username} onChange={(e) => setUsername(e.target.value)} />
-            <input style={backButtonStyle} type="password" placeholder="Password"
+            <input style={backButtonStyle} type={showPassword ? "text" : "password"} placeholder="Password"
                 value={password} onChange={(e) => setPassword(e.target.value)} />
+            <input style={backButtonStyle} type={showPassword ? "text" : "password"} placeholder="Confirm Password"
+                value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+            <button style={backButtonStyle} onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? "Hide Password" : "Show Password"}
+            </button>
             
             <button style={backButtonStyle} onClick = { () => {
                 console.log("back button clicked! lets migrate to welcome page")

@@ -4,6 +4,7 @@
 // Author: Eleanor Liu
 // Contributors:  Lucille Rizo Patron
 // -----------------------------------------------------------------------
+/* eslint-disable react-hooks/rules-of-hooks */
 
 import React from 'react'
 import {useCallback, useEffect, useState} from 'react'
@@ -18,20 +19,36 @@ const GENRES = [
 ]
 
 function SeedPreferences(){
+    if (!sessionStorage.getItem('username')) {
+        window.location.replace(
+            API_URL + '/auth/login?originalurl=' + window.location.pathname
+        )
+        return null
+    }
+
     const navigate = useNavigate()
     const [selected, setSelected] = useState(new Set())
 
-    async function handleClickGoNext() {
-        await handleContinue()
+    function handleClickGoNext() {
+        handleContinue()
+        navigate('/swipe')
     }
 
     async function handleContinue() {
-        await fetch(`${API_URL}/api/preferences`, {
+        const response = await fetch(`${API_URL}/api/preferences`, {
             method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Authorization': 'Bearer ' + sessionStorage.getItem('accesstoken'),
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify({ prefs: [...selected] })
         })
+        if (response.status === 401 || response.status === 422) {
+            window.location.replace(
+                API_URL + '/auth/login?originalurl=' + window.location.pathname
+            )
+            return
+        }
         navigate('/swipe')
     }
 
