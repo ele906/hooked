@@ -18,7 +18,7 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 load_dotenv()
 import datetime
 import flask_jwt_extended
-from backend.email_utils import (
+from email_utils import (
     send_verification_email, send_reset_email,send_username_reminder_email,
     read_token, VERIFY_SALT, RESET_SALT, VERIFY_MAX_AGE, RESET_MAX_AGE,
 )
