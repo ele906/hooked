@@ -146,11 +146,12 @@ function Profile(){
                 <button style={{...cornerButtonStyle('left', 'top'), left: '71px'}} onClick={() => navigate('/search')} title="Search">
                     <img src={searchIcon} alt="Search" style={{ width: '24px', height: '24px' }} />
                 </button>
-                <button style={{...cornerButtonStyle('left', 'top'), left: '126px'}} onClick={() => navigate('/friends')} title="Friends">👥</button>
-                <button style={{...cornerButtonStyle('left', 'top'), left: '181px'}} onClick={() => window.location.href = `${API_URL}/logoutapp`} title="Logout">
+                <button style={{...cornerButtonStyle('left', 'top'), left: '126px'}} onClick={() => navigate('/profile/' + sessionStorage.getItem('username'))} title="Profile">👤</button>
+                <button style={{...cornerButtonStyle('left', 'top'), left: '181px'}} onClick={() => navigate('/swipe')} title="Swipe">↔</button>
+                
+                <button style={{...cornerButtonStyle('right', 'top'), right: '12px'}} onClick={() => window.location.href = `${API_URL}/logoutapp`} title="Logout">
                     <img src={logoutIcon} alt="Logout" style={{ width: '24px', height: '24px' }} />
                 </button>
-                <button style={{...cornerButtonStyle('left', 'top'), left: '236px'}} onClick={() => navigate('/swipe')} title="Swipe">↔</button>
                 
                 <div style={{ flex: 1 }} />
                 {isOwnProfile ? (
