@@ -137,14 +137,10 @@ def auth_callback():
     )
     is_new_user = len(user_profile_rows) == 0
 
-    # Fetch the actual username (may differ from email for Google users)
-    username_rows = sql_cmd("SELECT username FROM users WHERE user_id = %s", (user_id,), fetch=True)
-    stored_username = username_rows[0][0] if username_rows else email
-
     nonce = os.urandom(20).hex()
     sql_cmd(
         "INSERT INTO nonces (nonce, username) VALUES (%s, %s)",
-        (nonce, stored_username)
+        (nonce, email)  # store email so JWT identity = email for current_user_id()
     )
     path = "/seedprefs" if is_new_user else original_url
     return redirect(f"{FRONTEND_URL}{path}?nonce={nonce}")
@@ -158,11 +154,15 @@ def get_tokens():
                    (nonce,), fetch=True)
     if not rows:
         return jsonify({"error": "Invalid nonce"}), 401
-    username = rows[0][0]
+    email = rows[0][0]  # nonce stores email
     sql_cmd("DELETE FROM nonces WHERE nonce = %s", (nonce,))
-    access = flask_jwt_extended.create_access_token(identity=username)
-    refresh = flask_jwt_extended.create_refresh_token(identity=username)
-    return jsonify([username, access, refresh])
+    # JWT identity = email (matches current_user_id() lookup)
+    access = flask_jwt_extended.create_access_token(identity=email)
+    refresh = flask_jwt_extended.create_refresh_token(identity=email)
+    # Fetch display username for sessionStorage
+    username_rows = sql_cmd("SELECT username FROM users WHERE email = %s", (email,), fetch=True)
+    display_username = username_rows[0][0] if username_rows else email
+    return jsonify([display_username, access, refresh])
 
 @app.route("/api/refreshaccesstoken", methods=["POST"])
 @flask_jwt_extended.jwt_required(refresh=True)

@@ -163,33 +163,6 @@ function SignUp(){
                     style={{ width: '100%', maxWidth: '300px' }}
                 />
 
-                <div
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    style={{
-                        border: '2px dashed #debff7',
-                        borderRadius: '12px',
-                        padding: '24px',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        color: '#debff7',
-                        width: '100%',
-                        maxWidth: '280px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.3s ease',
-                        backgroundColor: 'rgba(222, 191, 247, 0.05)'
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(222, 191, 247, 0.15)' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(222, 191, 247, 0.05)' }}
-                >
-                    {profileImg
-                        ? <img src={profileImg} alt="profile" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover' }} />
-                        : <p style={{ margin: 0, fontSize: '14px' }}>Drag & drop profile photo</p>
-                    }
-                </div>
-
                 {error && <p style={{ color: '#ff6b6b', fontSize: '13px', margin: 0, textAlign: 'center' }}>{error}</p>}
 
                 <button
