@@ -56,7 +56,9 @@ CREATE TABLE interactions (
     song_id INTEGER REFERENCES songs(song_id) ON DELETE CASCADE,
     type VARCHAR(20) CHECK (type IN ('play', 'like', 'dislike', 'favorite')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    duration_sec INTEGER  -- only relevant for 'play', NULL otherwise
+    duration_sec INTEGER,  -- only relevant for 'play', NULL otherwise
+    served_by TEXT CHECK (served_by IN ('similarity', 'exploration')),
+    session_id TEXT
 );
 
 --- stores user taste profiles ---
@@ -65,6 +67,7 @@ CREATE TABLE user_profiles(
     genre_weights JSONB DEFAULT '{}'::jsonb,
     artist_weights JSONB DEFAULT '{}'::jsonb,
     weight_vector vector(398),
+    seed_genres JSONB,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

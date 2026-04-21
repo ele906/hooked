@@ -61,6 +61,12 @@ function SwipeScreen() {
     const { user } = useAuth() 
     const [userId, setUserId] = useState(null)
 
+    // stable session id for this swipe session — generated once on mount
+    const sessionId = useRef(crypto.randomUUID())
+
+    // how the current song was served ('similarity' or 'exploration')
+    const [servedBy, setServedBy] = useState(null)
+
     // store last action for undo functionality
     const [lastAction, setLastAction] = useState(null)
 
@@ -113,7 +119,9 @@ function SwipeScreen() {
                 },
                 body: JSON.stringify({
                     song_id: currentSong.song_id,
-                    action
+                    action,
+                    served_by: servedBy,
+                    session_id: sessionId.current
                 })
             })
             if (response.status === 401 || response.status === 422) {
@@ -176,8 +184,8 @@ function SwipeScreen() {
             setOffsetX(0)
 
             if (data && data.song_id) {
-                // end of song list
                 setCurrentSong(data)
+                setServedBy(data.served_by || null)
                 setMessage("")
             } else {
                 setCurrentSong(null)

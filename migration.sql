@@ -93,4 +93,13 @@ CREATE INDEX IF NOT EXISTS feature_vector_idx ON public.songs USING ivfflat (fea
 DELETE FROM user_profiles WHERE weight_vector IS NOT NULL 
   AND (jsonb_array_length(weight_vector) = 14 OR jsonb_array_length(weight_vector) < 100);
 
+-- 9) Add evaluation columns to interactions
+ALTER TABLE public.interactions
+    ADD COLUMN IF NOT EXISTS served_by TEXT CHECK (served_by IN ('similarity', 'exploration')),
+    ADD COLUMN IF NOT EXISTS session_id TEXT;
+
+-- 10) Add seed_genres to user_profiles
+ALTER TABLE public.user_profiles
+    ADD COLUMN IF NOT EXISTS seed_genres JSONB;
+
 COMMIT;

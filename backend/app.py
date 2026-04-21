@@ -272,14 +272,16 @@ def store_interaction():
     data = request.get_json()
     song_id = data.get("song_id")
     action = data.get("action")
-    
+    served_by = data.get("served_by")
+    session_id = data.get("session_id")
+
     if not song_id or not action:
         return jsonify({"error": "song_id and action are required"}), 400
 
     # Update interactions table
     sql_cmd(
-        "INSERT INTO interactions (user_id, song_id, type) VALUES (%s, %s, %s);",
-        (user_id, song_id, action)
+        "INSERT INTO interactions (user_id, song_id, type, served_by, session_id) VALUES (%s, %s, %s, %s, %s);",
+        (user_id, song_id, action, served_by, session_id)
     )
 
     # Update liked/disliked tables
@@ -396,7 +398,7 @@ def next_song():
         has_profile = profile_rows and profile_rows[0][0] is not None
 
         if has_profile and random.random() > EPSILON:
-            # Similarity-ranked: let pgvector find the closest unseen song in one query
+            served_by = "similarity"
             rows = sql_cmd("""
                 SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
                 FROM songs s
@@ -412,7 +414,7 @@ def next_song():
                 LIMIT 1
             """, (user_id, user_id, profile_rows[0][0]), fetch=True)
         else:
-            # Random exploration or no profile yet
+            served_by = "exploration"
             rows = sql_cmd("""
                 SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
                 FROM songs s
@@ -430,6 +432,7 @@ def next_song():
 
         if not rows:
             # Fallback: serve any unseen song even without feature_vector
+            served_by = "exploration"
             rows = sql_cmd("""
                 SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
                 FROM songs s
@@ -454,7 +457,8 @@ def next_song():
             "song_name":      best[1],
             "song_image_url": best[2],
             "preview_mp3_url": best[3],
-            "artist_name":    best[4]
+            "artist_name":    best[4],
+            "served_by":      served_by
         })
     except Exception as e:
         app.logger.error(f"Error in next_song: {str(e)}", exc_info=True)
@@ -719,11 +723,12 @@ def save_preferences():
     # Create user_profile entry (marks preferences as completed)
     vec_str = "[" + ",".join(str(v) for v in vec) + "]"
     sql_cmd(
-        """INSERT INTO user_profiles (user_id, weight_vector) 
-           VALUES (%s, %s::text::vector)
-           ON CONFLICT (user_id) DO UPDATE 
-           SET weight_vector = EXCLUDED.weight_vector""",
-        (user_id, vec_str)
+        """INSERT INTO user_profiles (user_id, weight_vector, seed_genres)
+           VALUES (%s, %s::text::vector, %s)
+           ON CONFLICT (user_id) DO UPDATE
+           SET weight_vector = EXCLUDED.weight_vector,
+               seed_genres = EXCLUDED.seed_genres""",
+        (user_id, vec_str, json.dumps(genres))
     )
 
     return flask.jsonify({'added weight vec to DB': True})
