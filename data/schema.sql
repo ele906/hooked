@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+
 --- stores user data ---
 CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
@@ -36,7 +38,7 @@ CREATE TABLE songs (
     song_image_url TEXT,
     release_date DATE,
     genre TEXT,
-    feature_vector JSONB,
+    feature_vector vector(398),
     itunes_track_id TEXT UNIQUE
 );
 
@@ -62,7 +64,7 @@ CREATE TABLE user_profiles(
     user_id INTEGER PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
     genre_weights JSONB DEFAULT '{}'::jsonb,
     artist_weights JSONB DEFAULT '{}'::jsonb,
-    weight_vector JSONB DEFAULT '[]'::jsonb,
+    weight_vector vector(398),
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
