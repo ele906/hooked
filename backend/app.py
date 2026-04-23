@@ -4,7 +4,7 @@
 # authors: Eleanor, Sadat, Stephen, Derek
 # -----------------------------------------------------------------------
 
-import sys, os, json, random
+import sys, os, json, random, re
 import flask
 from flask import Flask, jsonify, request, redirect, url_for, g
 from dotenv import load_dotenv
@@ -41,6 +41,14 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 app.config['JWT_SECRET_KEY'] = os.environ.get("FLASK_SECRET_KEY")
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(hours=1)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = datetime.timedelta(days=7)
+app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024  # 1 MB request body limit
+
+# Input length limits
+MAX_EMAIL_LEN    = 254
+MAX_USERNAME_LEN = 50
+MAX_PASSWORD_LEN = 128
+MAX_SEARCH_LEN   = 100
+MAX_URL_LEN      = 2048
 jwt_manager = flask_jwt_extended.JWTManager(app)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
@@ -51,6 +59,14 @@ CORS(app, resources={
     r"/auth/*": {"origins": allowed_origins},
 })
 
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
 # Google OAuth setup
 GOOGLE_DISCOVERY_URL = 'https://accounts.google.com/.well-known/openid-configuration'
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
@@ -60,6 +76,9 @@ GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 @app.route("/auth/login", methods=['GET', 'POST'])
 def login():
     original_url = request.args.get("originalurl", "/swipe")
+    # Only allow safe relative paths — prevent open redirect
+    if not re.match(r'^/[a-zA-Z0-9/_-]*$', original_url):
+        original_url = '/swipe'
     google_provider_cfg = requests.get(GOOGLE_DISCOVERY_URL, timeout=10).json()
     auth_endpoint = google_provider_cfg['authorization_endpoint']
     client = oauthlib.oauth2.WebApplicationClient(GOOGLE_CLIENT_ID)
@@ -82,6 +101,9 @@ def current_user_id():
 def auth_callback():
     authorization_code = request.args.get('code')
     original_url = request.args.get('state', '/swipe')
+    # Only allow safe relative paths — prevent open redirect
+    if not re.match(r'^/[a-zA-Z0-9/_-]*$', original_url):
+        original_url = '/swipe'
     google_provider_cfg = requests.get(GOOGLE_DISCOVERY_URL, timeout=10).json()
     token_endpoint = google_provider_cfg['token_endpoint']
     userinfo_endpoint = google_provider_cfg['userinfo_endpoint']
@@ -206,8 +228,14 @@ def signup():
 
     if not email or not username or not password:
         return jsonify({"error": "Email, username, and password are required"}), 400
+    if len(email) > MAX_EMAIL_LEN:
+        return jsonify({"error": "Email too long"}), 400
+    if len(username) > MAX_USERNAME_LEN:
+        return jsonify({"error": "Username must be 50 characters or fewer"}), 400
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
+    if len(password) > MAX_PASSWORD_LEN:
+        return jsonify({"error": "Password too long"}), 400
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
     try:
@@ -502,6 +530,7 @@ def search_songs():
     if not query:
         return jsonify({"error": "params parameter is required"}), 400
 
+    query = query[:MAX_SEARCH_LEN]  # truncate oversized input
     rows = sql_cmd("""
         SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
                a.artist_name
@@ -540,6 +569,7 @@ def search_friends():
     if not query:
         return jsonify({"error": "query parameter is required"}), 400
 
+    query = query[:MAX_SEARCH_LEN]  # truncate oversized input
     rows = sql_cmd("""
         SELECT u.user_id, u.username, u.user_image_url
         FROM users u
@@ -585,6 +615,22 @@ def get_user_profile(username):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/users/update-pfp", methods=["POST"])
+@flask_jwt_extended.jwt_required()
+def update_pfp():
+    user_id = current_user_id()
+    if not user_id:
+        return jsonify({"error": "not logged in"}), 401
+    data = request.get_json()
+    image_url = data.get("user_image_url", "")
+    if image_url and len(image_url) > MAX_URL_LEN:
+        return jsonify({"error": "URL too long"}), 400
+    sql_cmd(
+        "UPDATE users SET user_image_url = %s WHERE user_id = %s",
+        (image_url if image_url else None, user_id)
+    )
+    return jsonify({"ok": True}), 200
 
 @app.route("/api/users/<username>/liked", methods=["GET"])
 @flask_jwt_extended.jwt_required()
