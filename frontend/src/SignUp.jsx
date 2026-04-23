@@ -5,7 +5,7 @@
 // -----------------------------------------------------------------------
 
 import React from 'react'
-import {useCallback, useEffect, useState} from 'react'
+import {useEffect, useState} from 'react'
 import { useNavigate} from 'react-router-dom'
 import API_URL from './config'
 import { getScreenStyle, cornerButtonStyle} from './styles'
@@ -84,18 +84,6 @@ function SignUp(){
             setError(data.error || 'Signup failed')
         }
     }
-
-    const handleKeyPress = useCallback((e) => {
-        if (e.key === ' ' || e.code === "Space") {
-            console.log('Space pressed')
-            navigate('/seedprefs')
-        }
-    }, [navigate])
-
-    useEffect(() => { 
-        window.addEventListener('keydown', handleKeyPress)
-        return () => window.removeEventListener('keydown', handleKeyPress)
-    }, [handleKeyPress])
 
     return(
         <div style = {{...getScreenStyle(
