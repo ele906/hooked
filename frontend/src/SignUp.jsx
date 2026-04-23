@@ -24,6 +24,34 @@ function SignUp(){
     const [password, setPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
     const [error, setError] = useState("")
+    const [profileImg, setProfileImg] = useState(null) // blob url for preview
+    const [imageFile, setImageFile] = useState(null)   // actual File object
+
+    async function uploadToCloudinary(file) {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('upload_preset', 'a3grzjto')
+
+        const res = await fetch('https://api.cloudinary.com/v1_1/dutrsvhz4/image/upload', {
+            method: 'POST',
+            body: formData
+        })
+        const data = await res.json()
+        return data.secure_url
+    }
+
+    function handleDrop(e) {
+        e.preventDefault()
+        const file = e.dataTransfer.files[0]
+        if (file && file.type.startsWith('image/')) {
+            setImageFile(file)
+            setProfileImg(URL.createObjectURL(file))
+        }
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault()
+    }
 
     async function handleSignUp() {
         if (password.length < 8) {
@@ -35,6 +63,8 @@ function SignUp(){
             return
         }
 
+        const imageUrl = imageFile ? await uploadToCloudinary(imageFile) : ''
+
         const res = await fetch(`${API_URL}/auth/signup`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -42,7 +72,7 @@ function SignUp(){
                 email, 
                 username, 
                 password,
-                user_image_url: ''
+                user_image_url: imageUrl
             })
         })
         const data = await res.json()
@@ -124,6 +154,27 @@ function SignUp(){
                     className='input-login'
                     style={{ width: '100%', maxWidth: '300px' }}
                 />
+
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <div
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                        style={{
+                            border: '2px dashed #debff7',
+                            borderRadius: '12px',
+                            padding: '24px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            color: '#debff7',
+                            width: '200px',
+                        }}
+                    >
+                        {profileImg
+                            ? <img src={profileImg} alt="profile" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover' }} />
+                            : <p style={{ margin: 0, fontSize: '13px' }}>Drag & drop a profile photo here</p>
+                        }
+                    </div>
+                </div>
 
                 {error && <p style={{ color: '#ff6b6b', fontSize: '13px', margin: 0, textAlign: 'center' }}>{error}</p>}
 
