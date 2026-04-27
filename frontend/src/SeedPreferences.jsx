@@ -86,7 +86,7 @@ function SeedPreferences(){
 
             <div style={{ position: 'fixed', top: '16px', left: '16px', display: 'flex', gap: '8px', zIndex: 100 }}>
                 <button className='back-btn' onClick={() => navigate(-1)}>Back</button>
-                <button onClick={() => window.location.href = `${API_URL}/logoutapp`}>Logout</button>
+                <button className='back-btn' onClick={() => window.location.href = `${API_URL}/logoutapp`}>Logout</button>
             </div>
 
             <h1>Preferences</h1>

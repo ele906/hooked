@@ -574,7 +574,8 @@ def search_friends():
     rows = sql_cmd("""
         SELECT u.user_id, u.username, u.user_image_url
         FROM users u
-        WHERE u.username ILIKE %s OR u.email ILIKE %s
+        WHERE (u.username ILIKE %s OR u.email ILIKE %s)
+        AND u.email_verified = TRUE
         LIMIT 8;
     """, (f"%{query}%", f"%{query}%",), fetch=True)
 
