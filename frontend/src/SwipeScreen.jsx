@@ -281,20 +281,25 @@ function SwipeScreen() {
     }
 
     // Sets state to dragging started
-    // takes mouse event e as param
+    // takes mouse or touch event as param
     const dragStart = (event) => {
         setIsDragging(true)
-        // capture exact position of click start
-        dragStartX.current = event.pageX 
+        // capture exact position of click/touch start
+        dragStartX.current = event.touches ? event.touches[0].pageX : event.pageX
     }
 
     // Updates position state as the card is dragged
     useEffect(() => {
-        // calculate how far mouse has moved
-        // takes mouse event e as param
+        // calculate how far mouse/touch has moved
         const handleMouseMove = (event) => {
             if (!isDragging) return
             const displacement = event.pageX - dragStartX.current
+            setOffsetX(displacement)
+        }
+
+        const handleTouchMove = (event) => {
+            if (!isDragging) return
+            const displacement = event.touches[0].pageX - dragStartX.current
             setOffsetX(displacement)
         }
         
@@ -318,13 +323,17 @@ function SwipeScreen() {
             setIsDragging(false)
         }
         
-        // respond to user mouse movements
+        // respond to user mouse and touch movements
         window.addEventListener('mousemove', handleMouseMove)
         window.addEventListener('mouseup', handleMouseUp)
+        window.addEventListener('touchmove', handleTouchMove, { passive: true })
+        window.addEventListener('touchend', handleMouseUp)
         // clean up listeners
         return () => {
             window.removeEventListener('mousemove', handleMouseMove)
             window.removeEventListener('mouseup', handleMouseUp)
+            window.removeEventListener('touchmove', handleTouchMove)
+            window.removeEventListener('touchend', handleMouseUp)
         }
     }, [isDragging, offsetX])
 
@@ -430,6 +439,7 @@ function SwipeScreen() {
                             zIndex: isDragging ? 100 : 1 
                         }}
                         onMouseDown={dragStart}
+                        onTouchStart={dragStart}
                     >
                         {/* undo action button */}
                         <button 

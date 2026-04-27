@@ -31,6 +31,30 @@ function Profile(){
     const [pfpUploading, setPfpUploading] = useState(false)
     const pfpInputRef = useRef(null)
 
+    // audio playback for liked songs preview
+    const audioRef = useRef(null)
+    const [playingId, setPlayingId] = useState(null)
+
+    function handleSongClick(song) {
+        if (playingId === song.song_id) {
+            // same song — toggle pause/resume
+            if (audioRef.current) {
+                audioRef.current.pause()
+                audioRef.current.currentTime = 0
+            }
+            setPlayingId(null)
+        } else {
+            // different song — stop previous and play new one
+            if (audioRef.current) {
+                audioRef.current.pause()
+            }
+            audioRef.current = new Audio(song.preview_mp3_url)
+            audioRef.current.play().catch(() => {})
+            audioRef.current.onended = () => setPlayingId(null)
+            setPlayingId(song.song_id)
+        }
+    }
+
     // get whoever's profile we're viewing
     useEffect(() => {
         const accessToken = sessionStorage.getItem('accesstoken')
@@ -284,7 +308,7 @@ function Profile(){
                     : likedSongs.map(song => (
                         <div key={song.song_id}
                             style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', position: 'relative' }}
-                            onClick={() => new Audio(song.preview_mp3_url).play()}
+                            onClick={() => handleSongClick(song)}
                             onMouseEnter={e => e.currentTarget.querySelector('.hover-overlay').style.opacity = 1}
                             onMouseLeave={e => e.currentTarget.querySelector('.hover-overlay').style.opacity = 0}
                         >
@@ -302,6 +326,9 @@ function Profile(){
                                 <p style={{ color: 'white', margin: 0, fontSize: 13, textAlign: 'left' }}>{song.song_name}</p>
                                 <p style={{ color: '#debff7', margin: 0, fontSize: 11, textAlign: 'left' }}>{song.artist_name}</p>
                             </div>
+                            <span style={{ marginLeft: 'auto', fontSize: 16, color: '#debff7' }}>
+                                {playingId === song.song_id ? '⏸' : '▶'}
+                            </span>
                         </div>
                     ))
                 }
