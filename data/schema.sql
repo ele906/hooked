@@ -31,7 +31,7 @@ CREATE TABLE songs (
     song_id SERIAL PRIMARY KEY,
     song_name TEXT NOT NULL,
     album_id INTEGER REFERENCES albums(album_id) ON DELETE CASCADE,
-    preview_mp3_url TEXT,
+    preview_mp3_url TEXT UNIQUE,
     song_image_url TEXT,
     feature_vector vector(398)
 );

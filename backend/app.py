@@ -138,13 +138,14 @@ def auth_callback():
     user_info = userinfo_response.json()
     email = user_info.get('email', '')
     name = user_info.get('name', '')
+    google_picture = user_info.get('picture', '')
     # Derive a clean username from email local-part (before @), only for new users
     email_local = email.split('@')[0]
     sql_cmd(
-        """INSERT INTO users (email, username, email_verified) 
-        VALUES (%s, %s, TRUE) 
+        """INSERT INTO users (email, username, email_verified, user_image_url) 
+        VALUES (%s, %s, TRUE, %s) 
         ON CONFLICT (email) DO UPDATE SET email_verified = TRUE;""",
-        (email, email_local)
+        (email, email_local, google_picture)
     )
     rows = sql_cmd(
         "SELECT user_id FROM users WHERE email = %s",
