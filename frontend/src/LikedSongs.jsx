@@ -42,6 +42,28 @@ function LikedSongs() {
     const [currentPage, setCurrentPage] = useState(0)
     const SONGS_PER_PAGE = 10
 
+    // audio playback
+    const audioRef = useRef(null)
+    const [playingId, setPlayingId] = useState(null)
+
+    function handleSongClick(song) {
+        if (playingId === song.song_id) {
+            if (audioRef.current) {
+                audioRef.current.pause()
+                audioRef.current.currentTime = 0
+            }
+            setPlayingId(null)
+        } else {
+            if (audioRef.current) {
+                audioRef.current.pause()
+            }
+            audioRef.current = new Audio(song.preview_mp3_url)
+            audioRef.current.play().catch(() => {})
+            audioRef.current.onended = () => setPlayingId(null)
+            setPlayingId(song.song_id)
+        }
+    }
+
     // ------------------ Liked Song Fetching ----------------------------
 
     // fetch liked songs
@@ -133,7 +155,9 @@ function LikedSongs() {
                     <>
                         {paginatedSongs.map((song) => (
                             <div key={song.song_id} 
-                                className="liked-song-box-style">
+                                className="liked-song-box-style"
+                                style={{ cursor: song.preview_mp3_url ? 'pointer' : 'default' }}
+                                onClick={() => song.preview_mp3_url && handleSongClick(song)}>
 
                                 {/* album art */}
                                 <img src={song.song_image_url} 
@@ -148,9 +172,16 @@ function LikedSongs() {
                                     <div className="liked-artist-name-style">{song.artist_name}</div>
                                 </div>
 
+                                {/* play/pause indicator */}
+                                {song.preview_mp3_url && (
+                                    <span style={{ color: '#debff7', fontSize: 18, marginRight: 4 }}>
+                                        {playingId === song.song_id ? '⏸' : '▶'}
+                                    </span>
+                                )}
+
                                 {/* delete song button */}
                                 <button 
-                                    onClick={() => deleteLikedSong(song.song_id)}
+                                    onClick={(e) => { e.stopPropagation(); deleteLikedSong(song.song_id) }}
                                     className="delete-liked-button-style">
                                     ✕
                                 </button>

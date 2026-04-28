@@ -106,7 +106,7 @@ function SeedPreferences(){
                     </button>
                 ))}
             </div>
-            <div style={{ display: 'flex', gap: '50px' }}>
+            <div style={{ display: 'flex', gap: '16px' }}>
                 <button className = 'btn-1' onClick={handleClickGoNext}>
                     Skip
                 </button>

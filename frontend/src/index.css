@@ -13,6 +13,11 @@ authors: lucille & eleanor
   -moz-osx-font-smoothing: grayscale;
 }
 
+html, body {
+    background-color: #18171d;
+    overscroll-behavior: none;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace; 
@@ -40,7 +45,7 @@ code {
 /* swipe card for swipe screen*/
 .swipe-card-style {
     position: relative;
-    width: 350px;
+    width: min(350px, 92vw);
     padding: 100px 40px;
     background-color: #7a779636;
     border-radius: 25px;
@@ -52,7 +57,7 @@ code {
 
 .profile-card {
     position: relative;
-    width: 350px;
+    width: min(350px, 92vw);
     padding: 100px 40px;
     background-color: #9e86a50c;
     background-image:
@@ -63,13 +68,13 @@ code {
     border-radius: 25px;
     text-align: center;
     color: white;
-    user-select: none;
 }
 
 .welcome-card-style {
-    width: 450px;
-    height: 500px;
-    padding: 110px 40px;
+    width: min(450px, 92vw);
+    height: auto;
+    min-height: 400px;
+    padding: 40px 20px;
     background-color: #524f6b00;
     border-radius: 25px;
     text-align: center;
@@ -395,7 +400,7 @@ code {
 .search-song-box {
     margin: 0 auto;
     margin-bottom: 10px;
-    width: 600px;
+    width: min(600px, 92vw);
     border-radius: 15px;
     background-color: #d4d4f017;
     color: #d0e6f2da;
@@ -471,6 +476,8 @@ code {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
+    width: min(400px, 92vw);
+    box-sizing: border-box;
 }
 
 /* -------- RESULTS LIST -------- */
@@ -591,4 +598,35 @@ code {
 @keyframes spinNote {
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }
+}
+
+@media (max-width: 500px) {
+    .pref-button {
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+    .liked-songs-header-style {
+        font-size: 28px;
+        margin-top: 80px;
+    }
+    .search-header-style {
+        font-size: 40px;
+        margin-bottom: 50px;
+    }
+    .hooked-header-style {
+        font-size: 45px;
+    }
+    .swipe-album-art-style {
+        width: 180px;
+        height: 180px;
+    }
+    .search-bar {
+        width: 88%;
+    }
+    .profile-card {
+        padding: 60px 16px;
+    }
+    .swipe-card-style {
+        padding: 60px 20px;
+    }
 }

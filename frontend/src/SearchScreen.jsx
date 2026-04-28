@@ -17,6 +17,8 @@ function SearchScreen() {
     const [query, setQuery] = useState("")
     const [user, setUser] = useState(null)
     const controllerRef = useRef(null)
+    const [currentPage, setCurrentPage] = useState(0)
+    const RESULTS_PER_PAGE = 10
 
     function searchSong(my_params) {
         // abort previous request if one is running
@@ -102,6 +104,7 @@ function SearchScreen() {
                 // this detects changes in search and does the search function...
                 onChange={(e) => {
                     setQuery(e.target.value)
+                    setCurrentPage(0)
                     searchSong(e.target.value)
                 }}
                 placeholder="Search songs..."
@@ -110,14 +113,41 @@ function SearchScreen() {
 
             {/* results */}
             {results.length > 0 ? (
-                <div className="results-list">
-                    {results.map(song => (
-                        <div key={song.song_id} className="search-song-box" onClick={() => navigate('/swipe', {state: {song}})}>
-                            <img src={song.song_image_url} alt={song.song_name} className="song-img-box"/>
-                            <span>{song.song_name} - {song.artist_name ?? 'Unknown Artist'}</span>
-                        </div>
-                    ))}
-                </div>
+                (() => {
+                    const totalPages = Math.ceil(results.length / RESULTS_PER_PAGE)
+                    const paginatedResults = results.slice(currentPage * RESULTS_PER_PAGE, (currentPage + 1) * RESULTS_PER_PAGE)
+                    const hasNextPage = currentPage < totalPages - 1
+                    const hasPrevPage = currentPage > 0
+                    return (
+                        <>
+                            <div className="results-list">
+                                {paginatedResults.map(song => (
+                                    <div key={song.song_id} className="search-song-box" onClick={() => navigate('/swipe', {state: {song}})}>
+                                        <img src={song.song_image_url} alt={song.song_name} className="song-img-box"/>
+                                        <span>{song.song_name} - {song.artist_name ?? 'Unknown Artist'}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            {totalPages > 1 && (
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', padding: '16px', alignItems: 'center' }}>
+                                    <button
+                                        onClick={() => setCurrentPage(p => p - 1)}
+                                        disabled={!hasPrevPage}
+                                        style={{ opacity: hasPrevPage ? 1 : 0.3, background: 'none', border: 'none', color: '#bfc3f7', fontSize: '20px', cursor: hasPrevPage ? 'pointer' : 'default' }}
+                                    >‹ Prev</button>
+                                    <span style={{ color: '#bfc3f7', fontSize: '14px', fontWeight: 'bold' }}>
+                                        Page {currentPage + 1} of {totalPages}
+                                    </span>
+                                    <button
+                                        onClick={() => setCurrentPage(p => p + 1)}
+                                        disabled={!hasNextPage}
+                                        style={{ opacity: hasNextPage ? 1 : 0.3, background: 'none', border: 'none', color: '#bfc3f7', fontSize: '20px', cursor: hasNextPage ? 'pointer' : 'default' }}
+                                    >Next ›</button>
+                                </div>
+                            )}
+                        </>
+                    )
+                })()
             ) : (
                 query && <div className='no-results'>
                     <p>No results found!</p>
