@@ -114,7 +114,7 @@ function Friends(){
                     ))}
                 </div>
             ) : (
-                <div className='no-results'>
+                friendQuery && <div className='no-results'>
                     <p>No results found!</p>
                 </div>
             )}

@@ -232,6 +232,7 @@ code {
     border: none;
     border-radius: 25px;
     cursor: pointer;
+    font-family: 'Outfit', sans-serif;
 }
 
 .nav-button {
@@ -314,6 +315,7 @@ code {
     border-radius: 50px;
     cursor: pointer;
     transition: background-color 0.15s, color 0.15s;
+    font-family: 'Outfit', sans-serif;
 }
 
 .add-btn {

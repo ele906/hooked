@@ -5,7 +5,7 @@
 // Lucille Rizo Patron
 // -----------------------------------------------------------------------
 
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {useParams, useNavigate } from 'react-router-dom'
 import './index.css'
 import { getScreenStyle, cornerButtonStyle } from './styles'
@@ -27,6 +27,33 @@ function Profile(){
     const FRIENDS_PER_PAGE = 6;
 
     const [profileData, setProfileData] = useState(null)
+    const [uploadedPfp, setUploadedPfp] = useState(null) // override pfp after upload
+    const [pfpUploading, setPfpUploading] = useState(false)
+    const pfpInputRef = useRef(null)
+
+    // audio playback for liked songs preview
+    const audioRef = useRef(null)
+    const [playingId, setPlayingId] = useState(null)
+
+    function handleSongClick(song) {
+        if (playingId === song.song_id) {
+            // same song — toggle pause/resume
+            if (audioRef.current) {
+                audioRef.current.pause()
+                audioRef.current.currentTime = 0
+            }
+            setPlayingId(null)
+        } else {
+            // different song — stop previous and play new one
+            if (audioRef.current) {
+                audioRef.current.pause()
+            }
+            audioRef.current = new Audio(song.preview_mp3_url)
+            audioRef.current.play().catch(() => {})
+            audioRef.current.onended = () => setPlayingId(null)
+            setPlayingId(song.song_id)
+        }
+    }
 
     // get whoever's profile we're viewing
     useEffect(() => {
@@ -47,6 +74,47 @@ function Profile(){
     function handleBackButton() {
         console.log("back button clicked, go back to swipe page")
         navigate(-1)
+    }
+
+    async function uploadPfpFile(file) {
+        if (!file || !file.type.startsWith('image/')) return
+        setPfpUploading(true)
+        try {
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('upload_preset', 'a3grzjto')
+            const res = await fetch('https://api.cloudinary.com/v1_1/dutrsvhz4/image/upload', {
+                method: 'POST', body: formData
+            })
+            const data = await res.json()
+            const url = data.secure_url
+            const accessToken = sessionStorage.getItem('accesstoken')
+            await fetch(`${API_URL}/api/users/update-pfp`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + accessToken
+                },
+                body: JSON.stringify({ user_image_url: url })
+            })
+            setUploadedPfp(url)
+        } catch (err) {
+            console.error('pfp upload failed', err)
+        } finally {
+            setPfpUploading(false)
+        }
+    }
+
+    async function handlePfpDrop(e) {
+        e.preventDefault()
+        await uploadPfpFile(e.dataTransfer.files[0])
+    }
+
+    function handlePfpDragOver(e) { e.preventDefault() }
+
+    async function handlePfpFileChange(e) {
+        await uploadPfpFile(e.target.files[0])
+        e.target.value = ''
     }
 
     function handleAddFriend() {
@@ -168,13 +236,32 @@ function Profile(){
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px', margin: '16px 0' }}>
                 <div>
                     {isOwnProfile ? (
-                        (user?.picture || profileData?.user_image_url)
-                            ? <div className='pfp-border'>
-                                <img src={user.picture} alt="Profile" referrerPolicy="no-referrer"
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                />
-                            </div>
-                            : <div className='pfp-border'>👤</div>
+                        <div
+                            onDrop={handlePfpDrop}
+                            onDragOver={handlePfpDragOver}
+                            onClick={() => pfpInputRef.current?.click()}
+                            title="Click or drop an image to change your profile picture"
+                            style={{ cursor: 'pointer', position: 'relative' }}
+                        >
+                            <input
+                                ref={pfpInputRef}
+                                type="file"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                onChange={handlePfpFileChange}
+                            />
+                            {(uploadedPfp || user?.picture || profileData?.user_image_url)
+                                ? <div className='pfp-border'>
+                                    <img src={uploadedPfp || user?.picture || profileData?.user_image_url} alt="Profile" referrerPolicy="no-referrer"
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                    {pfpUploading && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'white' }}>saving…</div>}
+                                </div>
+                                : <div className='pfp-border' style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 4, fontSize: 11, color: '#debff7' }}>
+                                    {pfpUploading ? 'saving…' : <><span>👤</span><span>drop photo</span></>}
+                                </div>
+                            }
+                        </div>
                     ) : (
                         profileData?.user_image_url
                             ? <div className='pfp-border'>
@@ -221,7 +308,7 @@ function Profile(){
                     : likedSongs.map(song => (
                         <div key={song.song_id}
                             style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', position: 'relative' }}
-                            onClick={() => new Audio(song.preview_mp3_url).play()}
+                            onClick={() => handleSongClick(song)}
                             onMouseEnter={e => e.currentTarget.querySelector('.hover-overlay').style.opacity = 1}
                             onMouseLeave={e => e.currentTarget.querySelector('.hover-overlay').style.opacity = 0}
                         >
@@ -239,6 +326,9 @@ function Profile(){
                                 <p style={{ color: 'white', margin: 0, fontSize: 13, textAlign: 'left' }}>{song.song_name}</p>
                                 <p style={{ color: '#debff7', margin: 0, fontSize: 11, textAlign: 'left' }}>{song.artist_name}</p>
                             </div>
+                            <span style={{ marginLeft: 'auto', fontSize: 16, color: '#debff7' }}>
+                                {playingId === song.song_id ? '⏸' : '▶'}
+                            </span>
                         </div>
                     ))
                 }

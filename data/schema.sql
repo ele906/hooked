@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+
 --- stores user data ---
 CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
@@ -6,20 +8,18 @@ CREATE TABLE users (
     password_hash TEXT,
     email_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     user_image_url TEXT,
     weight_vector JSONB DEFAULT '{}'::jsonb
 );
 
 --- stores artist data ---
-CREATE TABLE artists(
+CREATE TABLE artists (
     artist_id SERIAL PRIMARY KEY,
-    artist_name TEXT NOT NULL UNIQUE,
-    artist_image_url TEXT
+    artist_name TEXT NOT NULL UNIQUE
 );
 
 --- stores album data ---
-CREATE TABLE albums(
+CREATE TABLE albums (
     album_id SERIAL PRIMARY KEY,
     album_name TEXT NOT NULL,
     release_date DATE,
@@ -31,13 +31,9 @@ CREATE TABLE songs (
     song_id SERIAL PRIMARY KEY,
     song_name TEXT NOT NULL,
     album_id INTEGER REFERENCES albums(album_id) ON DELETE CASCADE,
-    duration_ms INTEGER,
-    preview_mp3_url TEXT,
+    preview_mp3_url TEXT UNIQUE,
     song_image_url TEXT,
-    release_date DATE,
-    genre TEXT,
-    feature_vector JSONB,
-    itunes_track_id TEXT UNIQUE
+    feature_vector vector(398)
 );
 
 --- joins songs to artists ---
@@ -54,37 +50,20 @@ CREATE TABLE interactions (
     song_id INTEGER REFERENCES songs(song_id) ON DELETE CASCADE,
     type VARCHAR(20) CHECK (type IN ('play', 'like', 'dislike', 'favorite')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    duration_sec INTEGER  -- only relevant for 'play', NULL otherwise
+    served_by TEXT CHECK (served_by IN ('similarity', 'exploration')),
+    session_id TEXT
 );
 
 --- stores user taste profiles ---
-CREATE TABLE user_profiles(
+CREATE TABLE user_profiles (
     user_id INTEGER PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
-    genre_weights JSONB DEFAULT '{}'::jsonb,
-    artist_weights JSONB DEFAULT '{}'::jsonb,
-    weight_vector JSONB DEFAULT '[]'::jsonb,
+    weight_vector vector(398),
+    seed_genres JSONB,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
---- self made playlists ---
-CREATE TABLE playlists (
-    playlist_id SERIAL PRIMARY KEY,
-    owner_user_id INTEGER REFERENCES users(user_id),
-    playlist_name TEXT NOT NULL,
-    is_public BOOLEAN,
-    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
---- playlist tracks ---
-CREATE TABLE playlist_tracks (
-    PRIMARY KEY (playlist_id, song_id),
-    playlist_id INTEGER REFERENCES playlists(playlist_id) ON DELETE CASCADE,
-    song_id INTEGER REFERENCES songs(song_id) ON DELETE CASCADE,
-    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 --- friend connections ---
-CREATE TABLE friends(
+CREATE TABLE friends (
     PRIMARY KEY (user_id, friend_id),
     user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
     friend_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,

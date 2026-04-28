@@ -119,7 +119,7 @@ function SearchScreen() {
                     ))}
                 </div>
             ) : (
-                <div className='no-results'>
+                query && <div className='no-results'>
                     <p>No results found!</p>
                 </div>
             )}
