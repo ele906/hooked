@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/static/css/main.6731cc67.css",
-    "main.js": "/static/js/main.49ca2446.js",
+    "main.js": "/static/js/main.acd5574a.js",
     "static/media/musical-note-1.png": "/static/media/musical-note-1.15ae378bcef6e8fc410c.png",
     "static/media/outfit-latin-400-normal.woff": "/static/media/outfit-latin-400-normal.72f8b6c4166f1d2268cf.woff",
     "static/media/musical-note-2.png": "/static/media/musical-note-2.4481ca807612edd2f7f8.png",
@@ -10,10 +10,10 @@
     "static/media/outfit-latin-ext-400-normal.woff2": "/static/media/outfit-latin-ext-400-normal.a15560ed108017192e3a.woff2",
     "index.html": "/index.html",
     "main.6731cc67.css.map": "/static/css/main.6731cc67.css.map",
-    "main.49ca2446.js.map": "/static/js/main.49ca2446.js.map"
+    "main.acd5574a.js.map": "/static/js/main.acd5574a.js.map"
   },
   "entrypoints": [
     "static/css/main.6731cc67.css",
-    "static/js/main.49ca2446.js"
+    "static/js/main.acd5574a.js"
   ]
 }

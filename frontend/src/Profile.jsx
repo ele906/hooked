@@ -277,8 +277,8 @@ function Profile(){
                                     onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.borderColor = '#cdbfea'; }}
                                     onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = '#debff7'; }}
                                     >
-                                        {friend?.picture
-                                            ? <img src={friend.picture} referrerPolicy="no-referrer"
+                                        {friend?.user_image_url
+                                            ? <img src={friend.user_image_url} referrerPolicy="no-referrer"
                                                 style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} alt={friend.username} />
                                             : <span style={{ color: '#debff7' }}>👤</span>
                                         }

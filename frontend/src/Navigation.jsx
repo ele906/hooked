@@ -34,7 +34,6 @@ function Navigation() {
         {name: 'Swipe', path: '/swipe', protected: true},
         {name: 'Liked Songs', path: '/liked', protected: true},
         {name: 'Song Search', path: '/search', protected: true},
-        {name: 'Friends', path: '/friends', protected: true},
         { 
             name: 'Profile', 
             path: `/profile/${username}`, 
