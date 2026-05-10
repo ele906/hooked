@@ -426,6 +426,7 @@ def next_song():
 
         has_profile = profile_rows and profile_rows[0][0] is not None
 
+        # The usage of pgvector (line 443) was suggested by Claude when discussing potential optimizations.
         if has_profile and random.random() > EPSILON:
             served_by = "similarity"
             rows = sql_cmd("""
