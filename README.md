@@ -1,19 +1,56 @@
-requirements: also need cloudinary
-pip install cloudinary
-also add cloudinary in .env so pfp can be uploaded when users create account
+# Hooked
 
-IMPORTANT PLEASE READ
+A music discovery app with swipe-based song recommendations, social features, and vector-based recommendations.
 
-MAIN CHANGES
-- web security to protect from accessing pages when you are not logged in -- throws alert() popup
-- better ui for frontend
-- profile page work
-- profile page shows recent 3 liked songs, can teleport to liked songs, can click on it for preview
-- u can view other ppl's profiels and add friend
-- hover on profile liked songs and search songs page, u can see an effect of more .. "color"
-- friends page: you can add friends
+## Features
+- Swipe to like/dislike songs with ML-powered recommendations
+- Profile page with recent liked songs and previews
+- Search songs with hover color effects
+- Friends system (view/add friends, view their profiles)
+- Protected routes (redirect to login if unauthenticated)
 
-TO DO:
-- need help w reset pw
-- need help w database - can we rlly create an account...
-- bro idk why the frends cant add it doesnt work omg
+## Prerequisites
+- Python 3 + pip
+- Node.js + npm
+- PostgreSQL
+- Cloudinary account
+
+## Backend Setup
+
+1. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   pip install cloudinary
+   ```
+
+2. Configure `.env`:
+   ```
+   DATABASE_URL=...
+   CLOUDINARY_URL=...       # required for profile picture uploads
+   # other secrets (JWT, email, etc.)
+   ```
+
+3. Set up PostgreSQL:
+   ```bash
+   psql -U postgres
+   # enter password when prompted
+   ```
+   ```sql
+   CREATE DATABASE hooked;
+   ```
+   ```bash
+   psql -U postgres -d hooked -f data/schema.sql
+   ```
+
+4. Run the backend:
+   ```bash
+   python backend/app.py
+   ```
+
+## Frontend Setup
+
+```bash
+cd frontend
+npm install
+npm start
+```

@@ -1,190 +1,90 @@
-# Deployment Guide for Hooked
+# Hooked — Deployment Guide
 
 ## Local Development
 
-1. **Backend:**
-   ```bash
-   # Install dependencies
-   pip install -r requirements.txt
+```bash
+# Backend (runs on http://localhost:5000)
+pip install -r requirements.txt
+python backend/app.py
 
-   # Run backend (from root directory)
-   cd backend
-   python app.py
-   ```
-   Backend runs on `http://localhost:5000`
+# Frontend (runs on http://localhost:3000)
+cd frontend && npm install && npm start
+```
 
-2. **Frontend:**
-   ```bash
-   # Install dependencies
-   cd frontend
-   npm install
-
-   # Run frontend
-   npm start
-   ```
-   Frontend runs on `http://localhost:3000`
-
-3. **Environment Variables:**
-   - Copy `.env.example` to `.env`
-   - Default values use localhost (no changes needed for local development)
-   - Keep `.env` in `.gitignore` (already configured)
+Copy `.env.example` → `.env`. Defaults work for local dev. Never commit `.env`.
 
 ---
 
-## Deployment on Render.com
+## Deploy to Render
 
-### Setup Instructions
+### Pre-deployment checklist
+- [ ] Code committed and pushed to `main`
+- [ ] `.env` in `.gitignore` and NOT committed
+- [ ] Generate a new `FLASK_SECRET_KEY` (don't reuse local):
+  ```bash
+  python -c "import secrets; print(secrets.token_hex(32))"
+  ```
 
-1. **Push code to GitHub:**
-   ```bash
-   git add .
-   git commit -m "Ready for deployment"
-   git push origin main
-   ```
+### 1. Create PostgreSQL Database
+- Render → "New +" → "PostgreSQL" → Name: `hooked-db`
+- Copy the **External Database URL**
 
-2. **Create Render Account and Link GitHub:**
-   - Go to [render.com](https://render.com)
-   - Connect your GitHub account
-   - Select the `hooked` repository
-
-3. **Deploy Using render.yaml:**
-   ```bash
-   # Option A: Use render.yaml (automatic setup)
-   # Render will automatically read render.yaml and create services
-   
-   # Option B: Manual setup (see below)
-   ```
-
-### Database Setup (PostgreSQL)
-
-1. **Create a PostgreSQL database on Render:**
-   - Click "New +" → "PostgreSQL"
-   - Name: `hooked-db`
-   - Free tier available
-   - Copy the External Database URL
-
-2. **Run migrations:**
-   ```bash
-   psql <YOUR_DATABASE_URL> < data/schema.sql
-   psql <YOUR_DATABASE_URL> < data/seed_songs.py  # Optional: seed with songs
-   ```
-
-### Environment Variables on Render
-
-#### Backend Service
-Set these in Render dashboard (Backend → Environment):
-
-```
-FLASK_SECRET_KEY=<generate-new-secret-key>
-DATABASE_URL=<postgres-url-from-step-above>
-GOOGLE_CLIENT_ID=<your-google-client-id>
-GOOGLE_CLIENT_SECRET=<your-google-client-secret>
-FRONTEND_URL=https://hooked-frontend.onrender.com
-ALLOWED_ORIGINS=https://hooked-frontend.onrender.com
+### 2. Initialize Schema
+```bash
+psql '<DATABASE_URL>' < data/schema.sql
 ```
 
-#### Frontend Service
-Set these in Render dashboard (Frontend → Environment):
+### 3. Deploy Backend
+- Render → "New +" → "Web Service" → connect GitHub repo
+- **Name:** `hooked_api` | **Runtime:** Python 3
+- **Build:** `pip install -r requirements.txt`
+- **Start:** `python backend/app.py`
+- Environment variables:
+  ```
+  FLASK_SECRET_KEY=...
+  DATABASE_URL=...
+  GOOGLE_CLIENT_ID=...
+  GOOGLE_CLIENT_SECRET=...
+  FRONTEND_URL=https://hooked.onrender.com
+  ALLOWED_ORIGINS=https://hooked.onrender.com
+  FLASK_ENV=production
+  ```
 
-```
-REACT_APP_API_URL=https://hooked-backend.onrender.com
-```
+### 4. Update Google OAuth Redirect URI
+- Google Cloud Console → OAuth Client → add redirect URI:
+  `https://hooked_api.onrender.com/auth/callback`
 
-### Manual Service Creation (if not using render.yaml)
+### 5. Deploy Frontend
+- Render → "New +" → "Static Site" → connect GitHub repo
+- **Name:** `hooked`
+- **Build:** `cd frontend && npm install && npm run build`
+- **Publish Directory:** `frontend/build`
+- Environment variables:
+  ```
+  REACT_APP_API_URL=https://hooked_api.onrender.com
+  ```
 
-#### Backend Service:
-1. Click "New +" → "Web Service"
-2. Select GitHub repository
-3. **Name:** `hooked-backend`
-4. **Runtime:** Python 3
-5. **Build Command:** `pip install -r requirements.txt`
-6. **Start Command:** `python backend/app.py`
-7. Add Environment Variables (see above)
-8. Click Deploy
-
-#### Frontend Service:
-1. Click "New +" → "Web Service"
-2. Select GitHub repository
-3. **Name:** `hooked-frontend`
-4. **Runtime:** Node
-5. **Build Command:** `cd frontend && npm install && npm run build`
-6. **Start Command:** `cd frontend && npm start`
-7. Add Environment Variables (see above)
-8. Click Deploy
+### 6. Verify
+- [ ] `https://hooked_api.onrender.com/api/songs/search?params=taylor` returns data
+- [ ] Login, swiping, liked songs, and search work on frontend
 
 ---
 
-## Architecture
-
-```
-User Browser
-    ↓
-Hooked Frontend (React @ https://hooked-frontend.onrender.com)
-    ↓ API Calls
-Hooked Backend (Flask @ https://hooked-backend.onrender.com)
-    ↓ DB Query
-PostgreSQL Database (Render)
-```
-
----
-
-## Environment Configuration
-
-### Local Development
-- Uses `.env` file defaults (`localhost:3000` and `localhost:5000`)
-- No changes needed to `.env` for local dev
-- Keep `.env` in `.gitignore`
-
-### Production (Render)
-- Backend receives `FRONTEND_URL` and `ALLOWED_ORIGINS` from Render environment
-- Frontend receives `REACT_APP_API_URL` from Render environment
-- All sensitive values stored in Render dashboard (NEVER commit to .env)
+## Redeploying
+Push to `main` — Render auto-redeploys. Or click "Redeploy latest commit" in the dashboard.
 
 ---
 
 ## Troubleshooting
 
-### CORS Errors
-- Check that both services are deployed
-- Verify `FRONTEND_URL` and `ALLOWED_ORIGINS` match frontend URL
-- Check browser console for exact URL
-
-### Database Connection
-- Verify `DATABASE_URL` is correct
-- Ensure migrations have been run
-- Check Render database dashboard for uptime
-
-### OAuth Redirects Broken
-- Verify `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` set correctly
-- Check Google OAuth app settings allow `https://hooked-backend.onrender.com/auth/callback`
-- Ensure `FRONTEND_URL` in backend matches deployed frontend URL
+| Issue | Fix |
+|---|---|
+| Backend won't start | Check Render logs; verify `PORT` usage: `int(os.environ.get("PORT", 5000))` |
+| CORS errors | Verify `FRONTEND_URL` / `ALLOWED_ORIGINS` match exact frontend URL |
+| OAuth redirects fail | Check redirect URI in Google Console matches backend URL |
+| Database errors | Re-run schema: `psql '<DATABASE_URL>' < data/schema.sql` |
+| Frontend API calls fail | Verify `REACT_APP_API_URL` in frontend environment |
 
 ---
 
-## Useful Commands
-
-```bash
-# Generate a secure secret key
-python -c "import secrets; print(secrets.token_hex(32))"
-
-# Test database connection
-psql <DATABASE_URL>
-
-# View Render logs
-# (In Render dashboard: Service → Logs)
-
-# Restart services
-# (In Render dashboard: click "Restart" button)
-```
-
----
-
-## Security Notes
-
-⚠️ **NEVER commit sensitive values to git:**
-- FLASK_SECRET_KEY
-- DATABASE_URL
-- GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
-- API Keys
-
-All production secrets must be set in Render dashboard environment variables.
+> ⚠️ Never commit `FLASK_SECRET_KEY`, `DATABASE_URL`, or OAuth credentials. Set all secrets in the Render dashboard.
