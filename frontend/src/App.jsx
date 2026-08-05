@@ -17,6 +17,7 @@ import ForgotUsername from './ForgotUsername'
 import { useEffect } from 'react'
 import API_URL from './config'
 import Logout from './Logout'
+import GenerateMusic from './GenerateMusic'
 
 
 
@@ -61,6 +62,7 @@ function App() {
                     <Route path="/seedprefs" element={<ProtectedRoute><SeedPreferences /></ProtectedRoute>} />
                     <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
                     <Route path="/profile/:username" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                    <Route path="/generate" element={<ProtectedRoute><GenerateMusic /></ProtectedRoute>} />
                 </Routes>
             </AuthProvider>
         </BrowserRouter>

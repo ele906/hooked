@@ -34,11 +34,12 @@ function Navigation() {
         {name: 'Swipe', path: '/swipe', protected: true},
         {name: 'Liked Songs', path: '/liked', protected: true},
         {name: 'Song Search', path: '/search', protected: true},
-        { 
-            name: 'Profile', 
-            path: `/profile/${username}`, 
-            protected: true 
+        {
+            name: 'Profile',
+            path: `/profile/${username}`,
+            protected: true
         },
+        { name: 'Generate', path: '/generate', protected: true },
     ]
 
     const handleLogout = () => {

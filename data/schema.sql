@@ -1,5 +1,3 @@
-CREATE EXTENSION IF NOT EXISTS vector;
-
 --- stores user data ---
 CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
@@ -8,8 +6,7 @@ CREATE TABLE users (
     password_hash TEXT,
     email_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    user_image_url TEXT,
-    weight_vector JSONB DEFAULT '{}'::jsonb
+    user_image_url TEXT
 );
 
 --- stores artist data ---
@@ -33,7 +30,7 @@ CREATE TABLE songs (
     album_id INTEGER REFERENCES albums(album_id) ON DELETE CASCADE,
     preview_mp3_url TEXT UNIQUE,
     song_image_url TEXT,
-    feature_vector vector(398)
+    genre TEXT
 );
 
 --- joins songs to artists ---
@@ -50,14 +47,13 @@ CREATE TABLE interactions (
     song_id INTEGER REFERENCES songs(song_id) ON DELETE CASCADE,
     type VARCHAR(20) CHECK (type IN ('play', 'like', 'dislike', 'favorite')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    served_by TEXT CHECK (served_by IN ('similarity', 'exploration')),
+    served_by TEXT CHECK (served_by IN ('cf', 'genre_preference', 'exploration')),
     session_id TEXT
 );
 
 --- stores user taste profiles ---
 CREATE TABLE user_profiles (
     user_id INTEGER PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
-    weight_vector vector(398),
     seed_genres JSONB,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -95,4 +91,4 @@ CREATE TABLE nonces (
 
 --- indexes for hot query paths ---
 CREATE INDEX ON interactions (user_id, song_id);
-CREATE INDEX ON songs (song_id) WHERE feature_vector IS NOT NULL;
+CREATE INDEX ON songs (genre);

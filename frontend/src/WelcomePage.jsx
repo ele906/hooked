@@ -13,10 +13,12 @@ import musicNote1 from './musical-note-1.png'
 import musicNote2 from './musical-note-2.png'
 import { getScreenStyle } from './styles'
 import './index.css'
+import { useAuth } from './AuthContext'
 
 function WelcomePage(){
     // this makes it go from one screen to another
     const navigate = useNavigate()
+    const { fetchUser } = useAuth()
 
     function handleLoginClick() {
         navigate('/login')
@@ -31,6 +33,20 @@ function WelcomePage(){
     function handleCreateClick() {
         console.log("create button clicked, teleport to login pg")
         navigate('/signup')
+    }
+
+    async function handleDemoClick() {
+        const res = await fetch(`${API_URL}/api/demo-login`, { method: 'POST' })
+        if (!res.ok) {
+            alert('Demo mode is not enabled on this server.')
+            return
+        }
+        const [username, accesstoken, refreshtoken] = await res.json()
+        sessionStorage.setItem('username', username)
+        sessionStorage.setItem('accesstoken', accesstoken)
+        sessionStorage.setItem('refreshtoken', refreshtoken)
+        await fetchUser()
+        navigate('/swipe')
     }
 
     const handleKeyPress = useCallback((e) => {
@@ -82,10 +98,15 @@ function WelcomePage(){
                 </button>
 
                 <button className = 'welcome-button' onClick={handleGoogleClick}
-                    style={{backgroundColor: '#9bf0ff', marginBottom: '50px'}}>
+                    style={{backgroundColor: '#9bf0ff', marginBottom: '10px'}}>
                     Continue with Google
-                </button>      
-            
+                </button>
+
+                <button className = 'welcome-button' onClick={handleDemoClick}
+                    style={{backgroundColor: '#ffe08a', marginBottom: '50px'}}>
+                    Try Demo
+                </button>
+
             </div>
                         <Circle image={musicNote1}/>
                         <Circle image={musicNote1}/>

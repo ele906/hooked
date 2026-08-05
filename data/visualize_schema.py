@@ -19,7 +19,6 @@ erDiagram
         BOOLEAN     email_verified
         TIMESTAMP   created_at
         TEXT        user_image_url
-        JSONB       weight_vector
     }
 
     artists {
@@ -32,7 +31,7 @@ erDiagram
         TEXT        song_name
         TEXT        preview_mp3_url UK
         TEXT        song_image_url
-        vector      feature_vector
+        TEXT        genre
     }
 
     song_artists {
@@ -52,7 +51,6 @@ erDiagram
 
     user_profiles {
         INTEGER     user_id         PK,FK
-        vector      weight_vector
         JSONB       seed_genres
         TIMESTAMP   updated_at
     }
