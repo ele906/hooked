@@ -85,6 +85,8 @@ table. Generates a song title conditioned on genre.
 | Vocab | 98 tokens (printable ASCII + PAD/BOS/EOS) |
 | Params | ~600K — trains on CPU in seconds |
 
+![TitleGen GPT architecture](data/titlegen_gpt_architecture.svg)
+
 ### Train vs val loss
 
 Trained on 3,257 songs from the DB (90/10 split). Val loss bottoms out around epoch 30 —
