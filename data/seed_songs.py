@@ -6,13 +6,13 @@
 # CLI modes:
 #   python seed_songs.py
 #     → Seeds all artists from ARTISTS_BY_GENRE using local database
-#   
+#
 #   python seed_songs.py --database-url "postgresql://user:password@host:port/db"
 #     → Seeds all artists from ARTISTS_BY_GENRE using remote database (e.g., Render)
-#   
+#
 #   python seed_songs.py "Artist|Song Title" "Artist2|Song Title2" ...
 #     → Seeds specific songs manually using local database
-#   
+#
 #   python seed_songs.py --database-url "postgresql://..." "Artist|Song Title" ...
 #     → Seeds specific songs manually using remote database
 
@@ -25,7 +25,6 @@ import psycopg
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from db import get_db
-from vector_utils import build_feature_vector, build_full_feature_vector, fetch_lyrics, l2_normalize
 
 # Wrapper so threads can log without corrupting tqdm bars
 def _tlog(msg):
@@ -37,7 +36,6 @@ SONGS_PER_ARTIST = 15
 NUM_THREADS = 4
 
 ITUNES_CACHE_FILE = os.path.join(os.path.dirname(__file__), ".itunes_cache.json")
-VECTORS_CACHE_FILE = os.path.join(os.path.dirname(__file__), ".vectors_cache.json")
 
 def _load_cache():
     if os.path.exists(ITUNES_CACHE_FILE):
@@ -49,21 +47,9 @@ def _save_cache(cache):
     with open(ITUNES_CACHE_FILE, "w") as f:
         json.dump(cache, f)
 
-def _load_vectors_cache():
-    if os.path.exists(VECTORS_CACHE_FILE):
-        with open(VECTORS_CACHE_FILE, "r") as f:
-            return json.load(f)
-    return {}
-
-def _save_vectors_cache(cache):
-    with open(VECTORS_CACHE_FILE, "w") as f:
-        json.dump(cache, f)
-
 _itunes_cache = _load_cache()
-_vectors_cache = _load_vectors_cache()
 
 # Artists grouped by genre — iTunes returns their top songs sorted by popularity
-# Covers all 12 genre slots in the feature vector
 ARTISTS_BY_GENRE = {
     "pop": [
         "Taylor Swift", "Ed Sheeran", "Ariana Grande", "Dua Lipa",
@@ -190,11 +176,9 @@ def fetch_top_songs_for_artist(artist, n=SONGS_PER_ARTIST):
     _save_cache(_itunes_cache)
     return matches
 
-# Insert a song dict from iTunes API into the DB + its artist and feature vector
+# Insert a song dict from iTunes API into the DB + its artist
 def insert_track(cur, track):
     genre = track.get("primaryGenreName")
-    release_date = track.get("releaseDate")
-    duration_ms = track.get("trackTimeMillis")
 
     cur.execute(
         "INSERT INTO artists (artist_name) VALUES (%s) ON CONFLICT (artist_name) DO NOTHING;",
@@ -207,27 +191,17 @@ def insert_track(cur, track):
     artist_id = cur.fetchone()[0]
 
     cur.execute(
-        """INSERT INTO songs (song_name, preview_mp3_url, song_image_url)
-           VALUES (%s, %s, %s)
+        """INSERT INTO songs (song_name, preview_mp3_url, song_image_url, genre)
+           VALUES (%s, %s, %s, %s)
            ON CONFLICT (preview_mp3_url) DO NOTHING
            RETURNING song_id""",
         (track["trackName"], track["previewUrl"],
-         track["artworkUrl100"].replace("100x100bb", "600x600bb"))
+         track["artworkUrl100"].replace("100x100bb", "600x600bb"), genre)
     )
     row = cur.fetchone()
     if row is None:
         return False  # already in DB
     song_id = row[0]
-
-    lyrics, is_instrumental = fetch_lyrics(track["artistName"], track["trackName"])
-    label = "instrumental" if is_instrumental else ("found" if lyrics else "not found")
-    print(f"  {track['artistName']} — {track['trackName']} ... {label}")
-    full_vec = l2_normalize(build_full_feature_vector(genre, release_date, duration_ms, lyrics))
-    cur.execute(
-        "UPDATE songs SET feature_vector = %s::text::vector WHERE song_id = %s",
-        (json.dumps(full_vec), song_id)
-    )
-    time.sleep(0.3)
 
     cur.execute(
         "INSERT INTO song_artists (song_id, artist_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
@@ -240,7 +214,7 @@ def batch_insert_tracks(cur, tracks):
     """Insert all tracks at once for better performance"""
     if not tracks:
         return 0
-    
+
     # Step 1: Insert all unique artists
     artist_names = {track["artistName"] for track in tracks}
     artist_values = [(name,) for name in artist_names]
@@ -248,89 +222,43 @@ def batch_insert_tracks(cur, tracks):
         "INSERT INTO artists (artist_name) VALUES (%s) ON CONFLICT (artist_name) DO NOTHING;",
         artist_values
     )
-    
+
     # Step 2: Get artist IDs
     cur.execute(
         "SELECT artist_name, artist_id FROM artists WHERE artist_name = ANY(%s)",
         (list(artist_names),)
     )
     artist_map = {row[0]: row[1] for row in cur.fetchall()}
-    
-    # Step 3: Prepare song data
-    song_data = []
-    song_artist_data = []
 
+    # Step 3: Insert songs (with genre) and collect artist links
+    song_artist_data = []
+    added = 0
     for track in tracks:
         genre = track.get("primaryGenreName")
-        release_date = track.get("releaseDate")
-        duration_ms = track.get("trackTimeMillis")
-
-        song_data.append((
-            track["trackName"],
-            track["previewUrl"],
-            track["artworkUrl100"].replace("100x100bb", "600x600bb"),
-            genre,
-            release_date,
-            duration_ms,
-            track["artistName"],  # temporary, will use to link to artist_id
-        ))
-
-    # Step 4: Batch insert songs, embed lyrics, and get IDs
-    added = 0
-    for song_row in song_data:
-        song_name, preview_url, image_url, genre, release_date, duration_ms, artist_name = song_row
 
         cur.execute(
-            """INSERT INTO songs (song_name, preview_mp3_url, song_image_url)
-               VALUES (%s, %s, %s)
+            """INSERT INTO songs (song_name, preview_mp3_url, song_image_url, genre)
+               VALUES (%s, %s, %s, %s)
                ON CONFLICT (preview_mp3_url) DO NOTHING
                RETURNING song_id""",
-            (song_name, preview_url, image_url)
+            (track["trackName"], track["previewUrl"],
+             track["artworkUrl100"].replace("100x100bb", "600x600bb"), genre)
         )
         result = cur.fetchone()
         if result:
             song_id = result[0]
-            artist_id = artist_map[artist_name]
+            artist_id = artist_map[track["artistName"]]
             song_artist_data.append((song_id, artist_id))
             added += 1
 
-            # Now fetch lyrics and create full 398D vector
-            lyrics, is_instrumental = fetch_lyrics(artist_name, song_name)
-            label = "instrumental" if is_instrumental else ("found" if lyrics else "not found")
-            print(f"  [{added}] {artist_name} — {song_name} ... {label}")
-            full_vec = l2_normalize(build_full_feature_vector(genre, release_date, duration_ms, lyrics))
-            cur.execute(
-                "UPDATE songs SET feature_vector = %s::text::vector WHERE song_id = %s",
-                (json.dumps(full_vec), song_id)
-            )
-            time.sleep(0.3)
-    
-    # Step 5: Batch insert song_artist relationships
+    # Step 4: Batch insert song_artist relationships
     if song_artist_data:
         cur.executemany(
             "INSERT INTO song_artists (song_id, artist_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
             song_artist_data
         )
-    
+
     return added
-
-# Fetch lyrics and compute feature vector for a single track (runs in thread pool)
-# Results are cached in .vectors_cache.json keyed by previewUrl
-def compute_track_data(track):
-    cache_key = track["previewUrl"]
-    if cache_key in _vectors_cache:
-        full_vec, label = _vectors_cache[cache_key]
-        return track, full_vec, label
-
-    genre = track.get("primaryGenreName")
-    release_date = track.get("releaseDate")
-    duration_ms = track.get("trackTimeMillis")
-    lyrics, is_instrumental = fetch_lyrics(track["artistName"], track["trackName"])
-    label = "instrumental" if is_instrumental else ("found" if lyrics else "not found")
-    full_vec = l2_normalize(build_full_feature_vector(genre, release_date, duration_ms, lyrics))
-
-    _vectors_cache[cache_key] = (full_vec, label)
-    return track, full_vec, label
 
 # Get database connection - checks for DATABASE_URL env var or --database-url CLI arg
 def get_connection():
@@ -343,14 +271,14 @@ def get_connection():
         sys.argv.pop(1)
         sys.argv.pop(1)
         return conn
-    
+
     # Check for DATABASE_URL environment variable
     database_url = os.environ.get("DATABASE_URL")
     if database_url:
         print(f"Connecting to database from DATABASE_URL env var: {database_url[:50]}...")
         conn = psycopg.connect(database_url)
         return conn
-    
+
     # Default to local database
     print("Connecting to local database...")
     return get_db()
@@ -396,7 +324,6 @@ if len(sys.argv) > 1:
 
 # fetch top songs per artist in each genre
 else:
-    # --- Phase 1: fetch iTunes tracks in parallel ---
     all_artists = [artist for artists in ARTISTS_BY_GENRE.values() for artist in artists]
     all_tracks = []
     print(f"Fetching tracks for {len(all_artists)} artists (1 thread, ~3s/artist)...")
@@ -411,62 +338,10 @@ else:
                 pbar.update(1)
                 all_tracks.extend(tracks)
 
-    max_lyric_threads = min(32, (os.cpu_count() or 1) + 4)
-    print(f"\nFetched {len(all_tracks)} tracks total. Computing vectors ({max_lyric_threads} threads)...")
+    print(f"\nFetched {len(all_tracks)} tracks total. Inserting into DB...")
 
-    # --- Phase 2: fetch lyrics + compute vectors in parallel ---
-    computed = []  # list of (track, full_vec)
-    with ThreadPoolExecutor(max_workers=max_lyric_threads) as executor:
-        futures = {executor.submit(compute_track_data, track): track for track in all_tracks}
-        with tqdm(total=len(all_tracks), desc="Computing vectors", unit="song") as pbar:
-            for future in as_completed(futures):
-                track, full_vec, label = future.result()
-                pbar.set_postfix_str(f"{track['artistName'][:18]} — {track['trackName'][:18]} [{label}]")
-                pbar.update(1)
-                computed.append((track, full_vec))
-
-    _save_vectors_cache(_vectors_cache)
-
-    # --- Phase 3: DB inserts (serial — psycopg connections are not thread-safe) ---
-    print(f"\nInserting {len(computed)} songs into DB...")
-    total_added = 0
     with conn.cursor() as cur:
-        artist_names = list({track["artistName"] for track, _ in computed})
-        cur.executemany(
-            "INSERT INTO artists (artist_name) VALUES (%s) ON CONFLICT (artist_name) DO NOTHING;",
-            [(name,) for name in artist_names]
-        )
-        cur.execute(
-            "SELECT artist_name, artist_id FROM artists WHERE artist_name = ANY(%s)",
-            (artist_names,)
-        )
-        artist_map = {row[0]: row[1] for row in cur.fetchall()}
-
-        song_artist_data = []
-        for track, full_vec in tqdm(computed, desc="Inserting into DB", unit="song"):
-            cur.execute(
-                """INSERT INTO songs (song_name, preview_mp3_url, song_image_url)
-                   VALUES (%s, %s, %s)
-                   ON CONFLICT (preview_mp3_url) DO NOTHING
-                   RETURNING song_id""",
-                (track["trackName"], track["previewUrl"],
-                 track["artworkUrl100"].replace("100x100bb", "600x600bb"))
-            )
-            row = cur.fetchone()
-            if row:
-                song_id = row[0]
-                cur.execute(
-                    "UPDATE songs SET feature_vector = %s::text::vector WHERE song_id = %s",
-                    (json.dumps(full_vec), song_id)
-                )
-                song_artist_data.append((song_id, artist_map[track["artistName"]]))
-                total_added += 1
-
-        if song_artist_data:
-            cur.executemany(
-                "INSERT INTO song_artists (song_id, artist_id) VALUES (%s, %s) ON CONFLICT DO NOTHING;",
-                song_artist_data
-            )
+        added = batch_insert_tracks(cur, all_tracks)
         conn.commit()
 
-    print(f"Done! {total_added} new songs added.")
+    print(f"Done! {added} new songs added.")

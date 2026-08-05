@@ -11,8 +11,9 @@ from dotenv import load_dotenv
 import bcrypt
 import requests
 import oauthlib.oauth2
-import cloudinary_config 
+import cloudinary_config
 import cloudinary.uploader
+from music_gen import build_prompt, generate_music
 
 # Allow insecure transport for local development
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -32,7 +33,12 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from data.db import get_db as _open_db
-from data.vector_utils import cosine_similarity, update_weight_vector, l2_normalize, init_weight_vector_from_prefs
+from data.genres import keywords_for
+from data.cf_inference import (
+    score_candidates as cf_score_candidates,
+    known_user as cf_known_user,
+    known_song_ids as cf_known_song_ids,
+)
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -193,6 +199,41 @@ def refresh_accesstoken():
     identity = flask_jwt_extended.get_jwt_identity()
     return jsonify(flask_jwt_extended.create_access_token(identity=identity))
 
+DEMO_MODE = os.environ.get("DEMO_MODE", "false").lower() == "true"
+DEMO_EMAIL = "demo@hooked.local"
+DEMO_GENRES = ["pop", "rock", "hip-hop", "indie"]
+
+@app.route("/api/demo-login", methods=["POST"])
+def demo_login():
+    if not DEMO_MODE:
+        return jsonify({"error": "demo mode disabled"}), 404
+
+    sql_cmd(
+        """INSERT INTO users (email, username, email_verified)
+           VALUES (%s, %s, TRUE)
+           ON CONFLICT (email) DO NOTHING""",
+        (DEMO_EMAIL, "demo_user")
+    )
+    rows = sql_cmd("SELECT user_id FROM users WHERE email = %s", (DEMO_EMAIL,), fetch=True)
+    user_id = rows[0][0]
+
+    profile_rows = sql_cmd(
+        "SELECT 1 FROM user_profiles WHERE user_id = %s AND seed_genres IS NOT NULL",
+        (user_id,), fetch=True
+    )
+    if not profile_rows:
+        sql_cmd(
+            """INSERT INTO user_profiles (user_id, seed_genres)
+               VALUES (%s, %s)
+               ON CONFLICT (user_id) DO UPDATE
+               SET seed_genres = EXCLUDED.seed_genres""",
+            (user_id, json.dumps(DEMO_GENRES))
+        )
+
+    access = flask_jwt_extended.create_access_token(identity=DEMO_EMAIL)
+    refresh = flask_jwt_extended.create_refresh_token(identity=DEMO_EMAIL)
+    return jsonify(["demo_user", access, refresh])
+
 @app.route("/logoutapp", methods=["GET"])
 def logoutapp():
     # Frontend clears its tokens; we just redirect
@@ -325,45 +366,6 @@ def store_interaction():
             (user_id, song_id)
         )
 
-    # Fetch song feature vector and user profile in one query
-    # Cast to text so psycopg returns strings we can parse
-    rows = sql_cmd(
-        """SELECT s.feature_vector::text, up.weight_vector::text
-           FROM songs s
-           LEFT JOIN user_profiles up ON up.user_id = %s
-           WHERE s.song_id = %s""",
-        (user_id, song_id), fetch=True
-    )
-
-    if not rows:
-        return jsonify({"status": "ok"}), 201
-
-    song_vec_str = rows[0][0]
-    prof_vec_str = rows[0][1]
-
-    # Parse vectors if they exist
-    if song_vec_str:
-        song_vec = json.loads(song_vec_str) if isinstance(song_vec_str, str) else song_vec_str
-    else:
-        return jsonify({"status": "ok"}), 201
-
-    if prof_vec_str:
-        prof_vec = json.loads(prof_vec_str) if isinstance(prof_vec_str, str) else prof_vec_str
-    else:
-        prof_vec = []
-
-    # Update weight vector
-    new_vec = update_weight_vector(prof_vec, song_vec, action)
-
-    vec_str = "[" + ",".join(str(v) for v in new_vec) + "]"
-    sql_cmd(
-        """INSERT INTO user_profiles (user_id, weight_vector, updated_at)
-           VALUES (%s, %s::text::vector, NOW())
-           ON CONFLICT (user_id) DO UPDATE
-           SET weight_vector = EXCLUDED.weight_vector, updated_at = NOW()""",
-        (user_id, vec_str)
-    )
-
     return jsonify({"status": "ok"}), 201
 
 # API route to get a list of songs the user has liked, along with artist info and when they liked it
@@ -392,7 +394,11 @@ def get_liked_songs():
             "liked_at":       r[5].isoformat() if r[5] else None
         } for r in rows])
 
-# API route to get the next song recommendation for a user, using pgvector similarity ranking with epsilon-greedy exploration
+# API route to get the next song recommendation for a user.
+# Ranking priority: neural CF (once the user has enough swipe history to have
+# a learned embedding) -> genre-preference cold start (onboarding genre picks)
+# -> pure random. Epsilon-greedy exploration mixes in randomness at every tier
+# so the app doesn't just loop the same handful of songs.
 @app.route("/api/songs/next", methods=["GET"])
 @flask_jwt_extended.jwt_required()
 def next_song():
@@ -402,80 +408,71 @@ def next_song():
             app.logger.error(f"next_song: user_id is None from JWT identity")
             return jsonify({"error": "user not found"}), 401
 
-        # Check if user has any songs in liked/disliked
-        excluded_songs = sql_cmd("""
-            SELECT COUNT(*) FROM (
-                SELECT song_id FROM liked WHERE user_id = %s
-                UNION
-                SELECT song_id FROM disliked WHERE user_id = %s
-            ) t
+        excluded_rows = sql_cmd("""
+            SELECT song_id FROM liked WHERE user_id = %s
+            UNION
+            SELECT song_id FROM disliked WHERE user_id = %s
         """, (user_id, user_id), fetch=True)
-        
-        # Check total songs with feature_vector
-        total_songs = sql_cmd(
-            "SELECT COUNT(*) FROM songs WHERE feature_vector IS NOT NULL",
-            (), fetch=True
-        )
-        
-        app.logger.info(f"next_song for user {user_id}: total_songs={total_songs[0][0] if total_songs else 0}, excluded={excluded_songs[0][0] if excluded_songs else 0}")
+        excluded_ids = {r[0] for r in excluded_rows}
 
-        profile_rows = sql_cmd(
-            "SELECT weight_vector::text FROM user_profiles WHERE user_id = %s",
-            (user_id,), fetch=True
-        )
+        rows = None
+        served_by = None
 
-        has_profile = profile_rows and profile_rows[0][0] is not None
+        # Tier 1: neural collaborative filtering, once this user has a learned embedding
+        if cf_known_user(user_id) and random.random() > EPSILON:
+            candidate_ids = [sid for sid in cf_known_song_ids() if sid not in excluded_ids]
+            scores = cf_score_candidates(user_id, candidate_ids)
+            if scores:
+                best_song_id = max(scores, key=scores.get)
+                rows = sql_cmd("""
+                    SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
+                    FROM songs s
+                    JOIN song_artists sa ON s.song_id = sa.song_id
+                    JOIN artists a ON sa.artist_id = a.artist_id
+                    WHERE s.song_id = %s
+                    LIMIT 1
+                """, (best_song_id,), fetch=True)
+                served_by = "cf"
 
-        # The usage of pgvector (line 443) was suggested by Claude when discussing potential optimizations.
-        if has_profile and random.random() > EPSILON:
-            served_by = "similarity"
-            rows = sql_cmd("""
-                SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
-                FROM songs s
-                JOIN song_artists sa ON s.song_id = sa.song_id
-                JOIN artists a ON sa.artist_id = a.artist_id
-                WHERE s.song_id NOT IN (
-                    SELECT song_id FROM liked WHERE user_id = %s
-                    UNION
-                    SELECT song_id FROM disliked WHERE user_id = %s
-                )
-                AND s.feature_vector IS NOT NULL
-                ORDER BY s.feature_vector <=> %s::text::vector
-                LIMIT 1
-            """, (user_id, user_id, profile_rows[0][0]), fetch=True)
-        else:
-            served_by = "exploration"
-            rows = sql_cmd("""
-                SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
-                FROM songs s
-                JOIN song_artists sa ON s.song_id = sa.song_id
-                JOIN artists a ON sa.artist_id = a.artist_id
-                WHERE s.song_id NOT IN (
-                    SELECT song_id FROM liked WHERE user_id = %s
-                    UNION
-                    SELECT song_id FROM disliked WHERE user_id = %s
-                )
-                AND s.feature_vector IS NOT NULL
-                ORDER BY RANDOM()
-                LIMIT 1
-            """, (user_id, user_id), fetch=True)
-
+        # Tier 2: cold start — match the genres picked at signup, ranked by overall popularity
         if not rows:
-            # Fallback: serve any unseen song even without feature_vector
-            served_by = "exploration"
+            profile_rows = sql_cmd(
+                "SELECT seed_genres FROM user_profiles WHERE user_id = %s",
+                (user_id,), fetch=True
+            )
+            seed_genres = profile_rows[0][0] if profile_rows and profile_rows[0][0] else None
+            genre_keywords = keywords_for(seed_genres) if seed_genres else []
+
+            if genre_keywords and random.random() > EPSILON:
+                patterns = [f"%{kw}%" for kw in genre_keywords]
+                rows = sql_cmd("""
+                    SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
+                    FROM songs s
+                    JOIN song_artists sa ON s.song_id = sa.song_id
+                    JOIN artists a ON sa.artist_id = a.artist_id
+                    LEFT JOIN (
+                        SELECT song_id, COUNT(*) AS like_count FROM liked GROUP BY song_id
+                    ) l ON l.song_id = s.song_id
+                    WHERE s.song_id != ALL(%s)
+                    AND s.genre ILIKE ANY(%s)
+                    ORDER BY COALESCE(l.like_count, 0) DESC, RANDOM()
+                    LIMIT 1
+                """, (list(excluded_ids), patterns), fetch=True)
+                if rows:
+                    served_by = "genre_preference"
+
+        # Tier 3: no CF signal, no genre match (or explicit exploration draw) — pure random
+        if not rows:
             rows = sql_cmd("""
                 SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
                 FROM songs s
                 JOIN song_artists sa ON s.song_id = sa.song_id
                 JOIN artists a ON sa.artist_id = a.artist_id
-                WHERE s.song_id NOT IN (
-                    SELECT song_id FROM liked WHERE user_id = %s
-                    UNION
-                    SELECT song_id FROM disliked WHERE user_id = %s
-                )
+                WHERE s.song_id != ALL(%s)
                 ORDER BY RANDOM()
                 LIMIT 1
-            """, (user_id, user_id), fetch=True)
+            """, (list(excluded_ids),), fetch=True)
+            served_by = "exploration"
 
         if not rows:
             app.logger.warning(f"next_song for user {user_id}: no available songs")
@@ -760,27 +757,61 @@ def get_user_friends(username):
 def save_preferences():
     data = flask.request.get_json()
     genres = data.get('prefs', [])
-    vec = init_weight_vector_from_prefs(genres)
     user_id = current_user_id()
 
-    # Update weight vector in users table
+    # Create/update the user_profile entry (marks preferences as completed;
+    # used both by the cold-start recommendation path and by check_password)
     sql_cmd(
-        "UPDATE users SET weight_vector = %s WHERE user_id = %s",
-        (json.dumps(vec), user_id)
-    )
-    
-    # Create user_profile entry (marks preferences as completed)
-    vec_str = "[" + ",".join(str(v) for v in vec) + "]"
-    sql_cmd(
-        """INSERT INTO user_profiles (user_id, weight_vector, seed_genres)
-           VALUES (%s, %s::text::vector, %s)
+        """INSERT INTO user_profiles (user_id, seed_genres)
+           VALUES (%s, %s)
            ON CONFLICT (user_id) DO UPDATE
-           SET weight_vector = EXCLUDED.weight_vector,
-               seed_genres = EXCLUDED.seed_genres""",
-        (user_id, vec_str, json.dumps(genres))
+           SET seed_genres = EXCLUDED.seed_genres""",
+        (user_id, json.dumps(genres))
     )
 
-    return flask.jsonify({'added weight vec to DB': True})
+    return flask.jsonify({'saved': True})
+
+# API route to generate an original music clip based on the user's seed genres and recently liked artists
+@app.route('/api/music/generate', methods=['POST'])
+@flask_jwt_extended.jwt_required()
+def generate_music_for_user():
+    user_id = current_user_id()
+    if not user_id:
+        return jsonify({"error": "not logged in"}), 401
+
+    profile_rows = sql_cmd(
+        "SELECT seed_genres FROM user_profiles WHERE user_id = %s",
+        (user_id,), fetch=True
+    )
+    genres = profile_rows[0][0] if profile_rows and profile_rows[0][0] else []
+
+    artist_rows = sql_cmd("""
+        SELECT DISTINCT a.artist_name
+        FROM liked l
+        JOIN song_artists sa ON l.song_id = sa.song_id
+        JOIN artists a ON sa.artist_id = a.artist_id
+        WHERE l.user_id = %s
+        ORDER BY a.artist_name
+        LIMIT 5
+        """, (user_id,), fetch=True)
+    artist_names = [r[0] for r in artist_rows]
+
+    prompt = build_prompt(genres, artist_names)
+
+    try:
+        audio_bytes = generate_music(prompt)
+    except RuntimeError as e:
+        app.logger.error(f"generate_music_for_user: {e}")
+        return jsonify({"error": str(e)}), 502
+
+    upload_result = cloudinary.uploader.upload(
+        audio_bytes,
+        resource_type="video",  # cloudinary serves audio files under the "video" resource type
+        folder="generated_music",
+        public_id=f"user_{user_id}_{int(datetime.datetime.utcnow().timestamp())}",
+    )
+
+    return jsonify({"audio_url": upload_result["secure_url"], "prompt": prompt})
 
 @app.route('/api/checkpw', methods=['POST'])
 def check_password():
@@ -813,7 +844,7 @@ def check_password():
 
         # Check if user has completed seed preferences
         profile_rows = sql_cmd(
-            "SELECT 1 FROM user_profiles WHERE user_id = %s AND weight_vector IS NOT NULL",
+            "SELECT 1 FROM user_profiles WHERE user_id = %s AND seed_genres IS NOT NULL",
             (user_id,), fetch=True
         )
         has_preferences = len(profile_rows) > 0
