@@ -15,16 +15,16 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: FRONTEND_URL
-        value: "https://hooked-frontend.onrender.com"
+        value: "https://hooked-fe.onrender.com"
       - key: ALLOWED_ORIGINS
-        value: "https://hooked-frontend.onrender.com"
+        value: "https://hooked-fe.onrender.com"
 
-  # Frontend service  
+  # Frontend service
   - type: web
-    name: hooked-frontend
+    name: hooked-fe
     runtime: node
     buildCommand: "cd frontend && npm install && npm run build"
     startCommand: "cd frontend && npm start"
     envVars:
       - key: REACT_APP_API_URL
-        value: "https://hooked-backend.onrender.com"
+        value: "https://hooked-1a46.onrender.com"

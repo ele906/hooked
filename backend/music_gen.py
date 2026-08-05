@@ -28,12 +28,15 @@ def preload_model():
 
 
 def build_prompt(genres, artist_names, seconds=15):
-    """Turn a user's seed genres + recently liked artists into a MusicGen text prompt."""
+    """Turn a user's seed genres into a MusicGen text prompt.
+
+    Deliberately ignores artist_names: naming real artists asks the model to
+    mimic their style/likeness, which is both an ethics/ToS problem and a
+    weaker prompt for MusicGen than plain descriptive genre language.
+    """
     parts = []
     if genres:
         parts.append(", ".join(genres[:4]) + " style")
-    if artist_names:
-        parts.append("in the spirit of " + ", ".join(artist_names[:3]))
     if not parts:
         parts.append("upbeat pop")
     return "Original instrumental track, " + "; ".join(parts) + "."
