@@ -39,6 +39,7 @@ from data.cf_inference import (
     known_user as cf_known_user,
     known_song_ids as cf_known_song_ids,
 )
+from data.titlegen_inference import suggest_title
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -777,7 +778,7 @@ _music_jobs = {}
 _music_jobs_lock = threading.Lock()
 
 
-def _run_music_job(job_id, user_id, prompt):
+def _run_music_job(job_id, user_id, prompt, genre=None):
     try:
         audio_bytes = generate_music(prompt)
         upload_result = cloudinary.uploader.upload(
@@ -788,13 +789,18 @@ def _run_music_job(job_id, user_id, prompt):
         )
         audio_url = upload_result["secure_url"]
 
+        # Transformer-generated starting name, seeded with the same genre used for
+        # the MusicGen prompt. Falls back to NULL (still user-renameable) if no
+        # title model is trained yet.
+        suggested_name = suggest_title(genre)
+
         # sql_cmd() needs an app context to reach Flask's g-scoped db connection,
         # which this background thread doesn't have by default.
         with app.app_context():
             clip_id = sql_cmd(
-                """INSERT INTO generated_music (user_id, audio_url, prompt)
-                   VALUES (%s, %s, %s) RETURNING clip_id""",
-                (user_id, audio_url, prompt), fetch=True
+                """INSERT INTO generated_music (user_id, audio_url, prompt, name)
+                   VALUES (%s, %s, %s, %s) RETURNING clip_id""",
+                (user_id, audio_url, prompt, suggested_name), fetch=True
             )[0][0]
 
         with _music_jobs_lock:
@@ -804,7 +810,7 @@ def _run_music_job(job_id, user_id, prompt):
                 "clip_id": clip_id,
                 "audio_url": audio_url,
                 "prompt": prompt,
-                "name": None,
+                "name": suggested_name,
             }
     except Exception as e:
         app.logger.error(f"_run_music_job: {e}")
@@ -851,7 +857,9 @@ def generate_music_for_user():
     job_id = str(uuid.uuid4())
     with _music_jobs_lock:
         _music_jobs[job_id] = {"user_id": user_id, "status": "pending"}
-    threading.Thread(target=_run_music_job, args=(job_id, user_id, prompt), daemon=True).start()
+    threading.Thread(
+        target=_run_music_job, args=(job_id, user_id, prompt, genres[0] if genres else None), daemon=True
+    ).start()
 
     return jsonify({"job_id": job_id}), 202
 
