@@ -89,6 +89,17 @@ CREATE TABLE nonces (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+--- stores user-generated music clips ---
+CREATE TABLE generated_music (
+    clip_id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    audio_url TEXT NOT NULL,
+    prompt TEXT,
+    name TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 --- indexes for hot query paths ---
 CREATE INDEX ON interactions (user_id, song_id);
 CREATE INDEX ON songs (genre);
+CREATE INDEX ON generated_music (user_id);

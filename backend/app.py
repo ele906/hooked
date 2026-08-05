@@ -4,7 +4,7 @@
 # authors: Eleanor, Sadat, Stephen, Derek
 # -----------------------------------------------------------------------
 
-import sys, os, json, random, re
+import sys, os, json, random, re, threading, uuid
 import flask
 from flask import Flask, jsonify, request, redirect, url_for, g
 from dotenv import load_dotenv
@@ -771,7 +771,52 @@ def save_preferences():
 
     return flask.jsonify({'saved': True})
 
-# API route to generate an original music clip based on the user's seed genres and recently liked artists
+# In-memory job store for async music generation (single-process; jobs are
+# lost on restart, which is fine since the client re-polls a fresh job id).
+_music_jobs = {}
+_music_jobs_lock = threading.Lock()
+
+
+def _run_music_job(job_id, user_id, prompt):
+    try:
+        audio_bytes = generate_music(prompt)
+        upload_result = cloudinary.uploader.upload(
+            audio_bytes,
+            resource_type="video",  # cloudinary serves audio files under the "video" resource type
+            folder="generated_music",
+            public_id=f"user_{user_id}_{int(datetime.datetime.utcnow().timestamp())}",
+        )
+        audio_url = upload_result["secure_url"]
+
+        # sql_cmd() needs an app context to reach Flask's g-scoped db connection,
+        # which this background thread doesn't have by default.
+        with app.app_context():
+            clip_id = sql_cmd(
+                """INSERT INTO generated_music (user_id, audio_url, prompt)
+                   VALUES (%s, %s, %s) RETURNING clip_id""",
+                (user_id, audio_url, prompt), fetch=True
+            )[0][0]
+
+        with _music_jobs_lock:
+            _music_jobs[job_id] = {
+                "user_id": user_id,
+                "status": "done",
+                "clip_id": clip_id,
+                "audio_url": audio_url,
+                "prompt": prompt,
+                "name": None,
+            }
+    except Exception as e:
+        app.logger.error(f"_run_music_job: {e}")
+        with _music_jobs_lock:
+            _music_jobs[job_id] = {"user_id": user_id, "status": "error", "error": str(e)}
+
+
+# API route to kick off generating an original music clip based on the user's
+# most recently liked songs (so the prompt shifts as taste shifts, instead of
+# staying pinned to the static onboarding seed_genres). Runs in a background
+# thread since CPU generation can take well over a minute — the client polls
+# /api/music/generate/status/<job_id> instead of holding one request open.
 @app.route('/api/music/generate', methods=['POST'])
 @flask_jwt_extended.jwt_required()
 def generate_music_for_user():
@@ -779,39 +824,102 @@ def generate_music_for_user():
     if not user_id:
         return jsonify({"error": "not logged in"}), 401
 
-    profile_rows = sql_cmd(
-        "SELECT seed_genres FROM user_profiles WHERE user_id = %s",
-        (user_id,), fetch=True
-    )
-    genres = profile_rows[0][0] if profile_rows and profile_rows[0][0] else []
-
-    artist_rows = sql_cmd("""
-        SELECT DISTINCT a.artist_name
+    recent_rows = sql_cmd("""
+        SELECT s.genre, a.artist_name
         FROM liked l
+        JOIN songs s ON l.song_id = s.song_id
         JOIN song_artists sa ON l.song_id = sa.song_id
         JOIN artists a ON sa.artist_id = a.artist_id
         WHERE l.user_id = %s
-        ORDER BY a.artist_name
-        LIMIT 5
+        ORDER BY l.created_at DESC
+        LIMIT 10
         """, (user_id,), fetch=True)
-    artist_names = [r[0] for r in artist_rows]
+
+    # de-dupe while preserving recency order (most recent like first)
+    genres = list(dict.fromkeys(r[0] for r in recent_rows if r[0]))
+    artist_names = list(dict.fromkeys(r[1] for r in recent_rows if r[1]))
+
+    if not genres:
+        profile_rows = sql_cmd(
+            "SELECT seed_genres FROM user_profiles WHERE user_id = %s",
+            (user_id,), fetch=True
+        )
+        genres = profile_rows[0][0] if profile_rows and profile_rows[0][0] else []
 
     prompt = build_prompt(genres, artist_names)
 
-    try:
-        audio_bytes = generate_music(prompt)
-    except RuntimeError as e:
-        app.logger.error(f"generate_music_for_user: {e}")
-        return jsonify({"error": str(e)}), 502
+    job_id = str(uuid.uuid4())
+    with _music_jobs_lock:
+        _music_jobs[job_id] = {"user_id": user_id, "status": "pending"}
+    threading.Thread(target=_run_music_job, args=(job_id, user_id, prompt), daemon=True).start()
 
-    upload_result = cloudinary.uploader.upload(
-        audio_bytes,
-        resource_type="video",  # cloudinary serves audio files under the "video" resource type
-        folder="generated_music",
-        public_id=f"user_{user_id}_{int(datetime.datetime.utcnow().timestamp())}",
+    return jsonify({"job_id": job_id}), 202
+
+
+@app.route('/api/music/generate/status/<job_id>', methods=['GET'])
+@flask_jwt_extended.jwt_required()
+def music_generation_status(job_id):
+    user_id = current_user_id()
+    with _music_jobs_lock:
+        job = _music_jobs.get(job_id)
+
+    if not job or job["user_id"] != user_id:
+        return jsonify({"error": "job not found"}), 404
+
+    if job["status"] == "pending":
+        return jsonify({"status": "pending"})
+    if job["status"] == "error":
+        return jsonify({"status": "error", "error": job["error"]}), 502
+
+    return jsonify({
+        "status": "done",
+        "clip_id": job["clip_id"],
+        "audio_url": job["audio_url"],
+        "prompt": job["prompt"],
+        "name": job["name"],
+    })
+
+
+# Returns the user's previously generated clips, most recent first.
+@app.route('/api/music/history', methods=['GET'])
+@flask_jwt_extended.jwt_required()
+def music_generation_history():
+    user_id = current_user_id()
+    if not user_id:
+        return jsonify({"error": "not logged in"}), 401
+
+    rows = sql_cmd(
+        """SELECT clip_id, audio_url, prompt, name, created_at FROM generated_music
+           WHERE user_id = %s ORDER BY created_at DESC LIMIT 10""",
+        (user_id,), fetch=True
     )
+    clips = [
+        {"clip_id": r[0], "audio_url": r[1], "prompt": r[2], "name": r[3], "created_at": r[4].isoformat()}
+        for r in rows
+    ]
+    return jsonify({"clips": clips})
 
-    return jsonify({"audio_url": upload_result["secure_url"], "prompt": prompt})
+
+# Lets a user set/change the display name of one of their generated clips.
+@app.route('/api/music/history/<int:clip_id>', methods=['PATCH'])
+@flask_jwt_extended.jwt_required()
+def rename_generated_music(clip_id):
+    user_id = current_user_id()
+    if not user_id:
+        return jsonify({"error": "not logged in"}), 401
+
+    data = flask.request.get_json() or {}
+    name = (data.get('name') or '').strip()[:100]
+
+    rows = sql_cmd(
+        """UPDATE generated_music SET name = %s
+           WHERE clip_id = %s AND user_id = %s RETURNING clip_id""",
+        (name, clip_id, user_id), fetch=True
+    )
+    if not rows:
+        return jsonify({"error": "clip not found"}), 404
+
+    return jsonify({"clip_id": clip_id, "name": name})
 
 @app.route('/api/checkpw', methods=['POST'])
 def check_password():
@@ -954,4 +1062,4 @@ if __name__ == "__main__":
     preload_model()
     print("[startup] MusicGen model ready")
 
-    app.run(host="0.0.0.0", port=port, debug=debug_mode)
+    app.run(host="0.0.0.0", port=port, debug=debug_mode, threaded=True)

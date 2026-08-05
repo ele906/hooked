@@ -4,7 +4,7 @@ import scipy.io.wavfile
 from transformers import AutoProcessor, MusicgenForConditionalGeneration
 
 MUSICGEN_MODEL = os.environ.get("MUSICGEN_MODEL", "facebook/musicgen-small")
-MAX_DURATION_SECONDS = 10  # keeps generation under ~60s, well inside Render's ~100s proxy timeout
+MAX_DURATION_SECONDS = 8  # shorter clip keeps CPU inference time down
 TOKENS_PER_SECOND = 50  # MusicGen's EnCodec frame rate
 
 _processor = None
@@ -39,7 +39,7 @@ def build_prompt(genres, artist_names, seconds=15):
     return "Original instrumental track, " + "; ".join(parts) + "."
 
 
-def generate_music(prompt: str, seconds=10) -> bytes:
+def generate_music(prompt: str, seconds=8) -> bytes:
     """Generates a short instrumental clip locally with Meta's MusicGen model.
 
     Runs on CPU via transformers/torch — no external API or cost, but slow
