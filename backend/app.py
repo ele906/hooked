@@ -13,7 +13,7 @@ import requests
 import oauthlib.oauth2
 import cloudinary_config
 import cloudinary.uploader
-from music_gen import build_prompt, generate_music
+from music_gen import build_prompt, generate_music, preload_model
 
 # Allow insecure transport for local development
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -946,4 +946,12 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     # Disable debug mode in production (when not on localhost)
     debug_mode = "localhost" in os.environ.get("FRONTEND_URL", "")
+
+    # Warm the MusicGen model once at startup instead of on the first request —
+    # otherwise the first /api/music/generate call pays for the ~1-2GB weight
+    # download/load on top of inference, blowing past the client/proxy timeouts.
+    print("[startup] preloading MusicGen model...")
+    preload_model()
+    print("[startup] MusicGen model ready")
+
     app.run(host="0.0.0.0", port=port, debug=debug_mode)

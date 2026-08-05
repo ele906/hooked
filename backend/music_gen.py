@@ -12,12 +12,19 @@ _model = None
 
 
 def _load_model():
-    # Lazy singleton — the ~1-2GB weights only need to load once per process.
+    # Singleton — the ~1-2GB weights only need to load once per process.
+    # Called eagerly at app startup (see app.py) so the download/load time
+    # doesn't eat into a request's budget against the client/proxy timeouts.
     global _processor, _model
     if _model is None:
         _processor = AutoProcessor.from_pretrained(MUSICGEN_MODEL)
         _model = MusicgenForConditionalGeneration.from_pretrained(MUSICGEN_MODEL)
     return _processor, _model
+
+
+def preload_model():
+    """Warms the singleton model/processor. Call once at process startup."""
+    _load_model()
 
 
 def build_prompt(genres, artist_names, seconds=15):

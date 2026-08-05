@@ -28,11 +28,12 @@ function GenerateMusic() {
         setTimedOut(false)
         setResult(null)
 
-        // Generation takes ~60s on CPU; some hosts (e.g. Render's proxy) kill
-        // requests around 100s, so we bail out client-side with a clear
-        // message instead of hanging indefinitely.
+        // Generation takes ~60s on CPU but can run longer under load; some
+        // hosts (e.g. Render's proxy) kill requests around 100s regardless,
+        // which we detect via the 502/504 handling below. Give it up to 150s
+        // client-side before giving up with a clear message.
         const controller = new AbortController()
-        const abortTimer = setTimeout(() => controller.abort(), 90000)
+        const abortTimer = setTimeout(() => controller.abort(), 150000)
 
         try {
             const response = await fetch(`${API_URL}/api/music/generate`, {
