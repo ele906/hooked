@@ -40,6 +40,8 @@ user/item embeddings from pure IDs — no metadata, no genre, no artist:
 - **Fusion** — GMF output (16-dim) + MLP output (8-dim) concatenated → `Linear(24, 1)` → sigmoid
   → a 0–1 "will they like this" score.
 
+![NeuMF architecture](data/neumf_architecture.svg)
+
 ### Training
 
 1. Pull raw `(user_id, song_id, type)` rows from `interactions`.

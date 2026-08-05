@@ -1,0 +1,52 @@
+<svg width="680" height="726" viewBox="0 0 680 726" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+<rect x="0" y="0" width="680" height="726" fill="#ffffff"/>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="#333333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<!-- Row 1: input -->
+<rect x="210" y="40" width="260" height="56" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="1"/>
+<text x="340" y="64" font-size="14" font-weight="bold" fill="#2C2C2A" text-anchor="middle">Input sequence</text>
+<text x="340" y="82" font-size="12" fill="#444441" text-anchor="middle">Genre + BOS + title characters</text>
+<line x1="340" y1="96" x2="340" y2="128" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- Row 2: embeddings -->
+<rect x="110" y="130" width="210" height="56" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="1"/>
+<text x="215" y="154" font-size="14" font-weight="bold" fill="#26215C" text-anchor="middle">Token embedding</text>
+<text x="215" y="172" font-size="12" fill="#3C3489" text-anchor="middle">128-dim per character</text>
+
+<rect x="360" y="130" width="210" height="56" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="1"/>
+<text x="465" y="154" font-size="14" font-weight="bold" fill="#26215C" text-anchor="middle">Position embedding</text>
+<text x="465" y="172" font-size="12" fill="#3C3489" text-anchor="middle">128-dim per position</text>
+
+<line x1="215" y1="186" x2="330" y2="205" stroke="#999999" stroke-width="1"/>
+<line x1="465" y1="186" x2="350" y2="205" stroke="#999999" stroke-width="1"/>
+<circle cx="340" cy="214" r="14" fill="#ffffff" stroke="#333333" stroke-width="1"/>
+<text x="340" y="219" font-size="14" font-weight="bold" fill="#333333" text-anchor="middle">+</text>
+<line x1="340" y1="228" x2="340" y2="258" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- Row 3: transformer block -->
+<rect x="190" y="260" width="300" height="90" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1"/>
+<text x="340" y="284" font-size="14" font-weight="bold" fill="#04342C" text-anchor="middle">Transformer block ×3</text>
+<text x="340" y="308" font-size="12" fill="#085041" text-anchor="middle">Causal self-attention, 4 heads</text>
+<text x="340" y="332" font-size="12" fill="#085041" text-anchor="middle">MLP 128 → 512 → 128, ReLU</text>
+<line x1="340" y1="350" x2="340" y2="408" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- Row 4: layer norm -->
+<rect x="210" y="410" width="260" height="56" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="1"/>
+<text x="340" y="434" font-size="14" font-weight="bold" fill="#2C2C2A" text-anchor="middle">Final layer norm</text>
+<text x="340" y="452" font-size="12" fill="#444441" text-anchor="middle">Stabilizes activations</text>
+<line x1="340" y1="466" x2="340" y2="524" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- Row 5: linear head -->
+<rect x="210" y="526" width="260" height="56" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="1"/>
+<text x="340" y="550" font-size="14" font-weight="bold" fill="#4A1B0C" text-anchor="middle">Linear head</text>
+<text x="340" y="568" font-size="12" fill="#712B13" text-anchor="middle">128 → vocab size (98)</text>
+<line x1="340" y1="582" x2="340" y2="640" stroke="#333333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<!-- Row 6: output -->
+<rect x="210" y="642" width="260" height="44" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="1"/>
+<text x="340" y="669" font-size="14" font-weight="bold" fill="#2C2C2A" text-anchor="middle">Predicted next character</text>
+</svg>
