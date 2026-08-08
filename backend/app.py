@@ -33,7 +33,7 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 # adds parent directory to path so we can import from data/
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from data.db import get_db as _open_db
+from data.db import get_db as _checkout_db, release_db as _release_db
 from data.genres import keywords_for, GENRES
 from data.decades import artists_for as decade_artists_for, DECADES
 from data.cf_inference import (
@@ -298,15 +298,15 @@ CANDIDATE_POOL_SIZE = 50  # rows pulled before picking randomly in Python, avoid
 # Flask's teardown closes it automatically when the request ends
 def get_db():
     if 'db' not in g:
-        g.db = _open_db()
+        g.db = _checkout_db()
     return g.db
 
-# closes the DB connection at the end of the request
+# returns the pooled DB connection at the end of the request instead of closing it
 @app.teardown_appcontext
 def close_db(e=None):
     db = g.pop('db', None)
     if db is not None:
-        db.close()
+        _release_db(db)
 
 # helper to run SQL commands. reuses the single per-request connection
 # before this would open multiple conenections per request which
