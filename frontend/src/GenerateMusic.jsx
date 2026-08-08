@@ -61,6 +61,10 @@ function GenerateMusic() {
     const [result, setResult] = useState(null) // { audio_url, prompt }
     const [history, setHistory] = useState([]) // [{ audio_url, prompt, created_at }]
 
+    const username = sessionStorage.getItem('username')
+    const noticeKey = `musicGenNoticeSeen:${username}`
+    const [showFirstTimeNotice, setShowFirstTimeNotice] = useState(false)
+
     const authHeaders = {
         'Authorization': 'Bearer ' + sessionStorage.getItem('accesstoken'),
         'Accept': 'application/json',
@@ -143,6 +147,20 @@ function GenerateMusic() {
         setTimeout(() => pollJob(jobId, startedAt), POLL_INTERVAL_MS)
     }
 
+    function handleGenerateClick() {
+        if (!localStorage.getItem(noticeKey)) {
+            setShowFirstTimeNotice(true)
+            return
+        }
+        handleGenerate()
+    }
+
+    function dismissFirstTimeNotice() {
+        localStorage.setItem(noticeKey, '1')
+        setShowFirstTimeNotice(false)
+        handleGenerate()
+    }
+
     async function handleGenerate() {
         setLoading(true)
         setError(null)
@@ -183,6 +201,75 @@ function GenerateMusic() {
         }}>
             <Navigation />
 
+            {showFirstTimeNotice && (
+                <>
+                    <div style={{
+                        position: 'fixed',
+                        inset: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                        zIndex: 999
+                    }} />
+                    <div style={{
+                        position: 'fixed',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 1000,
+                        backgroundColor: '#1d1133',
+                        border: '2px solid #debff7',
+                        borderRadius: '20px',
+                        padding: '40px 30px',
+                        maxWidth: '400px',
+                        textAlign: 'center',
+                        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)'
+                    }}>
+                        <h2 style={{
+                            fontSize: '22px',
+                            fontFamily: 'Outfit, sans-serif',
+                            fontWeight: 'bold',
+                            margin: '0 0 16px 0',
+                            color: '#debff7'
+                        }}>
+                            Heads up
+                        </h2>
+                        <p style={{
+                            fontSize: '15px',
+                            fontFamily: 'Outfit, sans-serif',
+                            color: '#ffffff',
+                            marginBottom: '32px',
+                            opacity: 0.9
+                        }}>
+                            If music generation doesn't work, it's probably because we're out of generation tokens — not a bug on your end! Email me at e36@princeton.edu if you run into this.
+                        </p>
+                        <button
+                            onClick={dismissFirstTimeNotice}
+                            style={{
+                                padding: '10px 24px',
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                fontFamily: 'Outfit, sans-serif',
+                                border: '2px solid #debff7',
+                                borderRadius: '8px',
+                                color: '#debff7',
+                                backgroundColor: 'transparent',
+                                cursor: 'pointer',
+                                transition: 'all 0.3s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.target.style.backgroundColor = '#debff7'
+                                e.target.style.color = '#1d1133'
+                            }}
+                            onMouseLeave={(e) => {
+                                e.target.style.backgroundColor = 'transparent'
+                                e.target.style.color = '#debff7'
+                            }}
+                        >
+                            Got it
+                        </button>
+                    </div>
+                </>
+            )}
+
             <h1>Generate Your Sound</h1>
             <p style={{ maxWidth: '400px', textAlign: 'center', color: '#ffffffcc', fontSize: '14px' }}>
                 We'll compose a short original track based on your favorite genres and artists.
@@ -190,7 +277,7 @@ function GenerateMusic() {
 
             <button
                 className="btn-1"
-                onClick={handleGenerate}
+                onClick={handleGenerateClick}
                 disabled={loading}
                 style={{ opacity: loading ? 0.6 : 1, cursor: loading ? 'default' : 'pointer' }}
             >
@@ -199,7 +286,7 @@ function GenerateMusic() {
 
             {error && (
                 <p style={{ color: '#ff8a8a', fontSize: '14px', maxWidth: '400px', textAlign: 'center' }}>
-                    {error}
+                    {error} This usually means we're out of generation tokens — email me at e36@princeton.edu!
                 </p>
             )}
 
