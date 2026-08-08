@@ -34,7 +34,7 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from data.db import get_db as _open_db
-from data.genres import keywords_for
+from data.genres import keywords_for, GENRES
 from data.cf_inference import (
     score_candidates as cf_score_candidates,
     known_user as cf_known_user,
@@ -518,6 +518,12 @@ def delete_song_action(song_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# returns the fixed list of genre keys used for filtering/onboarding
+@app.route("/api/genres", methods=["GET"])
+@flask_jwt_extended.jwt_required()
+def get_genres():
+    return jsonify(GENRES)
+
 # this is for the search bar function...
 @app.route("/api/songs/search", methods=["GET"])
 @flask_jwt_extended.jwt_required()
@@ -527,20 +533,33 @@ def search_songs():
         return jsonify({"error": "not logged in"}), 401
 
     query = request.args.get("params", "")
+    genre = request.args.get("genre", "")
 
-    if not query:
+    if not query and not genre:
         return jsonify({"error": "params parameter is required"}), 400
 
     query = query[:MAX_SEARCH_LEN]  # truncate oversized input
-    rows = sql_cmd("""
+
+    where_clauses = ["(s.song_name ILIKE %s OR a.artist_name ILIKE %s)"]
+    params = [f"%{query}%", f"%{query}%"]
+
+    if genre:
+        keywords = keywords_for([genre])
+        if keywords:
+            where_clauses.append(
+                "(" + " OR ".join(["s.genre ILIKE %s"] * len(keywords)) + ")"
+            )
+            params.extend(f"%{kw}%" for kw in keywords)
+
+    rows = sql_cmd(f"""
         SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
                a.artist_name
         FROM songs s
         LEFT JOIN song_artists sa ON s.song_id = sa.song_id
         LEFT JOIN artists a ON sa.artist_id = a.artist_id
-        WHERE s.song_name ILIKE %s OR a.artist_name ILIKE %s
+        WHERE {" AND ".join(where_clauses)}
         LIMIT 8;
-    """, (f"%{query}%", f"%{query}%",), fetch=True)
+    """, tuple(params), fetch=True)
 
     if not rows:
         return jsonify({"message": "no songs found"}), 200

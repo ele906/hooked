@@ -73,6 +73,7 @@ ARTISTS_BY_GENRE = {
         "Frank Ocean", "Usher", "Miguel", "Jhene Aiko",
         "Kehlani", "Lucky Daye", "6LACK", "Giveon",
         "PJ Morton", "Snoh Aalegra", "Ari Lennox", "Brent Faiyaz",
+        "Maxwell",
     ],
     "rock": [
         "Foo Fighters", "Red Hot Chili Peppers", "Arctic Monkeys",
@@ -136,6 +137,34 @@ ARTISTS_BY_GENRE = {
         "Claude Debussy", "Erik Satie",
     ],
 }
+
+# Curated classic artists by decade — iTunes doesn't let us filter by release
+# year, so these are seeded to broaden catalog era coverage, not for
+# decade-based querying. Folded into ARTISTS_BY_GENRE below so a full re-seed
+# picks them up too.
+DECADE_ARTISTS = {
+    "60s": [
+        "The Beatles", "The Beach Boys", "The Supremes", "Otis Redding",
+        "Bob Dylan", "Aretha Franklin", "The Rolling Stones", "Sam Cooke",
+    ],
+    "70s": [
+        "Fleetwood Mac", "Stevie Wonder", "Earth, Wind & Fire", "ABBA",
+        "Elton John", "Marvin Gaye", "Led Zeppelin", "The Bee Gees",
+    ],
+    "80s": [
+        "Michael Jackson", "Prince", "Whitney Houston", "Madonna",
+        "Duran Duran", "George Michael", "Tina Turner", "Cyndi Lauper",
+    ],
+    "90s": [
+        "Mariah Carey", "TLC", "Backstreet Boys", "The Notorious B.I.G.",
+        "No Doubt", "Whitney Houston", "Boyz II Men", "En Vogue",
+    ],
+}
+
+for _artists in DECADE_ARTISTS.values():
+    for _artist in _artists:
+        if not any(_artist in genre_artists for genre_artists in ARTISTS_BY_GENRE.values()):
+            ARTISTS_BY_GENRE.setdefault("classic", []).append(_artist)
 
 # returns the top n songs for an artist that have preview URLs
 # results are cached locally in .itunes_cache.json to avoid redundant API calls

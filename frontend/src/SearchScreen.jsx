@@ -18,20 +18,31 @@ function SearchScreen() {
     const [user, setUser] = useState(null)
     const controllerRef = useRef(null)
     const [currentPage, setCurrentPage] = useState(0)
+    const [genres, setGenres] = useState([])
+    const [genre, setGenre] = useState("")
     const RESULTS_PER_PAGE = 10
 
-    function searchSong(my_params) {
+    function searchSong(my_params, my_genre) {
         // abort previous request if one is running
         if (controllerRef.current !== null) {
             controllerRef.current.abort()
+        }
+
+        // nothing to search for
+        if (!my_params && !my_genre) {
+            setResults([])
+            return
         }
 
         // start a new one
         controllerRef.current = new AbortController()
 
         const accessToken = sessionStorage.getItem('accesstoken')
-        
-        fetch(`${API_URL}/api/songs/search?params=${encodeURIComponent(my_params)}`, {
+
+        const url = `${API_URL}/api/songs/search?params=${encodeURIComponent(my_params)}`
+            + (my_genre ? `&genre=${encodeURIComponent(my_genre)}` : '')
+
+        fetch(url, {
             signal: controllerRef.current.signal,  // attach the abort signal
             headers: {
                 'Authorization': 'Bearer ' + accessToken,
@@ -71,6 +82,20 @@ function SearchScreen() {
             setUser({ username })
         }
     }, [])
+
+    // fetch the fixed genre list for the filter dropdown
+    useEffect(() => {
+        const accessToken = sessionStorage.getItem('accesstoken')
+        fetch(`${API_URL}/api/genres`, {
+            headers: {
+                'Authorization': 'Bearer ' + accessToken,
+                'Accept': 'application/json',
+            }
+        })
+            .then(res => res.ok ? res.json() : [])
+            .then(data => setGenres(Array.isArray(data) ? data : []))
+            .catch(() => setGenres([]))
+    }, [])
     
     return (
         <div style = {{...getScreenStyle(
@@ -97,19 +122,35 @@ function SearchScreen() {
             </div>
             
 
-            {/* search bar */}
-            <input
-                type="text"
-                value={query}
-                // this detects changes in search and does the search function...
-                onChange={(e) => {
-                    setQuery(e.target.value)
-                    setCurrentPage(0)
-                    searchSong(e.target.value)
-                }}
-                placeholder="Search songs..."
-                className = 'search-bar'
-            />
+            {/* search bar + genre filter */}
+            <div className="search-bar-row" style={{ display: 'flex', gap: '8px' }}>
+                <input
+                    type="text"
+                    value={query}
+                    // this detects changes in search and does the search function...
+                    onChange={(e) => {
+                        setQuery(e.target.value)
+                        setCurrentPage(0)
+                        searchSong(e.target.value, genre)
+                    }}
+                    placeholder="Search songs..."
+                    className = 'search-bar'
+                />
+                <select
+                    value={genre}
+                    onChange={(e) => {
+                        setGenre(e.target.value)
+                        setCurrentPage(0)
+                        searchSong(query, e.target.value)
+                    }}
+                    className = 'search-genre-select'
+                >
+                    <option value="">All genres</option>
+                    {genres.map(g => (
+                        <option key={g} value={g}>{g}</option>
+                    ))}
+                </select>
+            </div>
 
             {/* results */}
             {results.length > 0 ? (
@@ -149,7 +190,7 @@ function SearchScreen() {
                     )
                 })()
             ) : (
-                query && <div className='no-results'>
+                (query || genre) && <div className='no-results'>
                     <p>No results found!</p>
                 </div>
             )}

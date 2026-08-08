@@ -381,6 +381,23 @@ code {
     color: #c0cad6a4;
 }
 
+.search-genre-select {
+    padding: 10px;
+    position: relative;
+    border-radius: 20px;
+    font-size: 16px;
+    background-color: #9fbdff46;
+    color: #debff7;
+    border: none;
+    cursor: pointer;
+    margin: 4px;
+    margin-bottom: 60px;
+}
+
+.search-genre-select option {
+    color: #1a1a1a;
+}
+
 .profile-search-bar {
     padding: 10px;
     position: relative;
