@@ -36,7 +36,7 @@ psql '<DATABASE_URL>' < data/schema.sql
 
 ### 3. Deploy Backend
 - Render → "New +" → "Web Service" → connect GitHub repo
-- **Name:** `hooked-1a46` (Render's `.onrender.com` subdomain is assigned at
+- **Name:** `hooked-backend-o2gy` (Render's `.onrender.com` subdomain is assigned at
   creation and does not follow later renames — whatever name you pick here
   is effectively permanent) | **Runtime:** Python 3
 - **Build:** `pip install -r requirements.txt`
@@ -48,31 +48,31 @@ psql '<DATABASE_URL>' < data/schema.sql
   GOOGLE_CLIENT_ID=...
   GOOGLE_CLIENT_SECRET=...
   REPLICATE_API_TOKEN=...
-  FRONTEND_URL=https://hooked-fe.onrender.com
-  ALLOWED_ORIGINS=https://hooked-fe.onrender.com
+  FRONTEND_URL=https://hooked-e36.onrender.com
+  ALLOWED_ORIGINS=https://hooked-e36.onrender.com
   FLASK_ENV=production
   ```
   Get `REPLICATE_API_TOKEN` from https://replicate.com/account/api-tokens (requires prepaid credit on the account).
 
 ### 4. Update Google OAuth Redirect URI
 - Google Cloud Console → OAuth Client → add redirect URI:
-  `https://hooked-1a46.onrender.com/auth/callback`
+  `https://hooked-backend-o2gy.onrender.com/auth/callback`
 
 ### 5. Deploy Frontend
 - Render → "New +" → "Web Service" → connect GitHub repo
   (Not a Static Site — client-side routing needs a fallback to `index.html`
   on unknown paths, which `serve -s` below handles; Render's Static Site
   rewrite rules work too, but this app's services are both Web Services.)
-- **Name:** `hooked-fe` | **Runtime:** Node
+- **Name:** `hooked-e36` | **Runtime:** Node
 - **Build:** `cd frontend && npm install && npm run build`
 - **Start:** `cd frontend && npx serve -s build -l $PORT`
 - Environment variables:
   ```
-  REACT_APP_API_URL=https://hooked-1a46.onrender.com
+  REACT_APP_API_URL=https://hooked-backend-o2gy.onrender.com
   ```
 
 ### 6. Verify
-- [ ] `https://hooked-1a46.onrender.com/api/songs/search?params=taylor` returns data
+- [ ] `https://hooked-backend-o2gy.onrender.com/api/songs/search?params=taylor` returns data
 - [ ] Login, swiping, liked songs, and search work on frontend
 
 ---
