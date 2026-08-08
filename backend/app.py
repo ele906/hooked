@@ -7,18 +7,19 @@
 import sys, os, json, random, re, threading, uuid
 import flask
 from flask import Flask, jsonify, request, redirect, url_for, g
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 import bcrypt
 import requests
 import oauthlib.oauth2
 import cloudinary_config
 import cloudinary.uploader
-from music_gen import build_prompt, generate_music, preload_model
+from music_gen import build_prompt, generate_music
 
 # Allow insecure transport for local development
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 load_dotenv()
+load_dotenv(find_dotenv('.env.local'), override=True)
 import datetime
 import flask_jwt_extended
 from email_utils import (
@@ -1062,12 +1063,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     # Disable debug mode in production (when not on localhost)
     debug_mode = "localhost" in os.environ.get("FRONTEND_URL", "")
-
-    # Warm the MusicGen model once at startup instead of on the first request —
-    # otherwise the first /api/music/generate call pays for the ~1-2GB weight
-    # download/load on top of inference, blowing past the client/proxy timeouts.
-    print("[startup] preloading MusicGen model...")
-    preload_model()
-    print("[startup] MusicGen model ready")
 
     app.run(host="0.0.0.0", port=port, debug=debug_mode, threaded=True)

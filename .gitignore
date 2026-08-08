@@ -7,8 +7,9 @@ __pycache__/
 .mypy_cache/
 
 *.db 
-.env 
-.DS_Store 
+.env
+.env.local
+.DS_Store
 postgresql-16.1-1-osx.dmg
 
 data/.itunes_cache.json
