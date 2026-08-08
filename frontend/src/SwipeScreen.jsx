@@ -465,9 +465,10 @@ function SwipeScreen() {
                                        margin: '0 0 25px 0'}}>♫</p>
                         )}
                         {/* audio element */}
-                        <audio 
+                        <audio
                             ref={audioRef}
-                            src={currentSong.preview_mp3_url} 
+                            src={currentSong.preview_mp3_url}
+                            loop
                             onPlay={() => setIsPlaying(true)}
                             onPause={() => setIsPlaying(false)}
                             onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}

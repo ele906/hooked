@@ -22,9 +22,10 @@ function SearchScreen() {
     const [genre, setGenre] = useState("")
     const [decades, setDecades] = useState([])
     const [decade, setDecade] = useState("")
+    const [totalResults, setTotalResults] = useState(0)
     const RESULTS_PER_PAGE = 10
 
-    function searchSong(my_params, my_genre, my_decade) {
+    function searchSong(my_params, my_genre, my_decade, page) {
         // abort previous request if one is running
         if (controllerRef.current !== null) {
             controllerRef.current.abort()
@@ -33,6 +34,7 @@ function SearchScreen() {
         // nothing to search for
         if (!my_params && !my_genre && !my_decade) {
             setResults([])
+            setTotalResults(0)
             return
         }
 
@@ -44,6 +46,7 @@ function SearchScreen() {
         const url = `${API_URL}/api/songs/search?params=${encodeURIComponent(my_params)}`
             + (my_genre ? `&genre=${encodeURIComponent(my_genre)}` : '')
             + (my_decade ? `&decade=${encodeURIComponent(my_decade)}` : '')
+            + `&page=${page + 1}&per_page=${RESULTS_PER_PAGE}`
 
         fetch(url, {
             signal: controllerRef.current.signal,  // attach the abort signal
@@ -65,10 +68,12 @@ function SearchScreen() {
                 return res.json()
             })
             .then(data => {
-                if (Array.isArray(data)) {
-                    setResults(data)
+                if (data && Array.isArray(data.results)) {
+                    setResults(data.results)
+                    setTotalResults(data.total ?? data.results.length)
                 } else {
-                    setResults([])  // if not an array, just set empty
+                    setResults([])  // if not the expected shape, just set empty
+                    setTotalResults(0)
                 }
             })
             .catch(err => {
@@ -113,7 +118,14 @@ function SearchScreen() {
             .then(data => setDecades(Array.isArray(data) ? data : []))
             .catch(() => setDecades([]))
     }, [])
-    
+
+    // refetch the current page when the user navigates via the pager
+    useEffect(() => {
+        if (!query && !genre && !decade) return
+        searchSong(query, genre, decade, currentPage)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentPage])
+
     return (
         <div style = {{...getScreenStyle(
             'rgba(125, 123, 255, 0.4)',
@@ -148,7 +160,7 @@ function SearchScreen() {
                     onChange={(e) => {
                         setQuery(e.target.value)
                         setCurrentPage(0)
-                        searchSong(e.target.value, genre, decade)
+                        searchSong(e.target.value, genre, decade, 0)
                     }}
                     placeholder="Search songs..."
                     className = 'search-bar'
@@ -158,7 +170,7 @@ function SearchScreen() {
                     onChange={(e) => {
                         setGenre(e.target.value)
                         setCurrentPage(0)
-                        searchSong(query, e.target.value, decade)
+                        searchSong(query, e.target.value, decade, 0)
                     }}
                     className = 'search-genre-select'
                 >
@@ -172,7 +184,7 @@ function SearchScreen() {
                     onChange={(e) => {
                         setDecade(e.target.value)
                         setCurrentPage(0)
-                        searchSong(query, genre, e.target.value)
+                        searchSong(query, genre, e.target.value, 0)
                     }}
                     className = 'search-genre-select'
                 >
@@ -186,14 +198,26 @@ function SearchScreen() {
             {/* results */}
             {results.length > 0 ? (
                 (() => {
-                    const totalPages = Math.ceil(results.length / RESULTS_PER_PAGE)
-                    const paginatedResults = results.slice(currentPage * RESULTS_PER_PAGE, (currentPage + 1) * RESULTS_PER_PAGE)
+                    const totalPages = Math.max(1, Math.ceil(totalResults / RESULTS_PER_PAGE))
                     const hasNextPage = currentPage < totalPages - 1
                     const hasPrevPage = currentPage > 0
+
+                    // build the list of page numbers to show, with '...' gaps
+                    const pageNumbers = []
+                    const addPage = p => pageNumbers.push(p)
+                    const current = currentPage + 1 // 1-indexed for display
+                    addPage(1)
+                    if (current - 1 > 2) pageNumbers.push('...')
+                    for (let p = Math.max(2, current - 1); p <= Math.min(totalPages - 1, current + 1); p++) {
+                        addPage(p)
+                    }
+                    if (current + 1 < totalPages - 1) pageNumbers.push('...')
+                    if (totalPages > 1) addPage(totalPages)
+
                     return (
                         <>
                             <div className="results-list">
-                                {paginatedResults.map(song => (
+                                {results.map(song => (
                                     <div key={song.song_id} className="search-song-box" onClick={() => navigate('/swipe', {state: {song}})}>
                                         <img src={song.song_image_url} alt={song.song_name} className="song-img-box"/>
                                         <span>{song.song_name} - {song.artist_name ?? 'Unknown Artist'}</span>
@@ -201,20 +225,38 @@ function SearchScreen() {
                                 ))}
                             </div>
                             {totalPages > 1 && (
-                                <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', padding: '16px', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', padding: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                                     <button
                                         onClick={() => setCurrentPage(p => p - 1)}
                                         disabled={!hasPrevPage}
-                                        style={{ opacity: hasPrevPage ? 1 : 0.3, background: 'none', border: 'none', color: '#bfc3f7', fontSize: '20px', cursor: hasPrevPage ? 'pointer' : 'default' }}
-                                    >‹ Prev</button>
-                                    <span style={{ color: '#bfc3f7', fontSize: '14px', fontWeight: 'bold' }}>
-                                        Page {currentPage + 1} of {totalPages}
-                                    </span>
+                                        style={{ opacity: hasPrevPage ? 1 : 0.3, background: 'none', border: 'none', color: '#bfc3f7', fontSize: '18px', cursor: hasPrevPage ? 'pointer' : 'default' }}
+                                    >‹</button>
+                                    {pageNumbers.map((p, i) => (
+                                        p === '...' ? (
+                                            <span key={`ellipsis-${i}`} style={{ color: '#bfc3f7', fontSize: '14px', padding: '0 4px' }}>…</span>
+                                        ) : (
+                                            <button
+                                                key={p}
+                                                onClick={() => setCurrentPage(p - 1)}
+                                                style={{
+                                                    minWidth: '28px',
+                                                    background: p === current ? '#bfc3f7' : 'none',
+                                                    border: 'none',
+                                                    borderRadius: '6px',
+                                                    color: p === current ? '#2c2b52' : '#bfc3f7',
+                                                    fontSize: '14px',
+                                                    fontWeight: 'bold',
+                                                    padding: '4px 8px',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >{p}</button>
+                                        )
+                                    ))}
                                     <button
                                         onClick={() => setCurrentPage(p => p + 1)}
                                         disabled={!hasNextPage}
-                                        style={{ opacity: hasNextPage ? 1 : 0.3, background: 'none', border: 'none', color: '#bfc3f7', fontSize: '20px', cursor: hasNextPage ? 'pointer' : 'default' }}
-                                    >Next ›</button>
+                                        style={{ opacity: hasNextPage ? 1 : 0.3, background: 'none', border: 'none', color: '#bfc3f7', fontSize: '18px', cursor: hasNextPage ? 'pointer' : 'default' }}
+                                    >›</button>
                                 </div>
                             )}
                         </>

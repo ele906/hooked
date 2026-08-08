@@ -542,6 +542,15 @@ def search_songs():
     genre = request.args.get("genre", "")
     decade = request.args.get("decade", "")
 
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except ValueError:
+        page = 1
+    try:
+        per_page = min(50, max(1, int(request.args.get("per_page", 10))))
+    except ValueError:
+        per_page = 10
+
     if not query and not genre and not decade:
         return jsonify({"error": "params parameter is required"}), 400
 
@@ -564,21 +573,29 @@ def search_songs():
             where_clauses.append("a.artist_name = ANY(%s)")
             params.append(artists)
 
+    where_sql = " AND ".join(where_clauses)
+
+    count_rows = sql_cmd(f"""
+        SELECT COUNT(*)
+        FROM songs s
+        LEFT JOIN song_artists sa ON s.song_id = sa.song_id
+        LEFT JOIN artists a ON sa.artist_id = a.artist_id
+        WHERE {where_sql};
+    """, tuple(params), fetch=True)
+    total = count_rows[0][0] if count_rows else 0
+
     rows = sql_cmd(f"""
         SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
                a.artist_name
         FROM songs s
         LEFT JOIN song_artists sa ON s.song_id = sa.song_id
         LEFT JOIN artists a ON sa.artist_id = a.artist_id
-        WHERE {" AND ".join(where_clauses)}
-        LIMIT 8;
-    """, tuple(params), fetch=True)
-
-    if not rows:
-        return jsonify({"message": "no songs found"}), 200
+        WHERE {where_sql}
+        LIMIT %s OFFSET %s;
+    """, tuple(params) + (per_page, (page - 1) * per_page), fetch=True)
 
     results = []
-    for r in rows:
+    for r in (rows or []):
         results.append({
             "song_id":        r[0],
             "song_name":      r[1],
@@ -587,7 +604,12 @@ def search_songs():
             "artist_name":    r[4]
         })
 
-    return jsonify(results)
+    return jsonify({
+        "results": results,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+    })
 
 # this is for the search bar for freiendsfunction...
 @app.route("/api/friends/search", methods=["GET"])

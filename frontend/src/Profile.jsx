@@ -49,8 +49,8 @@ function Profile(){
                 audioRef.current.pause()
             }
             audioRef.current = new Audio(song.preview_mp3_url)
+            audioRef.current.loop = true
             audioRef.current.play().catch(() => {})
-            audioRef.current.onended = () => setPlayingId(null)
             setPlayingId(song.song_id)
         }
     }
