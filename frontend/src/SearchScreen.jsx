@@ -20,16 +20,18 @@ function SearchScreen() {
     const [currentPage, setCurrentPage] = useState(0)
     const [genres, setGenres] = useState([])
     const [genre, setGenre] = useState("")
+    const [decades, setDecades] = useState([])
+    const [decade, setDecade] = useState("")
     const RESULTS_PER_PAGE = 10
 
-    function searchSong(my_params, my_genre) {
+    function searchSong(my_params, my_genre, my_decade) {
         // abort previous request if one is running
         if (controllerRef.current !== null) {
             controllerRef.current.abort()
         }
 
         // nothing to search for
-        if (!my_params && !my_genre) {
+        if (!my_params && !my_genre && !my_decade) {
             setResults([])
             return
         }
@@ -41,6 +43,7 @@ function SearchScreen() {
 
         const url = `${API_URL}/api/songs/search?params=${encodeURIComponent(my_params)}`
             + (my_genre ? `&genre=${encodeURIComponent(my_genre)}` : '')
+            + (my_decade ? `&decade=${encodeURIComponent(my_decade)}` : '')
 
         fetch(url, {
             signal: controllerRef.current.signal,  // attach the abort signal
@@ -96,6 +99,20 @@ function SearchScreen() {
             .then(data => setGenres(Array.isArray(data) ? data : []))
             .catch(() => setGenres([]))
     }, [])
+
+    // fetch the fixed decade list for the filter dropdown
+    useEffect(() => {
+        const accessToken = sessionStorage.getItem('accesstoken')
+        fetch(`${API_URL}/api/decades`, {
+            headers: {
+                'Authorization': 'Bearer ' + accessToken,
+                'Accept': 'application/json',
+            }
+        })
+            .then(res => res.ok ? res.json() : [])
+            .then(data => setDecades(Array.isArray(data) ? data : []))
+            .catch(() => setDecades([]))
+    }, [])
     
     return (
         <div style = {{...getScreenStyle(
@@ -131,7 +148,7 @@ function SearchScreen() {
                     onChange={(e) => {
                         setQuery(e.target.value)
                         setCurrentPage(0)
-                        searchSong(e.target.value, genre)
+                        searchSong(e.target.value, genre, decade)
                     }}
                     placeholder="Search songs..."
                     className = 'search-bar'
@@ -141,13 +158,27 @@ function SearchScreen() {
                     onChange={(e) => {
                         setGenre(e.target.value)
                         setCurrentPage(0)
-                        searchSong(query, e.target.value)
+                        searchSong(query, e.target.value, decade)
                     }}
                     className = 'search-genre-select'
                 >
                     <option value="">All genres</option>
                     {genres.map(g => (
                         <option key={g} value={g}>{g}</option>
+                    ))}
+                </select>
+                <select
+                    value={decade}
+                    onChange={(e) => {
+                        setDecade(e.target.value)
+                        setCurrentPage(0)
+                        searchSong(query, genre, e.target.value)
+                    }}
+                    className = 'search-genre-select'
+                >
+                    <option value="">All decades</option>
+                    {decades.map(d => (
+                        <option key={d} value={d}>{d}</option>
                     ))}
                 </select>
             </div>
@@ -190,7 +221,7 @@ function SearchScreen() {
                     )
                 })()
             ) : (
-                (query || genre) && <div className='no-results'>
+                (query || genre || decade) && <div className='no-results'>
                     <p>No results found!</p>
                 </div>
             )}

@@ -36,7 +36,9 @@ psql '<DATABASE_URL>' < data/schema.sql
 
 ### 3. Deploy Backend
 - Render → "New +" → "Web Service" → connect GitHub repo
-- **Name:** `hooked_api` | **Runtime:** Python 3
+- **Name:** `hooked-1a46` (Render's `.onrender.com` subdomain is assigned at
+  creation and does not follow later renames — whatever name you pick here
+  is effectively permanent) | **Runtime:** Python 3
 - **Build:** `pip install -r requirements.txt`
 - **Start:** `python backend/app.py`
 - Environment variables:
@@ -46,28 +48,31 @@ psql '<DATABASE_URL>' < data/schema.sql
   GOOGLE_CLIENT_ID=...
   GOOGLE_CLIENT_SECRET=...
   REPLICATE_API_TOKEN=...
-  FRONTEND_URL=https://hooked.onrender.com
-  ALLOWED_ORIGINS=https://hooked.onrender.com
+  FRONTEND_URL=https://hooked-fe.onrender.com
+  ALLOWED_ORIGINS=https://hooked-fe.onrender.com
   FLASK_ENV=production
   ```
   Get `REPLICATE_API_TOKEN` from https://replicate.com/account/api-tokens (requires prepaid credit on the account).
 
 ### 4. Update Google OAuth Redirect URI
 - Google Cloud Console → OAuth Client → add redirect URI:
-  `https://hooked_api.onrender.com/auth/callback`
+  `https://hooked-1a46.onrender.com/auth/callback`
 
 ### 5. Deploy Frontend
-- Render → "New +" → "Static Site" → connect GitHub repo
-- **Name:** `hooked`
+- Render → "New +" → "Web Service" → connect GitHub repo
+  (Not a Static Site — client-side routing needs a fallback to `index.html`
+  on unknown paths, which `serve -s` below handles; Render's Static Site
+  rewrite rules work too, but this app's services are both Web Services.)
+- **Name:** `hooked-fe` | **Runtime:** Node
 - **Build:** `cd frontend && npm install && npm run build`
-- **Publish Directory:** `frontend/build`
+- **Start:** `cd frontend && npx serve -s build -l $PORT`
 - Environment variables:
   ```
-  REACT_APP_API_URL=https://hooked_api.onrender.com
+  REACT_APP_API_URL=https://hooked-1a46.onrender.com
   ```
 
 ### 6. Verify
-- [ ] `https://hooked_api.onrender.com/api/songs/search?params=taylor` returns data
+- [ ] `https://hooked-1a46.onrender.com/api/songs/search?params=taylor` returns data
 - [ ] Login, swiping, liked songs, and search work on frontend
 
 ---
@@ -85,7 +90,8 @@ Push to `main` — Render auto-redeploys. Or click "Redeploy latest commit" in t
 | CORS errors | Verify `FRONTEND_URL` / `ALLOWED_ORIGINS` match exact frontend URL |
 | OAuth redirects fail | Check redirect URI in Google Console matches backend URL |
 | Database errors | Re-run schema: `psql '<DATABASE_URL>' < data/schema.sql` |
-| Frontend API calls fail | Verify `REACT_APP_API_URL` in frontend environment |
+| Frontend API calls fail | Verify `REACT_APP_API_URL` in frontend environment (requires a rebuild — it's baked in at build time, not read at runtime) |
+| "Invalid Host header" on frontend | Start command must be `npx serve -s build -l $PORT`, not `npm start` (that's the CRA dev server) |
 
 ---
 

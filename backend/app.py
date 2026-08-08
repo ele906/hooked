@@ -35,6 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from data.db import get_db as _open_db
 from data.genres import keywords_for, GENRES
+from data.decades import artists_for as decade_artists_for, DECADES
 from data.cf_inference import (
     score_candidates as cf_score_candidates,
     known_user as cf_known_user,
@@ -202,39 +203,25 @@ def refresh_accesstoken():
     return jsonify(flask_jwt_extended.create_access_token(identity=identity))
 
 DEMO_MODE = os.environ.get("DEMO_MODE", "false").lower() == "true"
-DEMO_EMAIL = "demo@hooked.local"
-DEMO_GENRES = ["pop", "rock", "hip-hop", "indie"]
 
 @app.route("/api/demo-login", methods=["POST"])
 def demo_login():
     if not DEMO_MODE:
         return jsonify({"error": "demo mode disabled"}), 404
 
+    token = uuid.uuid4().hex[:12]
+    demo_email = f"demo-{token}@hooked.local"
+    demo_username = f"demo_{token}"
+
     sql_cmd(
         """INSERT INTO users (email, username, email_verified)
-           VALUES (%s, %s, TRUE)
-           ON CONFLICT (email) DO NOTHING""",
-        (DEMO_EMAIL, "demo_user")
+           VALUES (%s, %s, TRUE)""",
+        (demo_email, demo_username)
     )
-    rows = sql_cmd("SELECT user_id FROM users WHERE email = %s", (DEMO_EMAIL,), fetch=True)
-    user_id = rows[0][0]
 
-    profile_rows = sql_cmd(
-        "SELECT 1 FROM user_profiles WHERE user_id = %s AND seed_genres IS NOT NULL",
-        (user_id,), fetch=True
-    )
-    if not profile_rows:
-        sql_cmd(
-            """INSERT INTO user_profiles (user_id, seed_genres)
-               VALUES (%s, %s)
-               ON CONFLICT (user_id) DO UPDATE
-               SET seed_genres = EXCLUDED.seed_genres""",
-            (user_id, json.dumps(DEMO_GENRES))
-        )
-
-    access = flask_jwt_extended.create_access_token(identity=DEMO_EMAIL)
-    refresh = flask_jwt_extended.create_refresh_token(identity=DEMO_EMAIL)
-    return jsonify(["demo_user", access, refresh])
+    access = flask_jwt_extended.create_access_token(identity=demo_email)
+    refresh = flask_jwt_extended.create_refresh_token(identity=demo_email)
+    return jsonify([demo_username, access, refresh])
 
 @app.route("/logoutapp", methods=["GET"])
 def logoutapp():
@@ -305,6 +292,7 @@ def signup():
 
 
 EPSILON = 0.15  # fraction of requests served randomly for exploration
+CANDIDATE_POOL_SIZE = 50  # rows pulled before picking randomly in Python, avoids ORDER BY RANDOM()
 
 # returns the DB connection for the current request, opening one if needed
 # Flask's teardown closes it automatically when the request ends
@@ -439,15 +427,25 @@ def next_song():
         # Tier 2: cold start — match the genres picked at signup, ranked by overall popularity
         if not rows:
             profile_rows = sql_cmd(
-                "SELECT seed_genres FROM user_profiles WHERE user_id = %s",
+                "SELECT seed_genres, seed_decades FROM user_profiles WHERE user_id = %s",
                 (user_id,), fetch=True
             )
             seed_genres = profile_rows[0][0] if profile_rows and profile_rows[0][0] else None
+            seed_decades = profile_rows[0][1] if profile_rows and profile_rows[0][1] else None
             genre_keywords = keywords_for(seed_genres) if seed_genres else []
+            decade_artists = decade_artists_for(seed_decades) if seed_decades else []
 
-            if genre_keywords and random.random() > EPSILON:
-                patterns = [f"%{kw}%" for kw in genre_keywords]
-                rows = sql_cmd("""
+            if (genre_keywords or decade_artists) and random.random() > EPSILON:
+                match_clauses = []
+                match_params = []
+                if genre_keywords:
+                    match_clauses.append("s.genre ILIKE ANY(%s)")
+                    match_params.append([f"%{kw}%" for kw in genre_keywords])
+                if decade_artists:
+                    match_clauses.append("a.artist_name = ANY(%s)")
+                    match_params.append(decade_artists)
+
+                candidates = sql_cmd(f"""
                     SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
                     FROM songs s
                     JOIN song_artists sa ON s.song_id = sa.song_id
@@ -456,25 +454,27 @@ def next_song():
                         SELECT song_id, COUNT(*) AS like_count FROM liked GROUP BY song_id
                     ) l ON l.song_id = s.song_id
                     WHERE s.song_id != ALL(%s)
-                    AND s.genre ILIKE ANY(%s)
-                    ORDER BY COALESCE(l.like_count, 0) DESC, RANDOM()
-                    LIMIT 1
-                """, (list(excluded_ids), patterns), fetch=True)
-                if rows:
+                    AND ({" OR ".join(match_clauses)})
+                    ORDER BY COALESCE(l.like_count, 0) DESC
+                    LIMIT {CANDIDATE_POOL_SIZE}
+                """, tuple([list(excluded_ids)] + match_params), fetch=True)
+                if candidates:
+                    rows = [random.choice(candidates)]
                     served_by = "genre_preference"
 
         # Tier 3: no CF signal, no genre match (or explicit exploration draw) — pure random
         if not rows:
-            rows = sql_cmd("""
+            candidates = sql_cmd("""
                 SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url, a.artist_name
                 FROM songs s
                 JOIN song_artists sa ON s.song_id = sa.song_id
                 JOIN artists a ON sa.artist_id = a.artist_id
                 WHERE s.song_id != ALL(%s)
-                ORDER BY RANDOM()
-                LIMIT 1
-            """, (list(excluded_ids),), fetch=True)
-            served_by = "exploration"
+                LIMIT {pool}
+            """.format(pool=CANDIDATE_POOL_SIZE), (list(excluded_ids),), fetch=True)
+            if candidates:
+                rows = [random.choice(candidates)]
+                served_by = "exploration"
 
         if not rows:
             app.logger.warning(f"next_song for user {user_id}: no available songs")
@@ -524,6 +524,12 @@ def delete_song_action(song_id):
 def get_genres():
     return jsonify(GENRES)
 
+# returns the fixed list of decade keys used for filtering/onboarding
+@app.route("/api/decades", methods=["GET"])
+@flask_jwt_extended.jwt_required()
+def get_decades():
+    return jsonify(DECADES)
+
 # this is for the search bar function...
 @app.route("/api/songs/search", methods=["GET"])
 @flask_jwt_extended.jwt_required()
@@ -534,8 +540,9 @@ def search_songs():
 
     query = request.args.get("params", "")
     genre = request.args.get("genre", "")
+    decade = request.args.get("decade", "")
 
-    if not query and not genre:
+    if not query and not genre and not decade:
         return jsonify({"error": "params parameter is required"}), 400
 
     query = query[:MAX_SEARCH_LEN]  # truncate oversized input
@@ -550,6 +557,12 @@ def search_songs():
                 "(" + " OR ".join(["s.genre ILIKE %s"] * len(keywords)) + ")"
             )
             params.extend(f"%{kw}%" for kw in keywords)
+
+    if decade:
+        artists = decade_artists_for([decade])
+        if artists:
+            where_clauses.append("a.artist_name = ANY(%s)")
+            params.append(artists)
 
     rows = sql_cmd(f"""
         SELECT s.song_id, s.song_name, s.song_image_url, s.preview_mp3_url,
@@ -778,16 +791,18 @@ def get_user_friends(username):
 def save_preferences():
     data = flask.request.get_json()
     genres = data.get('prefs', [])
+    decades = data.get('decade_prefs', [])
     user_id = current_user_id()
 
     # Create/update the user_profile entry (marks preferences as completed;
     # used both by the cold-start recommendation path and by check_password)
     sql_cmd(
-        """INSERT INTO user_profiles (user_id, seed_genres)
-           VALUES (%s, %s)
+        """INSERT INTO user_profiles (user_id, seed_genres, seed_decades)
+           VALUES (%s, %s, %s)
            ON CONFLICT (user_id) DO UPDATE
-           SET seed_genres = EXCLUDED.seed_genres""",
-        (user_id, json.dumps(genres))
+           SET seed_genres = EXCLUDED.seed_genres,
+               seed_decades = EXCLUDED.seed_decades""",
+        (user_id, json.dumps(genres), json.dumps(decades))
     )
 
     return flask.jsonify({'saved': True})

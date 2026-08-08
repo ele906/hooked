@@ -1,7 +1,7 @@
 services:
   # Backend service
   - type: web
-    name: hooked-backend
+    name: hooked-1a46
     runtime: python
     buildCommand: "cd backend && pip install -r ../requirements.txt"
     startCommand: "cd backend && python app.py"
@@ -21,12 +21,14 @@ services:
       - key: ALLOWED_ORIGINS
         value: "https://hooked-fe.onrender.com"
 
-  # Frontend service
+  # Frontend service — serves the static build via `serve`, not the CRA dev
+  # server (which rejects non-localhost Host headers, hence "Invalid Host
+  # header"). `-s` makes serve fall back to index.html for client-side routes.
   - type: web
     name: hooked-fe
     runtime: node
     buildCommand: "cd frontend && npm install && npm run build"
-    startCommand: "cd frontend && npm start"
+    startCommand: "cd frontend && npx serve -s build -l $PORT"
     envVars:
       - key: REACT_APP_API_URL
         value: "https://hooked-1a46.onrender.com"

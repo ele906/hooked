@@ -55,6 +55,7 @@ CREATE TABLE interactions (
 CREATE TABLE user_profiles (
     user_id INTEGER PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
     seed_genres JSONB,
+    seed_decades JSONB,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -46,7 +46,7 @@ function WelcomePage(){
         sessionStorage.setItem('accesstoken', accesstoken)
         sessionStorage.setItem('refreshtoken', refreshtoken)
         await fetchUser()
-        navigate('/swipe')
+        navigate('/seedprefs')
     }
 
     const handleKeyPress = useCallback((e) => {

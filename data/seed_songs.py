@@ -25,6 +25,7 @@ import psycopg
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from db import get_db
+from decades import DECADE_ARTISTS
 
 # Wrapper so threads can log without corrupting tqdm bars
 def _tlog(msg):
@@ -138,29 +139,9 @@ ARTISTS_BY_GENRE = {
     ],
 }
 
-# Curated classic artists by decade — iTunes doesn't let us filter by release
-# year, so these are seeded to broaden catalog era coverage, not for
-# decade-based querying. Folded into ARTISTS_BY_GENRE below so a full re-seed
-# picks them up too.
-DECADE_ARTISTS = {
-    "60s": [
-        "The Beatles", "The Beach Boys", "The Supremes", "Otis Redding",
-        "Bob Dylan", "Aretha Franklin", "The Rolling Stones", "Sam Cooke",
-    ],
-    "70s": [
-        "Fleetwood Mac", "Stevie Wonder", "Earth, Wind & Fire", "ABBA",
-        "Elton John", "Marvin Gaye", "Led Zeppelin", "The Bee Gees",
-    ],
-    "80s": [
-        "Michael Jackson", "Prince", "Whitney Houston", "Madonna",
-        "Duran Duran", "George Michael", "Tina Turner", "Cyndi Lauper",
-    ],
-    "90s": [
-        "Mariah Carey", "TLC", "Backstreet Boys", "The Notorious B.I.G.",
-        "No Doubt", "Whitney Houston", "Boyz II Men", "En Vogue",
-    ],
-}
-
+# DECADE_ARTISTS (imported from decades.py, the shared source of truth also
+# used by the /api/decades search filter) is folded into ARTISTS_BY_GENRE
+# below so a full re-seed picks up their catalogs too.
 for _artists in DECADE_ARTISTS.values():
     for _artist in _artists:
         if not any(_artist in genre_artists for genre_artists in ARTISTS_BY_GENRE.values()):

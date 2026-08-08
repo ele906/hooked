@@ -23,6 +23,8 @@ const GENRES = [
     "alternative", "metal", "indie",
 ]
 
+const DECADES = ["1950s", "1960s", "1970s", "1980s", "1990s", "2000s", "2010s", "2020s"]
+
 function SeedPreferences(){
     if (!sessionStorage.getItem('username')) {
         window.location.replace(
@@ -33,6 +35,7 @@ function SeedPreferences(){
 
     const navigate = useNavigate()
     const [selected, setSelected] = useState(new Set())
+    const [selectedDecades, setSelectedDecades] = useState(new Set())
     const { fetchUser } = useAuth() // fetch from auth
 
     function handleClickGoNext() {
@@ -47,7 +50,7 @@ function SeedPreferences(){
                 'Authorization': 'Bearer ' + sessionStorage.getItem('accesstoken'),
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ prefs: [...selected] })
+            body: JSON.stringify({ prefs: [...selected], decade_prefs: [...selectedDecades] })
         })
         if (response.status === 401 || response.status === 422) {
             window.location.replace(
@@ -60,6 +63,14 @@ function SeedPreferences(){
 
     function handlePrefClick(txt){
         setSelected(prev => {
+            const next = new Set(prev)
+            next.has(txt) ? next.delete(txt) : next.add(txt)
+            return next
+        })
+    }
+
+    function handleDecadeClick(txt){
+        setSelectedDecades(prev => {
             const next = new Set(prev)
             next.has(txt) ? next.delete(txt) : next.add(txt)
             return next
@@ -103,6 +114,24 @@ function SeedPreferences(){
                         onClick={() => handlePrefClick(genre)}
                     >
                         {genre}
+                    </button>
+                ))}
+            </div>
+
+            <h2>Decades</h2>
+
+            <div className = 'genre-grid'>
+                {DECADES.map(decade => (
+                    <button
+                        key={decade}
+                        className="pref-button"
+                        style={{
+                            backgroundColor: selectedDecades.has(decade) ? '#debff7' : '#825f9f',
+                            color: selectedDecades.has(decade) ? '#1d1133' : '#d1c1ef',
+                        }}
+                        onClick={() => handleDecadeClick(decade)}
+                    >
+                        {decade}
                     </button>
                 ))}
             </div>
