@@ -1,3 +1,8 @@
+# CPU-only wheel — plain "torch" pulls the much larger CUDA build, which
+# Render's CPU instances don't need and which risks OOM on a small plan.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.11.0
+
 anyio==4.13.0
 Authlib==1.6.9
 bcrypt==5.0.0
