@@ -1,9 +1,22 @@
+**Live app:** https://hooked-e36.onrender.com
+
 # Recommendation & generation pipeline
 
 Three models, three different jobs. Collaborative filtering personalizes song recommendations,
 a small char-level transformer generates song titles, and a pretrained transformer generates
 audio clips. A tiered fallback system ties the first piece together so no single model's cold
 start blocks the product.
+
+---
+
+## Backend
+
+The backend keeps expensive things warm instead of paying for them on every request. Postgres
+connections are held open in a pool (`data/db.py`) rather than reconnected per-request, and the
+~1–2GB MusicGen weights are loaded once into module-level globals and reused across requests
+instead of reloading from disk each time — `preload_model()` even warms this at app startup so
+it isn't the first user who eats that cost. Same idea for the title-gen model: lazy-loaded once
+on first use, then cached in memory for every call after.
 
 ---
 
