@@ -2,10 +2,10 @@
 
 # Recommendation & generation pipeline
 
-Three models, three different jobs. Collaborative filtering personalizes song recommendations,
-a small char-level transformer generates song titles, and a pretrained transformer generates
-audio clips. A tiered fallback system ties the first piece together so no single model's cold
-start blocks the product.
+Three models for three different jobs: 
+1. Collaborative filtering personalizes song recommendations,
+2. a small char-level transformer generates song titles,
+3. a pretrained transformer generates audio clips.
 
 ---
 
